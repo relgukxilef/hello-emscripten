@@ -1,0 +1,21 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Init",
+            "type": "shell",
+            "command": "cd submodules/emsdk && git pull && ./emsdk install latest && ./emsdk activate latest && source ./emsdk_env.sh",
+            "problemMatcher": []
+        },
+        {
+            "label": "Build",
+            "type": "shell",
+            "command": "mkdir -p build && cd build && emcmake cmake .. && cmake --build .",
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        }
+    ]
+}

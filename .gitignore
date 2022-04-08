@@ -1,0 +1,14 @@
+*.*
+!*.*/
+build
+
+!.gitignore
+!.gitsubmodules
+
+!*.txt
+!*.yml
+!*.md
+!*.json
+
+!*.cpp
+!*.h
