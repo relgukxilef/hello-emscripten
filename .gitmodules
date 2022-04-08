@@ -1,0 +1,4 @@
+[submodule "submodules/VulkanGL"]
+	path = submodules/VulkanGL
+	url = git@github.com:relgukxilef/VulkanGL.git
+	shallow = true
