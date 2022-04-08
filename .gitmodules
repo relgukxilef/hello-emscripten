@@ -2,3 +2,7 @@
 	path = submodules/VulkanGL
 	url = git@github.com:relgukxilef/VulkanGL.git
 	shallow = true
+[submodule "submodules/emsdk"]
+	path = submodules/emsdk
+	url = https://github.com/emscripten-core/emsdk.git
+	shallow = true
