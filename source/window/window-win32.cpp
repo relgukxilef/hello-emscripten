@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 
 #include "../utility/resource.h"
+#include "../utility/vulkan_resource.h"
 
 void glfw_check(int code) {
     if (code == GLFW_TRUE) {
@@ -42,4 +43,8 @@ VkSurfaceKHR window::get_surface() {
 
 window_internal::window_internal() {
     w = glfwCreateWindow(1280, 720, "Test", nullptr, nullptr);
+}
+
+VkSurfaceKHR window_internal::get_surface() {
+    return {}; // TODO
 }
