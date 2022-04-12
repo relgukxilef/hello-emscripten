@@ -4,7 +4,7 @@
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
 
-struct dummy_surface {} global_surface;
+#include <vulkangl/vulkangl.h>
 
 struct window_internal {
 };
@@ -20,6 +20,10 @@ window::window() {
 window::~window() {
 }
 
+VkInstance window::get_instance() {
+    return vglCreateInstanceForGL();
+}
+
 VkSurfaceKHR window::get_surface() {
-    return (VkSurfaceKHR)&global_surface;
+    return vglCreateSurfaceForGL();
 }
