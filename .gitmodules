@@ -1,6 +1,6 @@
 [submodule "submodules/VulkanGL"]
 	path = submodules/VulkanGL
-	url = git@github.com:relgukxilef/VulkanGL.git
+	url = https://github.com/relgukxilef/VulkanGL.git
 	shallow = true
 [submodule "submodules/emsdk"]
 	path = submodules/emsdk
