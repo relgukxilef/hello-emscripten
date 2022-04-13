@@ -10,6 +10,11 @@ add_executable(
     utility/window/window.h
 )
 
+target_link_libraries(
+    hello-emscripten PRIVATE
+    Vulkan-Headers
+)
+
 if (EMSCRIPTEN)
     target_sources(
         hello-emscripten PUBLIC
