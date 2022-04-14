@@ -53,6 +53,45 @@ int main() {
         throw std::runtime_error("no suitable queue found");
     }
 
+    unique_device device;
+
+    // create logical device
+    {
+        float priority = 1.0f;
+        VkDeviceQueueCreateInfo queue_create_infos[]{
+            {
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .queueFamilyIndex = graphics_queue_family,
+                .queueCount = 1,
+                .pQueuePriorities = &priority,
+            }, {
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .queueFamilyIndex = present_queue_family,
+                .queueCount = 1,
+                .pQueuePriorities = &priority,
+            }
+        };
+
+        const char* enabled_extension_names[] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        };
+
+        VkPhysicalDeviceFeatures device_features{};
+        VkDeviceCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .queueCreateInfoCount = std::size(queue_create_infos),
+            .pQueueCreateInfos = queue_create_infos,
+            .enabledExtensionCount = std::size(enabled_extension_names),
+            .ppEnabledExtensionNames = enabled_extension_names,
+            .pEnabledFeatures = &device_features
+        };
+
+        check(vkCreateDevice(
+            physical_device, &create_info, nullptr, out_ptr(device)
+        ));
+    }
+    current_device = device.get();
+
     std::cout << "Servus Welt 2!" << std::endl;
     return 0;
 }
