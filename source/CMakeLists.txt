@@ -26,11 +26,6 @@ if (EMSCRIPTEN)
         vulkangl
     )
 
-    target_compile_definitions(
-        hello-emscripten PUBLIC 
-        VK_USE_64_BIT_PTR_DEFINES
-    )
-    
     set_target_properties(hello-emscripten PROPERTIES SUFFIX ".html")
 
 else()
