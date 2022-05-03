@@ -112,7 +112,8 @@ typedef unique_vulkan_resource<VkRenderPass, vkDestroyRenderPass>
 typedef unique_vulkan_resource<VkCommandPool, vkDestroyCommandPool>
     unique_command_pool;
 
-typedef unique_resource<VkFence, vulkan_wait_and_delete_fence> unique_fence;
+typedef unique_resource<VkFence, vulkan_wait_and_delete_fence, VK_NULL_HANDLE> 
+    unique_fence;
 
 typedef unique_vulkan_resource<VkSemaphore, vkDestroySemaphore>
     unique_semaphore;
