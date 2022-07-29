@@ -1,0 +1,10 @@
+[
+    {
+        "name": "Emscripten",
+        "compilers": {
+            "C": "emcc",
+            "CXX": "em++"
+        },
+        "cmakeSettings": {"EMSCRIPTEN": "ON"}
+    }
+]
