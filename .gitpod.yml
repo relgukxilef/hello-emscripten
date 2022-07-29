@@ -1,0 +1,10 @@
+image: emscripten/emsdk
+
+ports:
+  - port: 6080
+    onOpen: open-preview
+
+vscode:
+  extensions:
+    - ms-vscode.cmake-tools
+
