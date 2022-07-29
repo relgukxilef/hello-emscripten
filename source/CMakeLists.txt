@@ -8,6 +8,8 @@ add_executable(
     utility/resource.h
     utility/vulkan_resource.h
     utility/vulkan_resource.cpp
+    visuals/visuals.h
+    visuals/visuals.cpp
 )
 
 target_link_libraries(
