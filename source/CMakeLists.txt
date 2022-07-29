@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 
 add_executable(
     hello-emscripten
-    main.cpp
+    hello.h
+    hello.cpp
     utility/out_ptr.h
     utility/resource.h
     utility/vulkan_resource.h
     utility/vulkan_resource.cpp
-    utility/window/window.h
 )
 
 target_link_libraries(
@@ -18,7 +18,7 @@ target_link_libraries(
 if (EMSCRIPTEN)
     target_sources(
         hello-emscripten PUBLIC
-        utility/window/window-em.cpp
+        main-ems.cpp
     )
 
     target_link_libraries(
@@ -31,7 +31,7 @@ if (EMSCRIPTEN)
 else()
     target_sources(
         hello-emscripten PUBLIC
-        utility/window/window-vk-glfw.cpp
+        main-vk-glfw.cpp
     )
 
     target_link_libraries(

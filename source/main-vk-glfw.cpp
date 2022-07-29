@@ -1,29 +1,39 @@
-#include "window.h"
-
+#include <cstdio>
 #include <stdexcept>
-#include <iostream>
 #include <cstring>
+#include <memory>
 
 #define GLFW_INCLUDE_VULKAN
-#define GLFW_VULKAN_STATIC
 #include <GLFW/glfw3.h>
 
-#include "../resource.h"
-#include "../vulkan_resource.h"
-#include "../out_ptr.h"
+#include "hello.h"
+#include "utility/resource.h"
+#include "utility/vulkan_resource.h"
+#include "utility/out_ptr.h"
 
-void glfw_check(int code) {
-    if (code == GLFW_TRUE) {
-        return;
-    } else {
-        throw std::runtime_error("Failed to initialize GLFW");
-    }
-}
+struct glfw_error : public std::exception {
+    glfw_error() noexcept {};
+
+    const char *what() const noexcept override {
+        return "Other glfw error.";
+    };
+};
 
 struct unique_glfw {
-    unique_glfw() { glfw_check(glfwInit()); }
+    unique_glfw() {
+        if (!glfwInit())
+            throw glfw_error();
+    }
     ~unique_glfw() { glfwTerminate(); }
+
+    unique_glfw(const unique_glfw&) = delete;
 };
+
+GLFWwindow* check(GLFWwindow* w) {
+    if (w == nullptr)
+        throw glfw_error();
+    return w;
+}
 
 void glfw_delete_window(GLFWwindow** window) {
     glfwDestroyWindow(*window);
@@ -31,25 +41,8 @@ void glfw_delete_window(GLFWwindow** window) {
 
 using unique_window = unique_resource<GLFWwindow*, glfw_delete_window>;
 
-struct window_internal {
-    window_internal();
-
-    unique_glfw glfw;
-    unique_instance instance;
-    unique_window glfw_window;
-    unique_surface surface;
-};
-
-window::window() : internal(std::make_unique<window_internal>()) {}
-
-window::~window() {}
-
-VkInstance window::get_instance() {
-    return internal->instance.get();
-}
-
-VkSurfaceKHR window::get_surface() {
-    return internal->surface.get();
+void error_callback(int error, const char* description) {
+    std::fprintf(stderr, "Error %i: %s\n", error, description);
 }
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
@@ -59,20 +52,26 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     void*
 ) {
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        std::cerr << "validation layer error: " << callback_data->pMessage <<
-            std::endl;
+        std::fprintf(
+            stderr, "Validation layer error: %s", callback_data->pMessage
+        );
         // ignore error caused by Nsight
         if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
-            throw std::runtime_error("vulkan error");
+            throw std::runtime_error("Vulkan error");
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        std::cout << "validation layer warning: " << callback_data->pMessage <<
-            std::endl;
+        std::fprintf(
+            stderr, "Validation layer warning: %s", callback_data->pMessage
+        );
     }
 
     return VK_FALSE;
 }
 
-window_internal::window_internal() {
+int main() {
+    unique_glfw glfw;
+
+    glfwSetErrorCallback(error_callback);
+
     // set up error handling
     VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -108,6 +107,7 @@ window_internal::window_internal() {
         extensions.get() + glfw_extension_count
     );
 
+    unique_instance instance;
     VkInstanceCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = &debug_utils_messenger_create_info,
@@ -118,8 +118,23 @@ window_internal::window_internal() {
     current_instance = instance.get();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfw_window = glfwCreateWindow(1280, 720, "Test", nullptr, nullptr);
+    unique_window window(check(glfwCreateWindow(
+        1920, 1080, "Hello", nullptr, nullptr
+    )));
+
+    unique_surface surface;
     check(glfwCreateWindowSurface(
-        instance.get(), glfw_window.get(), nullptr, out_ptr(surface))
+        instance.get(), window.get(), nullptr, out_ptr(surface))
     );
+
+    hello h(instance.get(), surface.get());
+
+    while (!glfwWindowShouldClose(window.get()))
+    {
+        h.draw();
+
+        glfwPollEvents();
+    }
+
+    return 0;
 }

@@ -5,6 +5,7 @@
 
 struct window_internal;
 
+// TODO: can this be removed?
 struct window {
     window();
     ~window();
