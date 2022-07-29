@@ -1,8 +1,11 @@
+#include "hello.h"
+
 #include <iostream>
 #include <cstring>
+#include <memory>
+
 #include <vulkan/vulkan_core.h>
 
-#include "utility/window/window.h"
 #include "utility/vulkan_resource.h"
 #include "utility/out_ptr.h"
 
@@ -26,9 +29,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     return VK_FALSE;
 }
 
-int main() {
-    window w;
-
+hello::hello(VkInstance instance, VkSurfaceKHR surface) {
     // create debug utils messenger
     VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -45,28 +46,26 @@ int main() {
     };
     auto vkCreateDebugUtilsMessengerEXT =
         (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-            w.get_instance(), "vkCreateDebugUtilsMessengerEXT"
+            instance, "vkCreateDebugUtilsMessengerEXT"
     );
     unique_debug_utils_messenger debug_utils_messenger;
     {
         check(vkCreateDebugUtilsMessengerEXT(
-            w.get_instance(), &debug_utils_messenger_create_info, nullptr,
+            instance, &debug_utils_messenger_create_info, nullptr,
             out_ptr(debug_utils_messenger)
         ));
     }
 
-    VkSurfaceKHR surface(w.get_surface());
-
     VkPhysicalDevice physical_device;
 
     uint32_t device_count = 0;
-    vkEnumeratePhysicalDevices(w.get_instance(), &device_count, nullptr);
+    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
     {
         auto devices = std::make_unique<VkPhysicalDevice[]>(device_count);
         check(vkEnumeratePhysicalDevices(
-            w.get_instance(), &device_count, devices.get()
+            instance, &device_count, devices.get()
         ));
-        
+
         physical_device = devices[0]; // just pick the first one
     }
 
@@ -317,5 +316,8 @@ int main() {
     check(vkEndCommandBuffer(command_buffer));
 
     std::cout << "Servus Welt 3!" << std::endl;
-    return 0;
+}
+
+void hello::draw() {
+
 }
