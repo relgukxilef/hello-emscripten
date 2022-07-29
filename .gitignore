@@ -5,6 +5,8 @@ build*
 !.gitignore
 !.gitsubmodules
 
+!*.Dockerfile
+
 !*.txt
 !*.yml
 !*.md

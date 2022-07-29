@@ -1,4 +1,5 @@
-image: emscripten/emsdk
+image:
+  file: .gitpod.Dockerfile
 
 ports:
   - port: 6080
