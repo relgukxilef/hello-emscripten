@@ -5,12 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "pwa-chrome",
+            "command": "http-server ${workspaceFolder}/build/source",
+            "name": "Serve",
             "request": "launch",
-            "name": "Launch Chrome against localhost",
-            "url": "http://localhost:8000",
-            "webRoot": "${workspaceFolder}",
-            "preLaunchTask": "Run"
+            "type": "node-terminal"
         }
     ]
 }

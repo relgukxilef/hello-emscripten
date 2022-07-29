@@ -27,6 +27,7 @@ if (EMSCRIPTEN)
     )
 
     set_target_properties(hello-emscripten PROPERTIES SUFFIX ".html")
+    set_target_properties(hello-emscripten PROPERTIES OUTPUT_NAME "index")
 
 else()
     target_sources(
