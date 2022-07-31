@@ -3,6 +3,7 @@
 #include <cstring>
 #include <memory>
 #include <cstdio>
+#include <algorithm>
 
 #include "../utility/out_ptr.h"
 
@@ -307,5 +308,4 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
 }
 
 void visuals::draw() {
-
 }
