@@ -6,7 +6,7 @@
 
 struct hello {
     hello(VkInstance instance, VkSurfaceKHR surface);
-    void draw();
+    void draw(VkInstance instance, VkSurfaceKHR surface);
 
-    visuals visuals;
+    std::unique_ptr<visuals> visuals;
 };

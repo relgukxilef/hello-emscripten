@@ -2,14 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 
 add_executable(
     hello-emscripten
-    hello.h
-    hello.cpp
+    hello.h hello.cpp
     utility/out_ptr.h
     utility/resource.h
-    utility/vulkan_resource.h
-    utility/vulkan_resource.cpp
-    visuals/visuals.h
-    visuals/visuals.cpp
+    utility/vulkan_resource.h utility/vulkan_resource.cpp
+    visuals/visuals.h visuals/visuals.cpp
+    visuals/view.h visuals/view.cpp
 )
 
 target_link_libraries(

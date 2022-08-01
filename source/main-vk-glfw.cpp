@@ -131,7 +131,7 @@ int main() {
 
     while (!glfwWindowShouldClose(window.get()))
     {
-        h.draw();
+        h.draw(instance.get(), surface.get());
 
         glfwPollEvents();
     }

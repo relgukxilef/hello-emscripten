@@ -17,7 +17,7 @@ EM_BOOL request_animation_frame(double time, void* userData) {
     vglSetCurrentSurfaceExtent(
         { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
     );
-    h->draw();
+    h->draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
     return EM_TRUE;
 }
