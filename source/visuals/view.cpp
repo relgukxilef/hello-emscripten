@@ -1,5 +1,7 @@
 #include "view.h"
 
+#include <algorithm>
+#include <cinttypes>
 #include <memory>
 
 #include "visuals.h"
@@ -66,11 +68,11 @@ view::view(visuals &v) {
 
     VkExtent2D extent = {
         std::max(
-            std::min<uint32_t>(width, capabilities.maxImageExtent.width),
+            std::min<std::uint32_t>(width, capabilities.maxImageExtent.width),
             capabilities.minImageExtent.width
         ),
         std::max(
-            std::min<uint32_t>(height, capabilities.maxImageExtent.height),
+            std::min<std::uint32_t>(height, capabilities.maxImageExtent.height),
             capabilities.minImageExtent.height
         )
     };
@@ -221,7 +223,8 @@ VkResult view::draw(visuals &v) {
         VkPresentInfoKHR present_info{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &images[image_index].draw_finished_semaphore.get(),
+            .pWaitSemaphores = 
+                &images[image_index].draw_finished_semaphore.get(),
             .swapchainCount = 1,
             .pSwapchains = &swapchain.get(),
             .pImageIndices = &image_index,
