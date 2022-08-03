@@ -31,7 +31,7 @@ int main() {
 
     h.reset(new hello(vglCreateInstanceForGL(), vglCreateSurfaceForGL()));
 
-    emscripten_request_animation_frame_loop(request_animation_frame, 0);
+    emscripten_request_animation_frame_loop(request_animation_frame, nullptr);
 
     return 0;
 }

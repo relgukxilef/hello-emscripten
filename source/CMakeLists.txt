@@ -28,6 +28,10 @@ if (EMSCRIPTEN)
 
     set_target_properties(hello-emscripten PROPERTIES SUFFIX ".html")
     set_target_properties(hello-emscripten PROPERTIES OUTPUT_NAME "index")
+    target_compile_options(hello-emscripten PRIVATE -fsanitize=address)
+    target_link_options(
+        hello-emscripten PRIVATE -fsanitize=address -sNO_EXIT_RUNTIME
+    )
 
 else()
     target_sources(

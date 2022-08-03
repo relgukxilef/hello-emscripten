@@ -140,7 +140,7 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
 
 void visuals::draw() {
     if (view) {
-        while (view->draw(*this) != VK_SUCCESS) {
+        if (view->draw(*this) != VK_SUCCESS) {
             view.reset(); // delete first
             view.reset(new ::view(*this));
         }

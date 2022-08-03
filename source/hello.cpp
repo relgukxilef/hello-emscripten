@@ -9,13 +9,14 @@
 hello::hello(VkInstance instance, VkSurfaceKHR surface) :
     visuals(new ::visuals(instance, surface))
 {
-    printf("Servus Welt 3!");
+    std::printf("Servus Welt 3!\n");
 }
 
 void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
     try {
         visuals->draw();
     } catch (vulkan_error& error) {
+        std::fprintf(stderr, "Vulkan error. %s\n", error.what());
         if (error.result == VK_ERROR_DEVICE_LOST) {
             visuals.reset();
             visuals.reset(new ::visuals(instance, surface));
