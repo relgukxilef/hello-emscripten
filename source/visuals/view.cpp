@@ -66,7 +66,7 @@ view::view(visuals &v) {
     unsigned width = capabilities.currentExtent.width;
     unsigned height = capabilities.currentExtent.height;
 
-    VkExtent2D extent = {
+    surface_extent = {
         std::max(
             std::min<std::uint32_t>(width, capabilities.maxImageExtent.width),
             capabilities.minImageExtent.width
@@ -87,7 +87,7 @@ view::view(visuals &v) {
             .minImageCount = capabilities.minImageCount,
             .imageFormat = surface_format.format,
             .imageColorSpace = surface_format.colorSpace,
-            .imageExtent = extent,
+            .imageExtent = surface_extent,
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode = VK_SHARING_MODE_CONCURRENT,
@@ -116,6 +116,56 @@ view::view(visuals &v) {
         v.device.get(), swapchain.get(), &image_count, swapchain_images.get()
     ));
 
+    auto attachments = {
+        VkAttachmentDescription{
+            .format = surface_format.format,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+        },
+    };
+    auto attachment_references = {
+        VkAttachmentReference{
+            .attachment = 0,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        },
+    };
+    auto subpasses = {
+        VkSubpassDescription{
+            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+            .colorAttachmentCount =
+                static_cast<uint32_t>(attachment_references.size()),
+            .pColorAttachments = attachment_references.begin(),
+        },
+    };
+    auto subpass_dependencies = {
+        VkSubpassDependency{
+            .srcSubpass = VK_SUBPASS_EXTERNAL,
+            .dstSubpass = 0,
+            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            .srcAccessMask = 0,
+            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        },
+    };
+    VkRenderPassCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .attachmentCount = static_cast<uint32_t>(attachments.size()),
+        .pAttachments = attachments.begin(),
+        .subpassCount = static_cast<uint32_t>(subpasses.size()),
+        .pSubpasses = subpasses.begin(),
+        .dependencyCount =
+            static_cast<uint32_t>(subpass_dependencies.size()),
+        .pDependencies = subpass_dependencies.begin(),
+    };
+    check(vkCreateRenderPass(
+        v.device.get(), &create_info, nullptr, out_ptr(render_pass)
+    ));
+
     images = std::make_unique<image[]>(image_count);
 
     for (auto i = 0; i < image_count; i++) {
@@ -138,6 +188,45 @@ view::view(visuals &v) {
             out_ptr(image.draw_finished_fence)
         ));
 
+        {
+            VkImageViewCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = swapchain_images[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = surface_format.format,
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+            check(vkCreateImageView(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.image_view)
+            ));
+        }
+
+        {
+            auto attachments = {
+                image.image_view.get(),
+            };
+            VkFramebufferCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .renderPass = render_pass.get(),
+                .attachmentCount = static_cast<uint32_t>(attachments.size()),
+                .pAttachments = attachments.begin(),
+                .width = surface_extent.width,
+                .height = surface_extent.height,
+                .layers = 1,
+            };
+            check(vkCreateFramebuffer(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.framebuffer)
+            ));
+        }
+
         VkCommandBufferAllocateInfo command_buffer_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .commandPool = command_pool.get(),
@@ -153,29 +242,26 @@ view::view(visuals &v) {
         };
         check(vkBeginCommandBuffer(image.draw_command_buffer, &begin_info));
 
-        VkImageMemoryBarrier barrier = {
-            .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-            .srcAccessMask = VK_ACCESS_MEMORY_READ_BIT,
-            .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
-            .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-            .image = swapchain_images[0],
-            .subresourceRange = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .baseMipLevel = 0,
-                .levelCount = 1,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
+        VkClearValue clearValue[]{
+            {{{0.929f, 0.788f, 0.318f, 1.0f}}}, // color
         };
-        vkCmdPipelineBarrier(
-            image.draw_command_buffer,
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-            VK_DEPENDENCY_BY_REGION_BIT,
-            0, nullptr, 0, nullptr, 1, &barrier
+        VkRenderPassBeginInfo render_pass_begin_info{
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = render_pass.get(),
+            .framebuffer = image.framebuffer.get(),
+            .renderArea{
+                .offset = {0, 0},
+                .extent = surface_extent,
+            },
+            .clearValueCount = std::size(clearValue),
+            .pClearValues = clearValue,
+        };
+        vkCmdBeginRenderPass(
+            image.draw_command_buffer, &render_pass_begin_info,
+            VK_SUBPASS_CONTENTS_INLINE
         );
+
+        vkCmdEndRenderPass(image.draw_command_buffer);
 
         check(vkEndCommandBuffer(image.draw_command_buffer));
     }
