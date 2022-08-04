@@ -68,11 +68,11 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
     surface_extent = {
         std::max(
-            std::min<std::uint32_t>(width, capabilities.maxImageExtent.width),
+            std::min<uint32_t>(width, capabilities.maxImageExtent.width),
             capabilities.minImageExtent.width
         ),
         std::max(
-            std::min<std::uint32_t>(height, capabilities.maxImageExtent.height),
+            std::min<uint32_t>(height, capabilities.maxImageExtent.height),
             capabilities.minImageExtent.height
         )
     };
@@ -91,7 +91,8 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode = VK_SHARING_MODE_CONCURRENT,
-            .queueFamilyIndexCount = std::size(queue_family_indices),
+            .queueFamilyIndexCount =
+                static_cast<uint32_t>(std::size(queue_family_indices)),
             .pQueueFamilyIndices = queue_family_indices,
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
@@ -168,7 +169,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
     images = std::make_unique<image[]>(image_count);
 
-    for (auto i = 0; i < image_count; i++) {
+    for (uint32_t i = 0; i < image_count; i++) {
         ::image& image = images[i];
 
         VkSemaphoreCreateInfo semaphore_info = {
@@ -215,7 +216,8 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             VkFramebufferCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = render_pass.get(),
-                .attachmentCount = static_cast<uint32_t>(attachments.size()),
+                .attachmentCount =
+                    static_cast<uint32_t>(attachments.size()),
                 .pAttachments = attachments.begin(),
                 .width = surface_extent.width,
                 .height = surface_extent.height,
@@ -253,7 +255,8 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .offset = {0, 0},
                 .extent = surface_extent,
             },
-            .clearValueCount = std::size(clearValue),
+            .clearValueCount =
+                static_cast<uint32_t>(std::size(clearValue)),
             .pClearValues = clearValue,
         };
         vkCmdBeginRenderPass(

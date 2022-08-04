@@ -118,9 +118,11 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
         VkPhysicalDeviceFeatures device_features{};
         VkDeviceCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .queueCreateInfoCount = std::size(queue_create_infos),
+            .queueCreateInfoCount =
+                static_cast<uint32_t>(std::size(queue_create_infos)),
             .pQueueCreateInfos = queue_create_infos,
-            .enabledExtensionCount = std::size(enabled_extension_names),
+            .enabledExtensionCount =
+                static_cast<uint32_t>(std::size(enabled_extension_names)),
             .ppEnabledExtensionNames = enabled_extension_names,
             .pEnabledFeatures = &device_features
         };
