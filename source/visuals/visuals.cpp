@@ -15,14 +15,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 ) {
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         std::fprintf(
-            stderr, "Validation layer error: %s", callback_data->pMessage
+            stderr, "Validation layer error: %s\n", callback_data->pMessage
         );
         // ignore error caused by Nsight
         if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
             throw std::runtime_error("vulkan error");
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         std::fprintf(
-            stderr, "Validation layer warning: %s", callback_data->pMessage
+            stderr, "Validation layer warning: %s\n", callback_data->pMessage
         );
     }
 
@@ -134,6 +134,14 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
     // retreive queues
     vkGetDeviceQueue(device.get(), graphics_queue_family, 0, &graphics_queue);
     vkGetDeviceQueue(device.get(), present_queue_family, 0, &present_queue);
+
+    VkSemaphoreCreateInfo create_info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+    check(vkCreateSemaphore(
+        device.get(), &create_info, nullptr,
+        out_ptr(swapchain_image_ready_semaphore)
+    ));
 
     view.reset(new ::view(*this, instance, surface));
 }

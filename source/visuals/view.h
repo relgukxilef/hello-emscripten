@@ -8,10 +8,12 @@
 
 struct image {
     VkCommandBuffer draw_command_buffer;
-    unique_fence draw_finished_fence;
-    unique_semaphore draw_finished_semaphore;
+
     unique_image_view image_view;
     unique_framebuffer framebuffer;
+
+    unique_semaphore draw_finished_semaphore;
+    unique_fence draw_finished_fence;
 };
 
 struct view {
