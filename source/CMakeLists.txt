@@ -46,5 +46,3 @@ else()
 endif()
 
 target_compile_features(hello-emscripten PUBLIC cxx_std_20)
-
-target_compile_options(hello-emscripten PRIVATE /Od /Wall)
