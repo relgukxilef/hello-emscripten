@@ -90,7 +90,7 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
             present_queue_family = i;
         }
     }
-    if (graphics_queue_family == -1u) {
+    if (graphics_queue_family == ~0u) {
         throw std::runtime_error("no suitable queue found");
     }
 
@@ -135,14 +135,14 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
     vkGetDeviceQueue(device.get(), graphics_queue_family, 0, &graphics_queue);
     vkGetDeviceQueue(device.get(), present_queue_family, 0, &present_queue);
 
-    view.reset(new ::view(*this));
+    view.reset(new ::view(*this, instance, surface));
 }
 
-void visuals::draw() {
+void visuals::draw(VkInstance instance, VkSurfaceKHR surface) {
     if (view) {
         if (view->draw(*this) != VK_SUCCESS) {
             view.reset(); // delete first
-            view.reset(new ::view(*this));
+            view.reset(new ::view(*this, instance, surface));
         }
     }
 }

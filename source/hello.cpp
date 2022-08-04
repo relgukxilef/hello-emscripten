@@ -14,7 +14,7 @@ hello::hello(VkInstance instance, VkSurfaceKHR surface) :
 
 void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
     try {
-        visuals->draw();
+        visuals->draw(instance, surface);
     } catch (vulkan_error& error) {
         std::fprintf(stderr, "Vulkan error. %s\n", error.what());
         if (error.result == VK_ERROR_DEVICE_LOST) {

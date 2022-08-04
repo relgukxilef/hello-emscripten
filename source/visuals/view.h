@@ -15,7 +15,7 @@ struct image {
 };
 
 struct view {
-    view(struct visuals& v);
+    view(struct visuals& v, VkInstance instance, VkSurfaceKHR surface);
 
     VkResult draw(struct visuals& v);
 

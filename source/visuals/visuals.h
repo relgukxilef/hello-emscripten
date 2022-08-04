@@ -11,10 +11,7 @@
 struct visuals {
     visuals(VkInstance instance, VkSurfaceKHR surface);
 
-    void draw();
-
-    VkInstance instance;
-    VkSurfaceKHR surface;
+    void draw(VkInstance instance, VkSurfaceKHR surface);
 
     unique_debug_utils_messenger debug_utils_messenger;
 

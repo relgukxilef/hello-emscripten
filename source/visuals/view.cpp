@@ -8,14 +8,14 @@
 
 #include "../utility/out_ptr.h"
 
-view::view(visuals &v) {
+view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
     // create swap chains
     uint32_t format_count = 0, present_mode_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(
-        v.physical_device, v.surface, &format_count, nullptr
+        v.physical_device, surface, &format_count, nullptr
     );
     vkGetPhysicalDeviceSurfacePresentModesKHR(
-        v.physical_device, v.surface, &present_mode_count, nullptr
+        v.physical_device, surface, &present_mode_count, nullptr
     );
     if (format_count == 0) {
         throw std::runtime_error("no surface formats supported");
@@ -28,10 +28,10 @@ view::view(visuals &v) {
         std::make_unique<VkPresentModeKHR[]>(present_mode_count);
 
     vkGetPhysicalDeviceSurfaceFormatsKHR(
-        v.physical_device, v.surface, &format_count, formats.get()
+        v.physical_device, surface, &format_count, formats.get()
     );
     vkGetPhysicalDeviceSurfacePresentModesKHR(
-        v.physical_device, v.surface, &present_mode_count, present_modes.get()
+        v.physical_device, surface, &present_mode_count, present_modes.get()
     );
 
     VkSurfaceFormatKHR surface_format;
@@ -60,7 +60,7 @@ view::view(visuals &v) {
     // view-specific resources
     VkSurfaceCapabilitiesKHR capabilities;
     check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-        v.physical_device, v.surface, &capabilities
+        v.physical_device, surface, &capabilities
     ));
 
     unsigned width = capabilities.currentExtent.width;
@@ -83,7 +83,7 @@ view::view(visuals &v) {
         };
         VkSwapchainCreateInfoKHR create_info{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-            .surface = v.surface,
+            .surface = surface,
             .minImageCount = capabilities.minImageCount,
             .imageFormat = surface_format.format,
             .imageColorSpace = surface_format.colorSpace,
@@ -279,27 +279,32 @@ VkResult view::draw(visuals &v) {
         }
         check(result);
 
+        VkFence fences[] = {images[image_index].draw_finished_fence.get()};
+
         check(vkWaitForFences(
-            v.device.get(), 1, &images[image_index].draw_finished_fence.get(),
+            v.device.get(), 1, fences,
             VK_TRUE, ~0ul
         ));
         check(vkResetFences(
-            v.device.get(), 1, &images[image_index].draw_finished_fence.get()
+            v.device.get(), 1, fences
         ));
 
-        // TODO: maybe move this to image::render
-        VkPipelineStageFlags wait_stage =
-            VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+        VkSemaphore wait_semaphores[] =
+            {v.swapchain_image_ready_semaphore.get()};
+        VkSemaphore signal_semaphores[] =
+            {images[image_index].draw_finished_semaphore.get()};
+        VkCommandBuffer buffers[] = {images[image_index].draw_command_buffer};
+        VkPipelineStageFlags wait_stage[] =
+            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT};
         VkSubmitInfo submitInfo = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &v.swapchain_image_ready_semaphore.get(),
-            .pWaitDstStageMask = &wait_stage,
+            .pWaitSemaphores = wait_semaphores,
+            .pWaitDstStageMask = wait_stage,
             .commandBufferCount = 1,
-            .pCommandBuffers = &images[image_index].draw_command_buffer,
+            .pCommandBuffers = buffers,
             .signalSemaphoreCount = 1,
-            .pSignalSemaphores =
-                &images[image_index].draw_finished_semaphore.get(),
+            .pSignalSemaphores = signal_semaphores,
         };
         check(vkQueueSubmit(
             v.graphics_queue, 1, &submitInfo,
