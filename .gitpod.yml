@@ -3,7 +3,6 @@ image:
 
 ports:
   - port: 8080
-    onOpen: open-preview
 
 vscode:
   extensions:

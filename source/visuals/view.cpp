@@ -117,55 +117,57 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         v.device.get(), swapchain.get(), &image_count, swapchain_images.get()
     ));
 
-    auto attachments = {
-        VkAttachmentDescription{
-            .format = surface_format.format,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        },
-    };
-    auto attachment_references = {
-        VkAttachmentReference{
-            .attachment = 0,
-            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        },
-    };
-    auto subpasses = {
-        VkSubpassDescription{
-            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount =
-                static_cast<uint32_t>(attachment_references.size()),
-            .pColorAttachments = attachment_references.begin(),
-        },
-    };
-    auto subpass_dependencies = {
-        VkSubpassDependency{
-            .srcSubpass = VK_SUBPASS_EXTERNAL,
-            .dstSubpass = 0,
-            .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .srcAccessMask = 0,
-            .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        },
-    };
-    VkRenderPassCreateInfo create_info = {
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-        .attachmentCount = static_cast<uint32_t>(attachments.size()),
-        .pAttachments = attachments.begin(),
-        .subpassCount = static_cast<uint32_t>(subpasses.size()),
-        .pSubpasses = subpasses.begin(),
-        .dependencyCount =
-            static_cast<uint32_t>(subpass_dependencies.size()),
-        .pDependencies = subpass_dependencies.begin(),
-    };
-    check(vkCreateRenderPass(
-        v.device.get(), &create_info, nullptr, out_ptr(render_pass)
-    ));
+    {
+        auto attachments = {
+            VkAttachmentDescription{
+                .format = surface_format.format,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+            },
+        };
+        auto attachment_references = {
+            VkAttachmentReference{
+                .attachment = 0,
+                .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            },
+        };
+        auto subpasses = {
+            VkSubpassDescription{
+                .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+                .colorAttachmentCount =
+                    static_cast<uint32_t>(attachment_references.size()),
+                .pColorAttachments = attachment_references.begin(),
+            },
+        };
+        auto subpass_dependencies = {
+            VkSubpassDependency{
+                .srcSubpass = VK_SUBPASS_EXTERNAL,
+                .dstSubpass = 0,
+                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .srcAccessMask = 0,
+                .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            },
+        };
+        VkRenderPassCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+            .attachmentCount = static_cast<uint32_t>(attachments.size()),
+            .pAttachments = attachments.begin(),
+            .subpassCount = static_cast<uint32_t>(subpasses.size()),
+            .pSubpasses = subpasses.begin(),
+            .dependencyCount =
+                static_cast<uint32_t>(subpass_dependencies.size()),
+            .pDependencies = subpass_dependencies.begin(),
+        };
+        check(vkCreateRenderPass(
+            v.device.get(), &create_info, nullptr, out_ptr(render_pass)
+        ));
+    }
 
     images = std::make_unique<image[]>(image_count);
 

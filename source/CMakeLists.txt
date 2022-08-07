@@ -30,7 +30,9 @@ if (EMSCRIPTEN)
     set_target_properties(hello-emscripten PROPERTIES OUTPUT_NAME "index")
     target_compile_options(hello-emscripten PRIVATE -fsanitize=address)
     target_link_options(
-        hello-emscripten PRIVATE -fsanitize=address -sNO_EXIT_RUNTIME
+        hello-emscripten PRIVATE 
+        -fsanitize=address -sNO_EXIT_RUNTIME
+        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
     )
 
 else()
