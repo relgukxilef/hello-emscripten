@@ -73,10 +73,10 @@ typedef unique_resource<
     VK_NULL_HANDLE
 > unique_debug_utils_messenger;
 
-typedef unique_resource<VkInstance, vulkan_delete_instance, nullptr>
+typedef unique_resource<VkInstance, vulkan_delete_instance>
     unique_instance;
 
-typedef unique_resource<VkDevice, vulkan_delete_device, nullptr>
+typedef unique_resource<VkDevice, vulkan_delete_device>
     unique_device;
 
 typedef unique_resource<VkSurfaceKHR, vulkan_delete_surface, VK_NULL_HANDLE>
