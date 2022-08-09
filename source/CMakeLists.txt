@@ -2,14 +2,12 @@ cmake_minimum_required(VERSION 3.13)
 
 add_executable(
     hello-emscripten
-    hello.h
-    hello.cpp
+    hello.h hello.cpp
     utility/out_ptr.h
     utility/resource.h
-    utility/vulkan_resource.h
-    utility/vulkan_resource.cpp
-    visuals/visuals.h
-    visuals/visuals.cpp
+    utility/vulkan_resource.h utility/vulkan_resource.cpp
+    visuals/visuals.h visuals/visuals.cpp
+    visuals/view.h visuals/view.cpp
 )
 
 target_link_libraries(
@@ -30,6 +28,12 @@ if (EMSCRIPTEN)
 
     set_target_properties(hello-emscripten PROPERTIES SUFFIX ".html")
     set_target_properties(hello-emscripten PROPERTIES OUTPUT_NAME "index")
+    target_compile_options(hello-emscripten PRIVATE -fsanitize=address)
+    target_link_options(
+        hello-emscripten PRIVATE 
+        -fsanitize=address -sNO_EXIT_RUNTIME
+        -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
+    )
 
 else()
     find_package(glfw3 3.3 REQUIRED)
@@ -46,4 +50,4 @@ else()
     )
 endif()
 
-target_compile_features(hello-emscripten PUBLIC cxx_std_17)
+target_compile_features(hello-emscripten PUBLIC cxx_std_20)
