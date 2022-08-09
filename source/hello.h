@@ -8,5 +8,5 @@ struct hello {
     hello(VkInstance instance, VkSurfaceKHR surface);
     void draw();
 
-    visuals visuals;
+    ::visuals visuals;
 };
