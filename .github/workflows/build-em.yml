@@ -11,6 +11,7 @@ env:
   BUILD_TYPE: Release
   CXX: em++ 
   CC: emcc
+  EMSCRIPTEN: ON
 
 jobs:
   build:
@@ -33,7 +34,7 @@ jobs:
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target hello-gl
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
     - name: Test
       working-directory: ${{github.workspace}}/build
