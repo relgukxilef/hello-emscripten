@@ -42,6 +42,9 @@ if (EMSCRIPTEN)
     )
 
 else()
+    find_package(glfw3 3.3 REQUIRED)
+    find_package(Vulkan)
+
     add_executable(
         hello-gl
         main-gl-glfw.cpp
@@ -49,7 +52,7 @@ else()
 
     target_link_libraries(
         hello-gl PUBLIC
-        glfw3 glew32s opengl32
+        Vulkan::Vulkan glfw
     )
 
     target_compile_definitions(hello-gl PRIVATE GLEW_STATIC)

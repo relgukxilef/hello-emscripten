@@ -26,6 +26,6 @@ struct visuals {
 
     VkQueue graphics_queue, present_queue;
 
-    std::unique_ptr<view> view;
+    std::unique_ptr<::view> view;
 };
 
