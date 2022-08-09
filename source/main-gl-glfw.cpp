@@ -56,8 +56,6 @@ int main() {
 
     glfwMakeContextCurrent(window.get());
 
-    glewInit();
-
     int width, height;
     glfwGetWindowSize(window.get(), &width, &height);
     vglSetCurrentSurfaceExtent(

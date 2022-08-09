@@ -15,17 +15,6 @@ target_link_libraries(
     Vulkan-Headers
 )
 
-add_executable(
-    hello-vk
-    main-vk-glfw.cpp
-)
-
-target_link_libraries(
-    hello-vk PRIVATE
-    hello
-    vulkan-1 glfw3
-)
-
 if (EMSCRIPTEN)
     add_executable(
         hello-gl
@@ -44,15 +33,33 @@ if (EMSCRIPTEN)
 else()
     find_package(glfw3 3.3 REQUIRED)
     find_package(Vulkan)
+    find_package(OpenGL)
+
+    target_link_libraries(
+        hello PRIVATE
+        glfw
+    )
+
+    add_executable(
+        hello-vk
+        main-vk-glfw.cpp
+    )
 
     add_executable(
         hello-gl
         main-gl-glfw.cpp
+        egl.c gles2.c
     )
 
     target_link_libraries(
         hello-gl PUBLIC
-        Vulkan::Vulkan glfw
+        OpenGL::GL
+    )
+
+    target_link_libraries(
+        hello-vk PUBLIC
+        hello
+        Vulkan::Vulkan
     )
 
     target_compile_definitions(hello-gl PRIVATE GLEW_STATIC)
@@ -65,4 +72,3 @@ target_link_libraries(
 )
 
 target_compile_features(hello PUBLIC cxx_std_20)
-target_compile_features(hello-gl PUBLIC cxx_std_20)
