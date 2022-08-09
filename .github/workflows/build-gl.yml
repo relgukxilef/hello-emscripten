@@ -1,4 +1,4 @@
-name: Build for Vulkan
+name: Build for OpenGL
 
 on:
   push:
