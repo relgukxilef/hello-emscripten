@@ -21,7 +21,7 @@ jobs:
 
     steps:
     - name: Install Dependencies
-      run: sudo apt-get update && apt-get install libglfw3-dev libvulkan1 
+      run: sudo apt-get update && apt-get install -y libglfw3-dev libvulkan1 
     
     - uses: actions/checkout@v3
       with:
