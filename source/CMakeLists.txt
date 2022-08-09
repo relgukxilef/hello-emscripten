@@ -32,6 +32,9 @@ if (EMSCRIPTEN)
     set_target_properties(hello-emscripten PROPERTIES OUTPUT_NAME "index")
 
 else()
+    find_package(glfw3 3.3 REQUIRED)
+    find_package(Vulkan)
+
     target_sources(
         hello-emscripten PUBLIC
         main-vk-glfw.cpp
@@ -39,7 +42,7 @@ else()
 
     target_link_libraries(
         hello-emscripten PRIVATE 
-        vulkan-1 glfw3
+        Vulkan::Vulkan glfw
     )
 endif()
 
