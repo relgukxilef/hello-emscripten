@@ -48,6 +48,10 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build $GITHUB_WORKSPACE/build --config ${{env.BUILD_TYPE}}
       
+    - name: List
+      run: ls $GITHUB_WORKSPACE
+    - run: pwd
+      
   deploy:
     needs: build
     environment:
@@ -56,6 +60,10 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: List
+      run: ls $GITHUB_WORKSPACE
+    - run: pwd
+      
     - name: Setup Pages
       uses: actions/configure-pages@v1
     - name: Upload artifact
