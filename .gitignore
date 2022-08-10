@@ -13,4 +13,5 @@ build*
 !*.json
 
 !*.cpp
+!*.c
 !*.h

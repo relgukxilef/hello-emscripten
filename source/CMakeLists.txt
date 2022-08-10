@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
-add_executable(
-    hello-emscripten
+add_library(
+    hello STATIC
     hello.h hello.cpp
     utility/out_ptr.h
     utility/resource.h
@@ -11,26 +11,21 @@ add_executable(
 )
 
 target_link_libraries(
-    hello-emscripten PRIVATE
+    hello PRIVATE
     Vulkan-Headers
 )
 
 if (EMSCRIPTEN)
-    target_sources(
-        hello-emscripten PUBLIC
+    add_executable(
+        hello-gl
         main-em.cpp
     )
 
-    target_link_libraries(
-        hello-emscripten PRIVATE 
-        vulkangl
-    )
-
-    set_target_properties(hello-emscripten PROPERTIES SUFFIX ".html")
-    set_target_properties(hello-emscripten PROPERTIES OUTPUT_NAME "index")
-    target_compile_options(hello-emscripten PRIVATE -fsanitize=address)
+    set_target_properties(hello-gl PROPERTIES SUFFIX ".html")
+    set_target_properties(hello-gl PROPERTIES OUTPUT_NAME "index")
+    target_compile_options(hello-gl PRIVATE -fsanitize=address)
     target_link_options(
-        hello-emscripten PRIVATE 
+        hello-gl PRIVATE
         -fsanitize=address -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
     )
@@ -38,16 +33,42 @@ if (EMSCRIPTEN)
 else()
     find_package(glfw3 3.3 REQUIRED)
     find_package(Vulkan)
+    find_package(OpenGL)
 
-    target_sources(
-        hello-emscripten PUBLIC
+    target_link_libraries(
+        hello PRIVATE
+        glfw
+    )
+
+    add_executable(
+        hello-vk
         main-vk-glfw.cpp
     )
 
-    target_link_libraries(
-        hello-emscripten PRIVATE 
-        Vulkan::Vulkan glfw
+    add_executable(
+        hello-gl
+        main-gl-glfw.cpp
+        egl.c gles2.c
     )
+
+    target_link_libraries(
+        hello-gl PUBLIC
+        OpenGL::GL
+    )
+
+    target_link_libraries(
+        hello-vk PUBLIC
+        hello
+        Vulkan::Vulkan
+    )
+
+    target_compile_definitions(hello-gl PRIVATE GLEW_STATIC)
 endif()
 
-target_compile_features(hello-emscripten PUBLIC cxx_std_20)
+target_link_libraries(
+    hello-gl PRIVATE
+    hello
+    vulkangl
+)
+
+target_compile_features(hello PUBLIC cxx_std_20)

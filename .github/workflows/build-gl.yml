@@ -1,4 +1,4 @@
-name: Build for Vulkan
+name: Build for OpenGL
 
 on:
   push:
@@ -21,7 +21,7 @@ jobs:
 
     steps:
     - name: Install Dependencies
-      run: sudo apt-get update && apt-get install -y libglfw3-dev libvulkan1 
+      run: sudo apt-get update && apt-get install -y libglfw3-dev libgl-dev
     
     - uses: actions/checkout@v3
       with:
@@ -34,4 +34,4 @@ jobs:
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target hello-vk
+      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target hello-gl
