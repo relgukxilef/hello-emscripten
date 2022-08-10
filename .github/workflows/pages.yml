@@ -54,7 +54,7 @@ jobs:
     - run: ls $GITHUB_WORKSPACE
     - run: pwd
     
-    - run: mkdir ${{runner.temp}}
+    - run: mkdir -p ${{runner.temp}}
 
     - name: Setup Pages
       uses: actions/configure-pages@v1
