@@ -25,12 +25,13 @@ env:
   BUILD_TYPE: Release
   CXX: em++ 
   CC: emcc
-  name: github-pages
-  url: ${{steps.deployment.outputs.page_url}}
 
 jobs:
   # Single deploy job since we're just deploying
   build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{steps.deployment.outputs.page_url}}
     runs-on: ubuntu-latest
     container:
      image: emscripten/emsdk
