@@ -28,25 +28,52 @@ env:
 
 jobs:
   # Single deploy job since we're just deploying
-  build-and-deploy:
+  build:
+    runs-on: ubuntu-latest
+    container:
+     image: emscripten/emsdk
+     
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+      
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      run: cmake -B $GITHUB_WORKSPACE/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DEMSCRIPTEN=ON
+
+    - name: Build
+      # Build your program with the given configuration
+      run: cmake --build $GITHUB_WORKSPACE/build --config ${{env.BUILD_TYPE}}
+      
+    
+    - uses: actions/upload-artifact@master
+      with:
+        name: page
+        path: $GITHUB_WORKSPACE/build/source
+    
+  deploy:
+    needs: build
     environment:
       name: github-pages
       url: ${{steps.deployment.outputs.page_url}}
+      
     runs-on: ubuntu-latest
-    container:
-      image: emscripten/emsdk
-
+      
     steps:
-    - uses: actions/checkout@v3
-    - run: cmake -B $GITHUB_WORKSPACE/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DEMSCRIPTEN=ON
-    - run: cmake --build $GITHUB_WORKSPACE/build --config ${{env.BUILD_TYPE}}
-
-    # actions/upload-pages-artifact uses this directory, but it doesn't exist in the image
-    - run: mkdir -p ${{runner.temp}}
-
-    - uses: actions/configure-pages@v1
-    - uses: actions/upload-pages-artifact@v1
+    - uses: actions/download-artifact@master
       with:
-        path: $GITHUB_WORKSPACE/build/source
-    - id: deployment
-      uses: actions/deploy-pages@v1  
+        name: page
+        path: .
+    - name: Setup Pages
+      uses: actions/configure-pages@v1
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v1
+      with:
+        # Upload entire repository
+        path: .
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@main
