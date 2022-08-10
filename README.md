@@ -4,6 +4,7 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/relgukxilef/hello-emscripten)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/relgukxilef/hello-emscripten/Build%20for%20Vulkan?label=Vulkan&logo=Vulkan)
 ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/relgukxilef/hello-emscripten/Build%20for%20emscripten?label=WebGL&logo=WebGL)
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/relgukxilef/hello-emscripten/Build%20for%20OpenGL?label=OpenGL&logo=OpenGL)
 
 Experimenting with Emscripten.
 
