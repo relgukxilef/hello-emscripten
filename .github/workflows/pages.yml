@@ -25,10 +25,12 @@ env:
   BUILD_TYPE: Release
   CXX: em++ 
   CC: emcc
+  name: github-pages
+  url: ${{steps.deployment.outputs.page_url}}
 
 jobs:
   # Single deploy job since we're just deploying
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     container:
      image: emscripten/emsdk
@@ -47,30 +49,19 @@ jobs:
     - name: Build
       # Build your program with the given configuration
       run: cmake --build $GITHUB_WORKSPACE/build --config ${{env.BUILD_TYPE}}
-      
-    - name: List
-      run: ls $GITHUB_WORKSPACE
-    - run: pwd
-      
-  deploy:
-    needs: build
-    environment:
-      name: github-pages
-      url: ${{steps.deployment.outputs.page_url}}
-    runs-on: ubuntu-latest
     
-    steps:
-    - name: List
-      run: ls $GITHUB_WORKSPACE
+    - run: ls $GITHUB_WORKSPACE
     - run: pwd
-      
+    
+    - run: mkdir ${{runner.temp}}
+
     - name: Setup Pages
       uses: actions/configure-pages@v1
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v1
       with:
         # Upload entire repository
-        path: $GITHUB_WORKSPACE
+        path: $GITHUB_WORKSPACE/build/source
     - name: Deploy to GitHub Pages
       id: deployment
       uses: actions/deploy-pages@main
