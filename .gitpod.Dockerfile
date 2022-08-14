@@ -1,5 +1,5 @@
 # syntax = edrevo/dockerfile-plus
 
-INCLUDE+ Dockerfile.base hello.Dockerfile
+INCLUDE+ hello.Dockerfile
 
 RUN npm install http-server -g
