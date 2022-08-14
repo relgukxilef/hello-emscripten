@@ -61,8 +61,6 @@ else()
         hello
         Vulkan::Vulkan
     )
-
-    target_compile_definitions(hello-gl PRIVATE GLEW_STATIC)
 endif()
 
 target_link_libraries(

@@ -65,12 +65,11 @@ inline void vulkan_wait_and_delete_fence(VkFence* fence) {
 
 template<typename T, auto Deleter>
 using unique_vulkan_resource =
-    unique_resource<T, vulkan_delete<T, Deleter>, VK_NULL_HANDLE>;
+    unique_resource<T, vulkan_delete<T, Deleter>>;
 
 
 typedef unique_resource<
-    VkDebugUtilsMessengerEXT, vulkan_delete_debug_utils_messenger,
-    VK_NULL_HANDLE
+    VkDebugUtilsMessengerEXT, vulkan_delete_debug_utils_messenger
 > unique_debug_utils_messenger;
 
 typedef unique_resource<VkInstance, vulkan_delete_instance>
@@ -79,7 +78,7 @@ typedef unique_resource<VkInstance, vulkan_delete_instance>
 typedef unique_resource<VkDevice, vulkan_delete_device>
     unique_device;
 
-typedef unique_resource<VkSurfaceKHR, vulkan_delete_surface, VK_NULL_HANDLE>
+typedef unique_resource<VkSurfaceKHR, vulkan_delete_surface>
     unique_surface;
 
 typedef unique_vulkan_resource<VkShaderModule, vkDestroyShaderModule>
@@ -112,7 +111,7 @@ typedef unique_vulkan_resource<VkRenderPass, vkDestroyRenderPass>
 typedef unique_vulkan_resource<VkCommandPool, vkDestroyCommandPool>
     unique_command_pool;
 
-typedef unique_resource<VkFence, vulkan_wait_and_delete_fence, VK_NULL_HANDLE> 
+typedef unique_resource<VkFence, vulkan_wait_and_delete_fence>
     unique_fence;
 
 typedef unique_vulkan_resource<VkSemaphore, vkDestroySemaphore>

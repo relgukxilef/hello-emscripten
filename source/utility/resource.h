@@ -1,6 +1,6 @@
 #pragma once
 
-template<typename T, auto Deleter, auto Null = nullptr>
+template<typename T, auto Deleter, auto Null = T{}>
 struct unique_resource {
     typedef T pointer;
 
