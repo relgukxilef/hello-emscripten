@@ -4,8 +4,21 @@
 #include <memory>
 #include <cstdio>
 #include <algorithm>
+#include <array>
+#include <vector>
 
 #include "../utility/out_ptr.h"
+
+std::vector<uint8_t> read_file(const char* name) {
+    FILE* file;
+    fopen_s(&file, name, "rb");
+    fseek(file, 0, SEEK_END);
+    auto size = ftell(file);
+    std::vector<uint8_t> content(size);
+    fseek(file, 0, SEEK_SET);
+    fread(content.data(), sizeof(uint8_t), size, file);
+    return content;
+}
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -137,12 +150,35 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
     vkGetDeviceQueue(device.get(), graphics_queue_family, 0, &graphics_queue);
     vkGetDeviceQueue(device.get(), present_queue_family, 0, &present_queue);
 
-    VkSemaphoreCreateInfo create_info = {
-        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    {
+        VkSemaphoreCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        };
+        check(vkCreateSemaphore(
+            device.get(), &create_info, nullptr,
+            out_ptr(swapchain_image_ready_semaphore)
+        ));
+    }
+
+    // create shader modules
+    {
+        auto vertex_code = read_file("visuals/shaders/solid_vertex.glsl.spv");
+        VkShaderModuleCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = (size_t)(vertex_code.size()),
+            .pCode = reinterpret_cast<uint32_t*>(vertex_code.data()),
+        };
+        check(vkCreateShaderModule(
+            device.get(), &create_info, nullptr, out_ptr(vertex_shader_module)
+        ));
+    }
+
+    // create pipeline layouts
+    VkPipelineLayoutCreateInfo layout_create_info{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
     };
-    check(vkCreateSemaphore(
-        device.get(), &create_info, nullptr,
-        out_ptr(swapchain_image_ready_semaphore)
+    check(vkCreatePipelineLayout(
+        device.get(), &layout_create_info, nullptr, out_ptr(pipeline_layout)
     ));
 
     view.reset(new ::view(*this, instance, surface));

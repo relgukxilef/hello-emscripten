@@ -26,6 +26,10 @@ struct visuals {
 
     VkQueue graphics_queue, present_queue;
 
+    unique_shader_module vertex_shader_module, fragment_shader_module;
+
+    unique_pipeline_layout pipeline_layout;
+
     std::unique_ptr<::view> view;
 };
 

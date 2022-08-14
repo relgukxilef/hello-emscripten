@@ -169,6 +169,108 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ));
     }
 
+    // create pipelines
+    {
+        VkPipelineShaderStageCreateInfo stage_create_infos[]{
+            {
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                .module = v.vertex_shader_module.get(),
+                .pName = "main",
+            }, /*{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                .module = v.fragment_shader_module.get(),
+                .pName = "main",
+            }*/
+        };
+        VkPipelineVertexInputStateCreateInfo input_state_create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .vertexBindingDescriptionCount = 0,
+            .pVertexBindingDescriptions = nullptr,
+            .vertexAttributeDescriptionCount = 0,
+            .pVertexAttributeDescriptions = nullptr,
+        };
+        VkPipelineInputAssemblyStateCreateInfo assembly_state_create_info{
+            .sType =
+                VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .primitiveRestartEnable = VK_FALSE,
+        };
+        VkPipelineViewportStateCreateInfo viewport_state_create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            // number of viewports and scissors is still relevant
+            .viewportCount = 1,
+            .pViewports = nullptr, // dynamic
+            .scissorCount = 1,
+            .pScissors = nullptr, // dynamic
+        };
+        VkPipelineRasterizationStateCreateInfo rasterization_state_create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .depthClampEnable = VK_FALSE,
+            .rasterizerDiscardEnable = VK_FALSE,
+            .polygonMode = VK_POLYGON_MODE_FILL,
+            .cullMode = VK_CULL_MODE_BACK_BIT,
+            .frontFace = VK_FRONT_FACE_CLOCKWISE,
+            .depthBiasEnable = VK_FALSE,
+            .lineWidth = 1.0f,
+        };
+        VkPipelineMultisampleStateCreateInfo multisample_state_create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .sampleShadingEnable = VK_FALSE,
+        };
+        VkPipelineColorBlendAttachmentState color_blend_attachment_state{
+            .blendEnable = VK_FALSE,
+            .colorWriteMask =
+                VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+        };
+        VkPipelineColorBlendStateCreateInfo color_blend_state_create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .attachmentCount = 1,
+            .pAttachments = &color_blend_attachment_state,
+        };
+        VkDynamicState dynamic_state[]{
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR,
+        };
+        VkPipelineDynamicStateCreateInfo dynamic_state_create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = (size_t)std::size(dynamic_state),
+            .pDynamicStates = dynamic_state,
+        };
+        VkPipelineDepthStencilStateCreateInfo depth_stencil_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = VK_TRUE,
+            .depthWriteEnable = VK_TRUE,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .depthBoundsTestEnable = VK_FALSE,
+            .stencilTestEnable = VK_FALSE,
+        };
+        VkGraphicsPipelineCreateInfo pipeline_create_info{
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .stageCount = (size_t)std::size(stage_create_infos),
+            .pStages = stage_create_infos,
+            .pVertexInputState = &input_state_create_info,
+            .pInputAssemblyState = &assembly_state_create_info,
+            .pViewportState = &viewport_state_create_info,
+            .pRasterizationState = &rasterization_state_create_info,
+            .pMultisampleState = &multisample_state_create_info,
+            .pDepthStencilState = &depth_stencil_info,
+            .pColorBlendState = &color_blend_state_create_info,
+            .pDynamicState = &dynamic_state_create_info,
+            .layout = v.pipeline_layout.get(),
+            .renderPass = render_pass.get(),
+            .subpass = 0,
+        };
+        check(vkCreateGraphicsPipelines(
+            v.device.get(), VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr,
+            out_ptr(pipeline)
+        ));
+    }
+
     images = std::make_unique<image[]>(image_count);
 
     for (uint32_t i = 0; i < image_count; i++) {

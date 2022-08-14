@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
+include(utility.cmake)
+
 add_library(
     hello STATIC
     hello.h hello.cpp
@@ -9,6 +11,8 @@ add_library(
     visuals/visuals.h visuals/visuals.cpp
     visuals/view.h visuals/view.cpp
 )
+
+target_shader(hello visuals/shaders/solid_vertex.glsl)
 
 target_link_libraries(
     hello PRIVATE
