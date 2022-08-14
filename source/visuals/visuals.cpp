@@ -162,14 +162,25 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
 
     // create shader modules
     {
-        auto vertex_code = read_file("visuals/shaders/solid_vertex.glsl.spv");
+        auto code = read_file("visuals/shaders/solid_vertex.glsl.spv");
         VkShaderModuleCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .codeSize = (size_t)(vertex_code.size()),
-            .pCode = reinterpret_cast<uint32_t*>(vertex_code.data()),
+            .codeSize = (size_t)(code.size()),
+            .pCode = reinterpret_cast<uint32_t*>(code.data()),
         };
         check(vkCreateShaderModule(
             device.get(), &create_info, nullptr, out_ptr(vertex_shader_module)
+        ));
+    }
+    {
+        auto code = read_file("visuals/shaders/solid_fragment.glsl.spv");
+        VkShaderModuleCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = (size_t)(code.size()),
+            .pCode = reinterpret_cast<uint32_t*>(code.data()),
+        };
+        check(vkCreateShaderModule(
+            device.get(), &create_info, nullptr, out_ptr(fragment_shader_module)
         ));
     }
 

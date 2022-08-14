@@ -177,12 +177,12 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .stage = VK_SHADER_STAGE_VERTEX_BIT,
                 .module = v.vertex_shader_module.get(),
                 .pName = "main",
-            }, /*{
+            }, {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
                 .module = v.fragment_shader_module.get(),
                 .pName = "main",
-            }*/
+            }
         };
         VkPipelineVertexInputStateCreateInfo input_state_create_info{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -367,6 +367,29 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             image.draw_command_buffer, &render_pass_begin_info,
             VK_SUBPASS_CONTENTS_INLINE
         );
+
+        vkCmdBindPipeline(
+            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            pipeline.get()
+        );
+
+        VkViewport viewport{
+            .x = 0,
+            .y = 0,
+            .width = (float)width,
+            .height = (float)height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f,
+        };
+        vkCmdSetViewport(image.draw_command_buffer, 0, 1, &viewport);
+
+        VkRect2D scissors{
+            .offset = {0, 0},
+            .extent = capabilities.currentExtent,
+        };
+        vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
+
+        vkCmdDraw(image.draw_command_buffer, 3, 1, 0, 0);
 
         vkCmdEndRenderPass(image.draw_command_buffer);
 
