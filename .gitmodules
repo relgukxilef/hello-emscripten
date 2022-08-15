@@ -8,4 +8,5 @@
 	shallow = true
 [submodule "submodules/SPIRV-Cross"]
 	path = submodules/SPIRV-Cross
-	url = https://github.com/KhronosGroup/SPIRV-Cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross.git
+	shallow = true

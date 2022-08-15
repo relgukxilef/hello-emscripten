@@ -4,4 +4,6 @@ project(hello-emscripten LANGUAGES CXX)
 
 add_subdirectory(source)
 
+add_subdirectory(submodules/SPIRV-Cross EXCLUDE_FROM_ALL)
+
 add_subdirectory(submodules/VulkanGL EXCLUDE_FROM_ALL)
