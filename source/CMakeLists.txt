@@ -35,6 +35,12 @@ if (EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
     )
 
+    target_link_options(
+        hello-gl PUBLIC
+        --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
+        -sINITIAL_MEMORY=268435456
+    )
+
 else()
     find_package(glfw3 3.3 REQUIRED)
     find_package(Vulkan)
@@ -53,7 +59,8 @@ else()
     add_executable(
         hello-gl
         main-gl-glfw.cpp
-        egl.c gles2.c
+        glad/egl.h egl.c
+        glad/gles2.h gles2.c
     )
 
     target_link_libraries(
@@ -75,9 +82,3 @@ target_link_libraries(
 )
 
 target_compile_features(hello PUBLIC cxx_std_20)
-
-target_link_options(
-    hello-gl PUBLIC 
-    --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
-    -sINITIAL_MEMORY=268435456
-)
