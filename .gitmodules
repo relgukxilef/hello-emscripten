@@ -6,3 +6,6 @@
 	path = submodules/emsdk
 	url = https://github.com/emscripten-core/emsdk.git
 	shallow = true
+[submodule "submodules/SPIRV-Cross"]
+	path = submodules/SPIRV-Cross
+	url = https://github.com/KhronosGroup/SPIRV-Cross
