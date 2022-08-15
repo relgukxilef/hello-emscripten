@@ -75,3 +75,9 @@ target_link_libraries(
 )
 
 target_compile_features(hello PUBLIC cxx_std_20)
+
+target_link_options(
+    hello-gl PUBLIC 
+    --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
+    -sINITIAL_MEMORY=268435456
+)

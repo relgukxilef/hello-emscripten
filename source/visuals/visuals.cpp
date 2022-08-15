@@ -10,8 +10,7 @@
 #include "../utility/out_ptr.h"
 
 std::vector<uint8_t> read_file(const char* name) {
-    FILE* file;
-    fopen_s(&file, name, "rb");
+    FILE* file = fopen(name, "rb");
     fseek(file, 0, SEEK_END);
     auto size = ftell(file);
     std::vector<uint8_t> content(size);
