@@ -48,7 +48,7 @@ else()
 
     target_link_libraries(
         hello PRIVATE
-        glfw
+        glfw ${CMAKE_DL_LIBS}
     )
 
     add_executable(

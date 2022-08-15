@@ -16,6 +16,7 @@ std::vector<uint8_t> read_file(const char* name) {
     std::vector<uint8_t> content(size);
     fseek(file, 0, SEEK_SET);
     fread(content.data(), sizeof(uint8_t), size, file);
+    fclose(file);
     return content;
 }
 
