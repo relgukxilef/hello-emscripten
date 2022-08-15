@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
+include(utility.cmake)
+
 add_library(
     hello STATIC
     hello.h hello.cpp
@@ -9,6 +11,9 @@ add_library(
     visuals/visuals.h visuals/visuals.cpp
     visuals/view.h visuals/view.cpp
 )
+
+target_shader(hello visuals/shaders/solid_vertex.glsl)
+target_shader(hello visuals/shaders/solid_fragment.glsl)
 
 target_link_libraries(
     hello PRIVATE
@@ -30,6 +35,12 @@ if (EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
     )
 
+    target_link_options(
+        hello-gl PUBLIC
+        --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
+        -sINITIAL_MEMORY=268435456
+    )
+
 else()
     find_package(glfw3 3.3 REQUIRED)
     find_package(Vulkan)
@@ -37,7 +48,7 @@ else()
 
     target_link_libraries(
         hello PRIVATE
-        glfw
+        glfw ${CMAKE_DL_LIBS}
     )
 
     add_executable(
@@ -48,7 +59,8 @@ else()
     add_executable(
         hello-gl
         main-gl-glfw.cpp
-        egl.c gles2.c
+        glad/egl.h egl.c
+        glad/gles2.h gles2.c
     )
 
     target_link_libraries(
@@ -61,8 +73,6 @@ else()
         hello
         Vulkan::Vulkan
     )
-
-    target_compile_definitions(hello-gl PRIVATE GLEW_STATIC)
 endif()
 
 target_link_libraries(

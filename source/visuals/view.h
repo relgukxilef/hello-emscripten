@@ -28,6 +28,8 @@ struct view {
 
     unique_render_pass render_pass;
 
+    unique_pipeline pipeline;
+
     std::unique_ptr<image[]> images;
 };
 
