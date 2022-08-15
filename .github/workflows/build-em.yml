@@ -22,6 +22,10 @@ jobs:
       image: emscripten/emsdk
 
     steps:
+    - name: Install Dependencies
+      run: | 
+        wget -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
+    
     - uses: actions/checkout@v3
       with:
         submodules: recursive
