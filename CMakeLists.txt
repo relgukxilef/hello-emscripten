@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(hello-emscripten LANGUAGES CXX)
+project(hello-emscripten LANGUAGES CXX C)
 
 add_subdirectory(source)
 
