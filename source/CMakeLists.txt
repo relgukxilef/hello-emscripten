@@ -26,12 +26,25 @@ if (EMSCRIPTEN)
         main-em.cpp
     )
 
-    set_target_properties(hello-gl PROPERTIES SUFFIX ".html")
+    set_target_properties(hello-gl PROPERTIES SUFFIX ".js")
     set_target_properties(hello-gl PROPERTIES OUTPUT_NAME "index")
-    target_compile_options(hello-gl PRIVATE -fsanitize=address)
+
+    add_custom_command(
+        TARGET hello-gl POST_BUILD
+        COMMAND 
+        ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/html/index.html
+        ${CMAKE_CURRENT_BINARY_DIR}/index.html
+    )
+
+    if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
+        target_compile_options(hello-gl PRIVATE -fsanitize=address)
+        target_link_options(hello-gl PRIVATE -fsanitize=address)
+    endif ()
+
     target_link_options(
         hello-gl PRIVATE
-        -fsanitize=address -sNO_EXIT_RUNTIME
+        -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
     )
 
@@ -82,3 +95,6 @@ target_link_libraries(
 )
 
 target_compile_features(hello PUBLIC cxx_std_20)
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
