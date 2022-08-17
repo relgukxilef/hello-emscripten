@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cstdio>
 #include <memory>
 
 #include "visuals.h"
@@ -65,6 +66,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
     unsigned width = capabilities.currentExtent.width;
     unsigned height = capabilities.currentExtent.height;
+    printf("Set up view of size %ix%i\n", width, height);
 
     surface_extent = {
         std::max(

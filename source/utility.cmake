@@ -12,7 +12,8 @@ function(target_shader TARGET SHADER)
     add_custom_command(
         TARGET ${TARGET} POST_BUILD
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMAND ${GLSLC} -o ${SHADER}.spv ${input_path}
+        COMMAND 
+        ${GLSLC} --target-env=vulkan1.2 -O -o ${SHADER}.spv ${input_path}
         DEPENDS ${input_path}
         VERBATIM
     )
