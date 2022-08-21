@@ -72,8 +72,6 @@ else()
     add_executable(
         hello-gl
         main-gl-glfw.cpp
-        glad/egl.h egl.c
-        glad/gles2.h gles2.c
     )
 
     target_link_libraries(

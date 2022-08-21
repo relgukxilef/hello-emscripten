@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <GLFW/glfw3.h>
+#include <glad/gles2.h>
 
 #include <vulkangl/vulkangl.h>
 
@@ -55,6 +56,8 @@ int main() {
 
     glfwMakeContextCurrent(window.get());
 
+    gladLoadGLES2(glfwGetProcAddress);
+
     int width, height;
     glfwGetWindowSize(window.get(), &width, &height);
     vglSetCurrentSurfaceExtent(
@@ -70,6 +73,8 @@ int main() {
         );
 
         h.draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
+
+        glfwSwapBuffers(window.get());
 
         glfwPollEvents();
     }
