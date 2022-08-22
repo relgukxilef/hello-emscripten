@@ -196,7 +196,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         VkPipelineInputAssemblyStateCreateInfo assembly_state_create_info{
             .sType =
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
             .primitiveRestartEnable = VK_FALSE,
         };
         VkPipelineViewportStateCreateInfo viewport_state_create_info{
@@ -391,7 +391,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         };
         vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
 
-        vkCmdDraw(image.draw_command_buffer, 3, 1, 0, 0);
+        vkCmdDraw(image.draw_command_buffer, 4, 1, 0, 0);
 
         vkCmdEndRenderPass(image.draw_command_buffer);
 

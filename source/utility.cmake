@@ -10,12 +10,14 @@ function(target_shader TARGET SHADER)
     file(MAKE_DIRECTORY ${output_directory})
 
     add_custom_command(
-        TARGET ${TARGET} POST_BUILD
+        OUTPUT ${output_path}.spv
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND 
-        ${GLSLC} --target-env=vulkan1.2 -O -o ${SHADER}.spv ${input_path}
+        ${GLSLC} --target-env=vulkan1.1 -O -o ${SHADER}.spv ${input_path}
         DEPENDS ${input_path}
         VERBATIM
     )
-    target_sources(${TARGET} PRIVATE ${SHADER})
+    target_sources(
+        ${TARGET} PRIVATE ${output_path}.spv ${input_path}
+    )
 endfunction(target_shader)

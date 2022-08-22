@@ -5,6 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "type": "gdb",
+            "request": "launch",
+            "name": "Launch Program",
+            "target": "./build/source/hello-gl",
+            "cwd": "${workspaceRoot}",
+            "valuesFormatting": "parseText"
+        },
+        {
             "command": "http-server ${workspaceFolder}/build/source",
             "name": "Serve",
             "request": "launch",

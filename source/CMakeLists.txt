@@ -72,8 +72,6 @@ else()
     add_executable(
         hello-gl
         main-gl-glfw.cpp
-        glad/egl.h egl.c
-        glad/gles2.h gles2.c
     )
 
     target_link_libraries(
@@ -96,5 +94,5 @@ target_link_libraries(
 
 target_compile_features(hello PUBLIC cxx_std_20)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)

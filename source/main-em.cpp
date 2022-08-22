@@ -1,9 +1,10 @@
 #include <memory>
 
-#include <emscripten.h>
+#include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
 
 #include <vulkangl/vulkangl.h>
+
 #include "hello.h"
 
 EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context;
