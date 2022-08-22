@@ -55,6 +55,9 @@ jobs:
     - name: Build
       run: cmake --build build --config ${{env.BUILD_TYPE}}
 
+    - name: Make temporary directory
+      run: mkdir -p ${{runner.temp}}
+
     - name: Setup Pages
       uses: actions/configure-pages@v1
     
