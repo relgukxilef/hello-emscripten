@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cinttypes>
 #include <cstdio>
+#include <glm/ext/matrix_transform.hpp>
 #include <memory>
 
 #include "visuals.h"
@@ -119,6 +120,26 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         v.device.get(), swapchain.get(), &image_count, swapchain_images.get()
     ));
 
+    // create descriptor pool
+    {
+        VkDescriptorPoolSize pool_sizes[] {
+            {
+                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .descriptorCount = 1,
+            },
+        };
+        VkDescriptorPoolCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .maxSets = image_count,
+            .poolSizeCount = (uint32_t)std::size(pool_sizes),
+            .pPoolSizes = pool_sizes,
+        };
+        check(vkCreateDescriptorPool(
+            v.device.get(), &create_info, nullptr, out_ptr(descriptor_pool))
+        );
+    }
+
+    // create render passes
     {
         auto attachments = {
             VkAttachmentDescription{
@@ -275,6 +296,57 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
     images = std::make_unique<image[]>(image_count);
 
+    {
+        auto descriptor_set_layouts =
+            std::make_unique<VkDescriptorSetLayout[]>(image_count);
+        auto descriptor_sets = std::make_unique<VkDescriptorSet[]>(image_count);
+
+        for (auto i = 0u; i < image_count; i++) {
+            descriptor_set_layouts[i] = v.descriptor_set_layout.get();
+        }
+
+        VkDescriptorSetAllocateInfo descriptor_set_allocate_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = descriptor_pool.get(),
+            .descriptorSetCount = image_count,
+            .pSetLayouts = descriptor_set_layouts.get(),
+        };
+        check(vkAllocateDescriptorSets(
+            v.device.get(), &descriptor_set_allocate_info, descriptor_sets.get()
+        ));
+
+        // TODO: double buffer
+        VkDescriptorBufferInfo buffer_info {
+            .buffer = v.host_visible_buffer.get(),
+            .offset = 0,
+            .range = sizeof(parameters),
+        };
+
+        auto write_descriptor_sets =
+            std::make_unique<VkWriteDescriptorSet[]>(image_count);
+
+        for (auto i = 0u; i < image_count; i++) {
+            write_descriptor_sets[i] = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = descriptor_sets[i],
+                .dstBinding = 0,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .pBufferInfo = &buffer_info,
+            };
+        }
+
+        vkUpdateDescriptorSets(
+            v.device.get(), image_count, write_descriptor_sets.get(), 0, nullptr
+        );
+
+        for (auto i = 0u; i < image_count; i++) {
+            images[i].descriptor_set = descriptor_sets[i];
+        }
+    }
+
+
     for (uint32_t i = 0; i < image_count; i++) {
         ::image& image = images[i];
 
@@ -391,6 +463,15 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         };
         vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
 
+        VkDescriptorSet descriptor_sets[] {
+            image.descriptor_set,
+        };
+
+        vkCmdBindDescriptorSets(
+            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            v.pipeline_layout.get(), 0, 1, descriptor_sets, 0, nullptr
+        );
+
         vkCmdDraw(image.draw_command_buffer, 4, 1, 0, 0);
 
         vkCmdEndRenderPass(image.draw_command_buffer);
@@ -401,62 +482,90 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
 VkResult view::draw(visuals &v) {
     uint32_t image_index;
-        VkResult result = vkAcquireNextImageKHR(
-            v.device.get(), swapchain.get(), ~0ul,
-            v.swapchain_image_ready_semaphore.get(),
-            VK_NULL_HANDLE, &image_index
+    VkResult result = vkAcquireNextImageKHR(
+        v.device.get(), swapchain.get(), ~0ul,
+        v.swapchain_image_ready_semaphore.get(),
+        VK_NULL_HANDLE, &image_index
+    );
+    if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
+        return result;
+    }
+    check(result);
+
+    VkFence fences[] = {images[image_index].draw_finished_fence.get()};
+
+    check(vkWaitForFences(
+        v.device.get(), 1, fences,
+        VK_TRUE, ~0ul
+    ));
+    check(vkResetFences(
+        v.device.get(), 1, fences
+    ));
+
+    {
+        ::parameters* parameters;
+
+        // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
+        uint32_t size = ((sizeof(parameters) - 1) / 128 + 1) * 128;
+
+        check(vkMapMemory(
+            v.device.get(), v.host_visible_memory.get(), 0, size, 0,
+            (void**)&parameters
+        ));
+
+        parameters->model_view_projection_matrix = glm::rotate(
+            glm::mat4(1), v.time, {0, 0, 1}
         );
-        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
-            return result;
-        }
-        check(result);
+        v.time += 0.0001f;
 
-        VkFence fences[] = {images[image_index].draw_finished_fence.get()};
-
-        check(vkWaitForFences(
-            v.device.get(), 1, fences,
-            VK_TRUE, ~0ul
-        ));
-        check(vkResetFences(
-            v.device.get(), 1, fences
-        ));
-
-        VkSemaphore wait_semaphores[] =
-            {v.swapchain_image_ready_semaphore.get()};
-        VkSemaphore signal_semaphores[] =
-            {images[image_index].draw_finished_semaphore.get()};
-        VkCommandBuffer buffers[] = {images[image_index].draw_command_buffer};
-        VkPipelineStageFlags wait_stage[] =
-            {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT};
-        VkSubmitInfo submitInfo = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = wait_semaphores,
-            .pWaitDstStageMask = wait_stage,
-            .commandBufferCount = 1,
-            .pCommandBuffers = buffers,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = signal_semaphores,
+        VkMappedMemoryRange ranges[] = {
+            VkMappedMemoryRange{
+                .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+                .memory = v.host_visible_memory.get(),
+                .offset = 0,
+                .size = size,
+            }
         };
-        check(vkQueueSubmit(
-            v.graphics_queue, 1, &submitInfo,
-            images[image_index].draw_finished_fence.get()
-        ));
+        check(vkFlushMappedMemoryRanges(v.device.get(), 1, ranges));
+        vkUnmapMemory(v.device.get(), v.host_visible_memory.get());
+    }
 
-        VkPresentInfoKHR present_info{
-            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = 
-                &images[image_index].draw_finished_semaphore.get(),
-            .swapchainCount = 1,
-            .pSwapchains = &swapchain.get(),
-            .pImageIndices = &image_index,
-        };
-        result = vkQueuePresentKHR(v.present_queue, &present_info);
-        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
-            return result;
-        }
-        check(result);
+    VkSemaphore wait_semaphores[] =
+        {v.swapchain_image_ready_semaphore.get()};
+    VkSemaphore signal_semaphores[] =
+        {images[image_index].draw_finished_semaphore.get()};
+    VkCommandBuffer buffers[] = {images[image_index].draw_command_buffer};
+    VkPipelineStageFlags wait_stage[] =
+        {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT};
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = wait_semaphores,
+        .pWaitDstStageMask = wait_stage,
+        .commandBufferCount = 1,
+        .pCommandBuffers = buffers,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = signal_semaphores,
+    };
+    check(vkQueueSubmit(
+        v.graphics_queue, 1, &submitInfo,
+        images[image_index].draw_finished_fence.get()
+    ));
 
-        return VK_SUCCESS;
+    VkPresentInfoKHR present_info{
+        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores =
+            &images[image_index].draw_finished_semaphore.get(),
+        .swapchainCount = 1,
+        .pSwapchains = &swapchain.get(),
+        .pImageIndices = &image_index,
+    };
+    result = vkQueuePresentKHR(v.present_queue, &present_info);
+    if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
+        return result;
+    }
+    check(result);
+
+    return VK_SUCCESS;
 }

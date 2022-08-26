@@ -9,6 +9,8 @@
 struct image {
     VkCommandBuffer draw_command_buffer;
 
+    VkDescriptorSet descriptor_set;
+
     unique_image_view image_view;
     unique_framebuffer framebuffer;
 
@@ -20,6 +22,8 @@ struct view {
     view(struct visuals& v, VkInstance instance, VkSurfaceKHR surface);
 
     VkResult draw(struct visuals& v);
+
+    unique_descriptor_pool descriptor_pool;
 
     unique_command_pool command_pool;
     unique_swapchain swapchain;
