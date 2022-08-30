@@ -10,3 +10,7 @@
 	path = submodules/SPIRV-Cross
 	url = https://github.com/KhronosGroup/SPIRV-Cross.git
 	shallow = true
+[submodule "submodules/glm"]
+	path = submodules/glm
+	url = https://github.com/g-truc/glm.git
+	shallow = true

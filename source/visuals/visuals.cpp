@@ -184,20 +184,118 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
         ));
     }
 
+    // create descriptor set
+    {
+        auto descriptor_set_layout_binding = {
+            VkDescriptorSetLayoutBinding{
+                .binding = 0,
+                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .descriptorCount = 1,
+                .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            },
+        };
+        VkDescriptorSetLayoutCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .bindingCount =
+                static_cast<uint32_t>(descriptor_set_layout_binding.size()),
+            .pBindings = descriptor_set_layout_binding.begin(),
+        };
+        check(vkCreateDescriptorSetLayout(
+            device.get(), &create_info,
+            nullptr, out_ptr(descriptor_set_layout)
+        ));
+    }
+
     // create pipeline layouts
-    VkPipelineLayoutCreateInfo layout_create_info{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    };
-    check(vkCreatePipelineLayout(
-        device.get(), &layout_create_info, nullptr, out_ptr(pipeline_layout)
-    ));
+    {
+        VkDescriptorSetLayout set_layouts[] {
+            descriptor_set_layout.get(),
+        };
+
+        VkPipelineLayoutCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = std::size(set_layouts),
+            .pSetLayouts = set_layouts
+        };
+        check(vkCreatePipelineLayout(
+            device.get(), &create_info, nullptr, out_ptr(pipeline_layout)
+        ));
+    }
+
+    // find memory types
+    {
+        VkPhysicalDeviceMemoryProperties properties;
+        vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
+
+        for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
+            if (
+                (
+                    properties.memoryTypes[i].propertyFlags &
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+                ) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            ) {
+                host_visible_memory_type_index = i;
+                break;
+            }
+        }
+    }
+
+    // create buffers
+    {
+        VkBufferCreateInfo create_info {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = memory_size,
+            .usage =
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+
+        check(vkCreateBuffer(
+            device.get(), &create_info, nullptr, out_ptr(host_visible_buffer)
+        ));
+    }
+
+    {
+        VkMemoryRequirements requirements;
+        vkGetBufferMemoryRequirements(
+            device.get(), host_visible_buffer.get(), &requirements
+        );
+
+        if (
+            ~requirements.memoryTypeBits & (1 << host_visible_memory_type_index)
+        ) {
+            // TODO: do this check when looking for memory types
+            throw;
+        }
+
+        VkMemoryAllocateInfo allocate_info {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+            .allocationSize = requirements.size,
+            .memoryTypeIndex = host_visible_memory_type_index,
+        };
+
+        check(vkAllocateMemory(
+            device.get(), &allocate_info, nullptr, out_ptr(host_visible_memory)
+        ));
+
+        check(vkBindBufferMemory(
+            device.get(), host_visible_buffer.get(),
+            host_visible_memory.get(), 0
+        ));
+    }
 
     view.reset(new ::view(*this, instance, surface));
 }
 
-void visuals::draw(VkInstance instance, VkSurfaceKHR surface) {
+void visuals::draw(
+    ::client& client, VkInstance instance, VkSurfaceKHR surface
+) {
     if (view) {
-        if (view->draw(*this) != VK_SUCCESS) {
+        if (view->draw(*this, client) != VK_SUCCESS) {
             view.reset(); // delete first
             view.reset(new ::view(*this, instance, surface));
         }

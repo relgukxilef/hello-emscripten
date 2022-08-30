@@ -4,14 +4,23 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <glm/glm.hpp>
+
 #include "../utility/vulkan_resource.h"
+#include "../state/client.h"
 
 #include "view.h"
+
+struct parameters {
+    glm::mat4 model_view_projection_matrix;
+};
 
 struct visuals {
     visuals(VkInstance instance, VkSurfaceKHR surface);
 
-    void draw(VkInstance instance, VkSurfaceKHR surface);
+    void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
+
+    std::uint32_t memory_size = 4 * 1024 * 1024;
 
     unique_debug_utils_messenger debug_utils_messenger;
 
@@ -28,7 +37,15 @@ struct visuals {
 
     unique_shader_module vertex_shader_module, fragment_shader_module;
 
+    unique_descriptor_set_layout descriptor_set_layout;
+
     unique_pipeline_layout pipeline_layout;
+
+    std::uint32_t host_visible_memory_type_index;
+
+    unique_device_memory host_visible_memory, device_local_memory;
+
+    unique_buffer host_visible_buffer, device_local_buffer;
 
     std::unique_ptr<::view> view;
 };
