@@ -8,6 +8,7 @@
 
 #include <vulkangl/vulkangl.h>
 
+#include "main-glfw.h"
 #include "hello.h"
 #include "utility/resource.h"
 
@@ -66,12 +67,17 @@ int main() {
 
     hello h(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
+    ::input input {};
+
     while (!glfwWindowShouldClose(window.get())) {
         glfwGetWindowSize(window.get(), &width, &height);
         vglSetCurrentSurfaceExtent(
             { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
         );
 
+        update(input, window.get());
+
+        h.update(input);
         h.draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
         glfwSwapBuffers(window.get());

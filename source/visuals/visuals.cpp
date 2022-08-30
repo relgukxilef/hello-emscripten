@@ -291,9 +291,11 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
     view.reset(new ::view(*this, instance, surface));
 }
 
-void visuals::draw(VkInstance instance, VkSurfaceKHR surface) {
+void visuals::draw(
+    ::client& client, VkInstance instance, VkSurfaceKHR surface
+) {
     if (view) {
-        if (view->draw(*this) != VK_SUCCESS) {
+        if (view->draw(*this, client) != VK_SUCCESS) {
             view.reset(); // delete first
             view.reset(new ::view(*this, instance, surface));
         }

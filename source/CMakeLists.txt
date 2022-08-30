@@ -10,6 +10,8 @@ add_library(
     utility/vulkan_resource.h utility/vulkan_resource.cpp
     visuals/visuals.h visuals/visuals.cpp
     visuals/view.h visuals/view.cpp
+    state/input.h state/input.cpp
+    state/client.h state/client.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -61,28 +63,32 @@ else()
 
     target_link_libraries(
         hello PRIVATE
-        glfw ${CMAKE_DL_LIBS}
+        ${CMAKE_DL_LIBS}
     )
 
     add_executable(
         hello-vk
         main-vk-glfw.cpp
+        main-glfw.h main-glfw.cpp
     )
 
     add_executable(
         hello-gl
         main-gl-glfw.cpp
+        main-glfw.h main-glfw.cpp
     )
 
     target_link_libraries(
-        hello-gl PUBLIC
+        hello-gl PRIVATE
         OpenGL::GL
+        glfw
     )
 
     target_link_libraries(
-        hello-vk PUBLIC
+        hello-vk PRIVATE
         hello
         Vulkan::Vulkan
+        glfw
     )
 endif()
 

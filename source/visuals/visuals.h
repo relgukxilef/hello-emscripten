@@ -7,6 +7,7 @@
 #include <glm/glm.hpp>
 
 #include "../utility/vulkan_resource.h"
+#include "../state/client.h"
 
 #include "view.h"
 
@@ -17,11 +18,9 @@ struct parameters {
 struct visuals {
     visuals(VkInstance instance, VkSurfaceKHR surface);
 
-    void draw(VkInstance instance, VkSurfaceKHR surface);
+    void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
     std::uint32_t memory_size = 4 * 1024 * 1024;
-
-    float time = 0.0;
 
     unique_debug_utils_messenger debug_utils_messenger;
 

@@ -3,7 +3,8 @@
 #include <algorithm>
 #include <cinttypes>
 #include <cstdio>
-#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <memory>
 
 #include "visuals.h"
@@ -480,7 +481,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
     }
 }
 
-VkResult view::draw(visuals &v) {
+VkResult view::draw(visuals &v, ::client& client) {
     uint32_t image_index;
     VkResult result = vkAcquireNextImageKHR(
         v.device.get(), swapchain.get(), ~0ul,
@@ -506,17 +507,24 @@ VkResult view::draw(visuals &v) {
         ::parameters* parameters;
 
         // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
-        uint32_t size = ((sizeof(parameters) - 1) / 128 + 1) * 128;
+        uint32_t size = ((sizeof(::parameters) - 1) / 128 + 1) * 128;
 
         check(vkMapMemory(
             v.device.get(), v.host_visible_memory.get(), 0, size, 0,
             (void**)&parameters
         ));
 
-        parameters->model_view_projection_matrix = glm::rotate(
-            glm::mat4(1), v.time, {0, 0, 1}
+        glm::mat4 projection = glm::infinitePerspective(
+            glm::radians(60.0f),
+            (float)surface_extent.width / surface_extent.height,
+            0.01f
         );
-        v.time += 0.0001f;
+
+        glm::mat4 view = glm::rotate(
+            glm::mat4(1), glm::radians(-90.0f), {1, 0, 0}
+        );
+        view *= glm::mat4_cast(client.user_orientation);
+        parameters->model_view_projection_matrix = projection * view;
 
         VkMappedMemoryRange ranges[] = {
             VkMappedMemoryRange{

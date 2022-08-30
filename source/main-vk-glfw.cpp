@@ -6,6 +6,7 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "main-glfw.h"
 #include "hello.h"
 #include "utility/resource.h"
 #include "utility/vulkan_resource.h"
@@ -129,8 +130,12 @@ int main() {
 
     hello h(instance.get(), surface.get());
 
-    while (!glfwWindowShouldClose(window.get()))
-    {
+    ::input input{};
+
+    while (!glfwWindowShouldClose(window.get())) {
+        update(input, window.get());
+
+        h.update(input);
         h.draw(instance.get(), surface.get());
 
         glfwPollEvents();

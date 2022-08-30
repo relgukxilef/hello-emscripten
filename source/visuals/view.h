@@ -5,6 +5,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "../utility/vulkan_resource.h"
+#include "../state/client.h"
 
 struct image {
     VkCommandBuffer draw_command_buffer;
@@ -21,7 +22,7 @@ struct image {
 struct view {
     view(struct visuals& v, VkInstance instance, VkSurfaceKHR surface);
 
-    VkResult draw(struct visuals& v);
+    VkResult draw(struct visuals& v, ::client &client);
 
     unique_descriptor_pool descriptor_pool;
 

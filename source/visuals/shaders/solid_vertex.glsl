@@ -18,6 +18,6 @@ void main() {
     gl_Position = (
         model_view_projection_matrix *
         vec4(positions[gl_VertexIndex], 0.1, 1.0)
-    ).xzyy;
+    );
     uv = positions[gl_VertexIndex] + vec2(0.5);
 }
