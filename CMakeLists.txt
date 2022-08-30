@@ -4,7 +4,7 @@ project(hello-emscripten LANGUAGES CXX C)
 
 add_subdirectory(source)
 
-add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/glm)
 
 add_subdirectory(submodules/SPIRV-Cross EXCLUDE_FROM_ALL)
 

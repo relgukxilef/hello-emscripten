@@ -18,7 +18,7 @@ target_shader(hello visuals/shaders/solid_vertex.glsl)
 target_shader(hello visuals/shaders/solid_fragment.glsl)
 
 target_link_libraries(
-    hello PRIVATE
+    hello PUBLIC
     Vulkan-Headers
     glm
 )
