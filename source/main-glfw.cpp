@@ -1,12 +1,21 @@
 #include "main-glfw.h"
 
-void update(input& input, GLFWwindow* window) {
+glm::vec2 deadzone(glm::vec2 stick) {
+    float length = glm::length(stick);
+    float deadzone = 0.25;
+    stick =
+        stick / length *
+        glm::max(length - deadzone, 0.f) / (1 - deadzone);
+    return stick;
+}
+
+void update(input& input, GLFWwindow* window, float delta) {
     glm::dvec2 cursor_position;
     glfwGetCursorPos(window, &cursor_position.x, &cursor_position.y);
 
     input.rotation =
         input.pointer_locked ?
-        0.1f * (glm::vec2(cursor_position) - input.pointer_position) :
+        0.001f * (glm::vec2(cursor_position) - input.pointer_position) :
         glm::vec2(0);
     input.pointer_position = cursor_position;
 
@@ -15,17 +24,14 @@ void update(input& input, GLFWwindow* window) {
         GLFWgamepadstate state;
 
         if (glfwGetGamepadState(GLFW_JOYSTICK_1, &state)) {
-            glm::vec2 stick {
+            input.rotation += deadzone({
                 state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
                 state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]
-            };
-            float length = glm::length(stick);
-            float deadzone = 0.25;
-            stick =
-                stick / length *
-                glm::max(length - deadzone, 0.f) / (1 - deadzone);
-            // TODO: multiply with delta time
-            input.rotation += stick;
+            }) * delta;
+            input.motion = deadzone({
+                state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
+                state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]
+            }) * delta;
         }
     }
 
@@ -41,4 +47,6 @@ void update(input& input, GLFWwindow* window) {
         }
         input.pointer_locked = input.prefer_pointer_locked;
     }
+
+
 }

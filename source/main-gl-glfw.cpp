@@ -69,13 +69,19 @@ int main() {
 
     ::input input {};
 
+    double previous_time = glfwGetTime();
+
     while (!glfwWindowShouldClose(window.get())) {
+        double time = glfwGetTime();
+        float delta = time - previous_time;
+        previous_time = time;
+
         glfwGetWindowSize(window.get(), &width, &height);
         vglSetCurrentSurfaceExtent(
             { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
         );
 
-        update(input, window.get());
+        update(input, window.get(), delta);
 
         h.update(input);
         h.draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());

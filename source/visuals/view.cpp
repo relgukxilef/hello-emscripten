@@ -524,6 +524,7 @@ VkResult view::draw(visuals &v, ::client& client) {
             glm::mat4(1), glm::radians(-90.0f), {1, 0, 0}
         );
         view *= glm::mat4_cast(client.user_orientation);
+        view = glm::translate(view, client.user_position);
         parameters->model_view_projection_matrix = projection * view;
 
         VkMappedMemoryRange ranges[] = {

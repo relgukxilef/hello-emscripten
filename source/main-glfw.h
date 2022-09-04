@@ -4,4 +4,4 @@
 
 #include "state/input.h"
 
-void update(::input& input, GLFWwindow *window);
+void update(::input& input, GLFWwindow *window, float delta);
