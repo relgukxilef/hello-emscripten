@@ -32,6 +32,7 @@ int main()
             ),
             .identification = (unsigned)i,
         };
+        players.destination[i] = players.client[i].user_position;
     }
 
     std::vector<server> servers(server_count);
