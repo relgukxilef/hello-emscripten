@@ -4,6 +4,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "input.h"
+#include "instance.h"
 
 struct client {
     void update(::input& input);
@@ -11,4 +12,8 @@ struct client {
     glm::vec3 user_position;
     float user_pitch = 0, user_yaw = 0;
     glm::quat user_orientation {0, 0, 0, 1};
+
+    unsigned identification;
+
+    ::instance instance;
 };

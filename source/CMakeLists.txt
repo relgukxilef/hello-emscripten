@@ -79,6 +79,11 @@ else()
         main-glfw.h main-glfw.cpp
     )
 
+    add_executable(
+        simulation
+        simulation/main.cpp
+    )
+
     target_link_libraries(
         hello-gl PRIVATE
         OpenGL::GL
@@ -90,6 +95,11 @@ else()
         hello
         Vulkan::Vulkan
         glfw
+    )
+
+    target_link_libraries(
+        simulation PRIVATE
+        hello
     )
 endif()
 
