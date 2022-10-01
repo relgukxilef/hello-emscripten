@@ -19,6 +19,13 @@ void update(input& input, GLFWwindow* window, float delta) {
         glm::vec2(0);
     input.pointer_position = cursor_position;
 
+    input.motion = glm::vec2{
+        glfwGetKey(window, GLFW_KEY_A) ? -1 :
+        glfwGetKey(window, GLFW_KEY_D) ? 1 : 0,
+        glfwGetKey(window, GLFW_KEY_W) ? -1 :
+        glfwGetKey(window, GLFW_KEY_S) ? 1 : 0,
+    } * delta;
+
     if (glfwJoystickIsGamepad(GLFW_JOYSTICK_1)) {
         // TODO: maybe separate mouse motion from joystick motion in ::input
         GLFWgamepadstate state;
@@ -28,7 +35,7 @@ void update(input& input, GLFWwindow* window, float delta) {
                 state.axes[GLFW_GAMEPAD_AXIS_RIGHT_X],
                 state.axes[GLFW_GAMEPAD_AXIS_RIGHT_Y]
             }) * delta;
-            input.motion = deadzone({
+            input.motion += deadzone({
                 state.axes[GLFW_GAMEPAD_AXIS_LEFT_X],
                 state.axes[GLFW_GAMEPAD_AXIS_LEFT_Y]
             }) * delta;

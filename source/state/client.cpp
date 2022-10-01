@@ -12,6 +12,8 @@ void client::update(::input &input) {
     user_orientation =
         glm::rotate(user_orientation, user_yaw, {0, 0, 1});
 
+    input.motion = input.motion / std::max(1.0f, glm::length(input.motion));
+
     user_position +=
         glm::vec3(input.motion * glm::vec2(-1, 1), 0) * user_orientation;
 
