@@ -13,15 +13,9 @@ EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context;
 
 std::unique_ptr<hello> h;
 ::input input;
-int rotation_touch = -1, movement_touch = -1;
 bool pointer_lock_requested = false;
 
-const int touch_count = 4;
-
-int touch_identifier[touch_count];
-glm::vec2 touch_position[touch_count];
-
-glm::vec2 mouse_rotation, touch_rotation;
+glm::vec2 mouse_rotation;
 
 void update_canvas_size() {
     double css_width, css_height;
@@ -79,15 +73,11 @@ EM_BOOL touch_start(
         auto touch = touchEvent->touches[i];
         glm::vec2 position = glm::vec2(touch.targetX, touch.targetY);
 
-        for (int j = 0; j < touch_count; j++) {
-            if (touch_identifier[j] == -1) {
-                touch_identifier[j] = touch.identifier;
-                touch_position[j] = position;
-
-                if (rotation_touch == -1) {
-                    rotation_touch = touch.identifier;
-                }
-
+        for (int j = 0; j < input.touch.size; j++) {
+            if (input.touch.identifier[j] == -1) {
+                input.touch.identifier[j] = touch.identifier;
+                input.touch.position[j] = position;
+                input.touch.event[j] = input.touch.start;
                 break;
             }
         }
@@ -103,13 +93,9 @@ EM_BOOL touch_move(
         auto touch = touchEvent->touches[i];
         glm::vec2 position = glm::vec2(touch.targetX, touch.targetY);
         
-        for (int j = 0; j < touch_count; j++) {
-            if (touch_identifier[j] == touch.identifier) {
-                if (touch.identifier == rotation_touch) {
-                    touch_rotation = position - touch_position[j];
-                }
-
-                touch_position[j] = position;
+        for (int j = 0; j < input.touch.size; j++) {
+            if (input.touch.identifier[j] == touch.identifier) {
+                input.touch.position[j] = position;
             }
         }
     }
@@ -123,14 +109,11 @@ EM_BOOL touch_end(
     for (int i = 0; i < touchEvent->numTouches; i++) {
         auto touch = touchEvent->touches[i];
 
-        for (int j = 0; j < touch_count; j++) {
-            if (touch_identifier[j] == touch.identifier) {
-                touch_identifier[j] = -1;
-
-                if (touch.identifier == rotation_touch) {
-                    rotation_touch = -1;
-                    touch_rotation = {};
-                }
+        for (int j = 0; j < input.touch.size; j++) {
+            if (input.touch.identifier[j] == touch.identifier) {
+                input.touch.identifier[j] = -1;
+                input.touch.event[j] = input.touch.end;
+                break;
             }
         }
     }
@@ -145,10 +128,9 @@ EM_BOOL request_animation_frame(double time, void* userData) {
     emscripten_get_pointerlock_status(&pointer_lock_status);
     input.pointer_locked = pointer_lock_status.isActive;
 
-    input.rotation = 0.5f * mouse_rotation + 0.1f * touch_rotation;
+    input.rotation = 0.001f * mouse_rotation;
 
     mouse_rotation = {};
-    touch_rotation = {};
 
     h->update(input);
     h->draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
@@ -157,10 +139,9 @@ EM_BOOL request_animation_frame(double time, void* userData) {
 }
 
 int main() {
-    for (int j = 0; j < touch_count; j++) {
-        touch_identifier[j] = -1;
+    for (int j = 0; j < input.touch.size; j++) {
+        input.touch.identifier[j] = -1;
     }
-    rotation_touch = -1;
 
     EmscriptenWebGLContextAttributes attr;
     emscripten_webgl_init_context_attributes(&attr);

@@ -12,4 +12,13 @@ struct input {
 
     bool fullscreen;
     bool prefer_fullscreen;
+
+    struct touch {
+        enum { size = 4, };
+        int identifier[size];
+        glm::vec2 position[size];
+        enum : uint8_t {
+            none, start, end,
+        } event[size];
+    } touch;
 };
