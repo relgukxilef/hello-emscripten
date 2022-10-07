@@ -132,8 +132,14 @@ int main() {
 
     ::input input{};
 
+    double previous_time = glfwGetTime();
+
     while (!glfwWindowShouldClose(window.get())) {
-        update(input, window.get());
+        double time = glfwGetTime();
+        float delta = time - previous_time;
+        previous_time = time;
+
+        update(input, window.get(), delta);
 
         h.update(input);
         h.draw(instance.get(), surface.get());
