@@ -101,5 +101,16 @@ target_link_libraries(
 
 target_compile_features(hello PUBLIC cxx_std_20)
 
+add_executable(
+    server
+    server-main.cpp
+)
+
+find_package(Boost COMPONENTS system REQUIRED)
+
+target_compile_features(server PUBLIC cxx_std_20)
+
+target_link_libraries(server ${Boost_LIBRARIES})
+
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)

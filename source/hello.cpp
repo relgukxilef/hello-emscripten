@@ -26,6 +26,6 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
     }
 }
 
-void hello::update(input &input) {
+void hello::update(input& input) {
     client.update(input);
 }

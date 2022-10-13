@@ -22,7 +22,7 @@ struct image {
 struct view {
     view(struct visuals& v, VkInstance instance, VkSurfaceKHR surface);
 
-    VkResult draw(struct visuals& v, ::client &client);
+    VkResult draw(struct visuals& v, ::client& client);
 
     unique_descriptor_pool descriptor_pool;
 
