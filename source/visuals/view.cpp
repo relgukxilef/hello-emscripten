@@ -11,7 +11,93 @@
 
 #include "../utility/out_ptr.h"
 
-view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
+void record_command_buffer(
+    client& client, view& view, image& image, VkPipelineLayout pipeline_layout
+) {
+    VkSurfaceCapabilitiesKHR capabilities = view.capabilities;
+    unsigned
+        width = capabilities.currentExtent.width,
+        height = capabilities.currentExtent.height;
+
+    VkCommandBufferBeginInfo begin_info = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    };
+    check(vkBeginCommandBuffer(image.draw_command_buffer, &begin_info));
+
+    VkClearValue clearValue[]{
+        {{{0.929f, 0.788f, 0.318f, 1.0f}}}, // color
+    };
+    VkRenderPassBeginInfo render_pass_begin_info{
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+        .renderPass = view.render_pass.get(),
+        .framebuffer = image.framebuffer.get(),
+        .renderArea{
+            .offset = {0, 0},
+            .extent = view.surface_extent,
+        },
+        .clearValueCount =
+            static_cast<uint32_t>(std::size(clearValue)),
+        .pClearValues = clearValue,
+    };
+    vkCmdBeginRenderPass(
+        image.draw_command_buffer, &render_pass_begin_info,
+        VK_SUBPASS_CONTENTS_INLINE
+    );
+
+    vkCmdBindPipeline(
+        image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        view.pipeline.get()
+    );
+
+    VkViewport viewport{
+        .x = 0,
+        .y = 0,
+        .width = (float)width,
+        .height = (float)height,
+        .minDepth = 0.0f,
+        .maxDepth = 1.0f,
+    };
+    vkCmdSetViewport(image.draw_command_buffer, 0, 1, &viewport);
+
+    VkRect2D scissors{
+        .offset = {0, 0},
+        .extent = capabilities.currentExtent,
+    };
+    vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
+
+    VkDescriptorSet descriptor_sets[] {
+        image.descriptor_sets[0],
+    };
+
+    vkCmdBindDescriptorSets(
+        image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+        pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
+    );
+
+    // draw world
+    vkCmdDraw(image.draw_command_buffer, 4, 1, 0, 0);
+
+    // draw other users
+    for (int i = 0; i < client.users.position.size(); i++) {
+        VkDescriptorSet descriptor_sets[] {
+            image.descriptor_sets[1 + i],
+        };
+
+        vkCmdBindDescriptorSets(
+            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
+        );
+        vkCmdDraw(
+            image.draw_command_buffer, 14, 1, 4, 0
+        );
+    }
+
+    vkCmdEndRenderPass(image.draw_command_buffer);
+
+    check(vkEndCommandBuffer(image.draw_command_buffer));
+}
+
+view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
     // create swap chains
     uint32_t format_count = 0, present_mode_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(
@@ -53,6 +139,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
     {
         VkCommandPoolCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
             .queueFamilyIndex = v.graphics_queue_family,
         };
         check(vkCreateCommandPool(
@@ -61,7 +148,6 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
     }
 
     // view-specific resources
-    VkSurfaceCapabilitiesKHR capabilities;
     check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         v.physical_device, surface, &capabilities
     ));
@@ -131,7 +217,7 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         };
         VkDescriptorPoolCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-            .maxSets = image_count,
+            .maxSets = image_count * descriptor_set_count,
             .poolSizeCount = (uint32_t)std::size(pool_sizes),
             .pPoolSizes = pool_sizes,
         };
@@ -298,18 +384,26 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
     images = std::make_unique<image[]>(image_count);
 
     {
-        auto descriptor_set_layouts =
-            std::make_unique<VkDescriptorSetLayout[]>(image_count);
-        auto descriptor_sets = std::make_unique<VkDescriptorSet[]>(image_count);
-
         for (auto i = 0u; i < image_count; i++) {
+            images[i].descriptor_sets =
+                std::make_unique<VkDescriptorSet[]>(descriptor_set_count);
+        }
+
+        auto descriptor_set_layouts = std::make_unique<VkDescriptorSetLayout[]>(
+            image_count * descriptor_set_count
+        );
+        auto descriptor_sets = std::make_unique<VkDescriptorSet[]>(
+            image_count * descriptor_set_count
+        );
+
+        for (auto i = 0u; i < image_count * descriptor_set_count; i++) {
             descriptor_set_layouts[i] = v.descriptor_set_layout.get();
         }
 
         VkDescriptorSetAllocateInfo descriptor_set_allocate_info = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
             .descriptorPool = descriptor_pool.get(),
-            .descriptorSetCount = image_count,
+            .descriptorSetCount = image_count * descriptor_set_count,
             .pSetLayouts = descriptor_set_layouts.get(),
         };
         check(vkAllocateDescriptorSets(
@@ -317,33 +411,45 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ));
 
         // TODO: double buffer
-        VkDescriptorBufferInfo buffer_info {
-            .buffer = v.host_visible_buffer.get(),
-            .offset = 0,
-            .range = sizeof(parameters),
-        };
+        auto write_descriptor_sets = std::make_unique<VkWriteDescriptorSet[]>(
+            image_count * descriptor_set_count
+        );
 
-        auto write_descriptor_sets =
-            std::make_unique<VkWriteDescriptorSet[]>(image_count);
+        auto buffer_info = std::make_unique<VkDescriptorBufferInfo[]>(
+            descriptor_set_count
+        );
 
-        for (auto i = 0u; i < image_count; i++) {
-            write_descriptor_sets[i] = {
-                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-                .dstSet = descriptor_sets[i],
-                .dstBinding = 0,
-                .dstArrayElement = 0,
-                .descriptorCount = 1,
-                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                .pBufferInfo = &buffer_info,
+        for (auto j = 0u; j < descriptor_set_count; j++) {
+            buffer_info[j] = {
+                .buffer = v.host_visible_buffer.get(),
+                .offset = sizeof(glm::mat4) * j,
+                .range = sizeof(glm::mat4)
             };
         }
 
+        for (auto i = 0u; i < image_count * descriptor_set_count;) {
+            for (auto j = 0u; j < descriptor_set_count; j++, i++) {
+                write_descriptor_sets[i] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = descriptor_sets[i],
+                    .dstBinding = 0,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .pBufferInfo = buffer_info.get() + j,
+                };
+            }
+        }
+
         vkUpdateDescriptorSets(
-            v.device.get(), image_count, write_descriptor_sets.get(), 0, nullptr
+            v.device.get(), image_count * descriptor_set_count,
+            write_descriptor_sets.get(), 0, nullptr
         );
 
-        for (auto i = 0u; i < image_count; i++) {
-            images[i].descriptor_set = descriptor_sets[i];
+        for (auto i = 0u, s = 0u; i < image_count; i++) {
+            for (auto j = 0u; j < descriptor_set_count; j++, s++) {
+                images[i].descriptor_sets[j] = descriptor_sets[s];
+            }
         }
     }
 
@@ -418,66 +524,10 @@ view::view(visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             v.device.get(), &command_buffer_info, &image.draw_command_buffer
         ));
 
-        VkCommandBufferBeginInfo begin_info = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-        };
-        check(vkBeginCommandBuffer(image.draw_command_buffer, &begin_info));
-
-        VkClearValue clearValue[]{
-            {{{0.929f, 0.788f, 0.318f, 1.0f}}}, // color
-        };
-        VkRenderPassBeginInfo render_pass_begin_info{
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass = render_pass.get(),
-            .framebuffer = image.framebuffer.get(),
-            .renderArea{
-                .offset = {0, 0},
-                .extent = surface_extent,
-            },
-            .clearValueCount =
-                static_cast<uint32_t>(std::size(clearValue)),
-            .pClearValues = clearValue,
-        };
-        vkCmdBeginRenderPass(
-            image.draw_command_buffer, &render_pass_begin_info,
-            VK_SUBPASS_CONTENTS_INLINE
+        record_command_buffer(
+            c, *this, image,
+            v.pipeline_layout.get()
         );
-
-        vkCmdBindPipeline(
-            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            pipeline.get()
-        );
-
-        VkViewport viewport{
-            .x = 0,
-            .y = 0,
-            .width = (float)width,
-            .height = (float)height,
-            .minDepth = 0.0f,
-            .maxDepth = 1.0f,
-        };
-        vkCmdSetViewport(image.draw_command_buffer, 0, 1, &viewport);
-
-        VkRect2D scissors{
-            .offset = {0, 0},
-            .extent = capabilities.currentExtent,
-        };
-        vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
-
-        VkDescriptorSet descriptor_sets[] {
-            image.descriptor_set,
-        };
-
-        vkCmdBindDescriptorSets(
-            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-            v.pipeline_layout.get(), 0, 1, descriptor_sets, 0, nullptr
-        );
-
-        vkCmdDraw(image.draw_command_buffer, 4, 1, 0, 0);
-
-        vkCmdEndRenderPass(image.draw_command_buffer);
-
-        check(vkEndCommandBuffer(image.draw_command_buffer));
     }
 }
 
@@ -493,7 +543,9 @@ VkResult view::draw(visuals &v, ::client& client) {
     }
     check(result);
 
-    VkFence fences[] = {images[image_index].draw_finished_fence.get()};
+    auto& image = images[image_index];
+
+    VkFence fences[] = {image.draw_finished_fence.get()};
 
     check(vkWaitForFences(
         v.device.get(), 1, fences,
@@ -504,6 +556,23 @@ VkResult view::draw(visuals &v, ::client& client) {
     ));
 
     {
+        if (client.update_number != image.update_number) {
+            check(vkResetCommandBuffer(image.draw_command_buffer, 0));
+            record_command_buffer(
+                client, *v.view, image, v.pipeline_layout.get()
+            );
+            image.update_number = client.update_number;
+        }
+
+        glm::mat4 projection = glm::infinitePerspective(
+            glm::radians(60.0f),
+            (float)surface_extent.width / surface_extent.height,
+            0.01f
+        );
+
+        glm::mat4 view = glm::mat4_cast(glm::inverse(client.user_orientation));
+        view = glm::translate(view, -client.user_position);
+
         ::parameters* parameters;
 
         // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
@@ -513,19 +582,18 @@ VkResult view::draw(visuals &v, ::client& client) {
             v.device.get(), v.host_visible_memory.get(), 0, size, 0,
             (void**)&parameters
         ));
+        parameters->model_view_projection_matrix[0] = projection * view;
 
-        glm::mat4 projection = glm::infinitePerspective(
-            glm::radians(60.0f),
-            (float)surface_extent.width / surface_extent.height,
-            0.01f
-        );
-
-        glm::mat4 view = glm::rotate(
-            glm::mat4(1), glm::radians(-90.0f), {1, 0, 0}
-        );
-        view *= glm::mat4_cast(client.user_orientation);
-        view = glm::translate(view, client.user_position);
-        parameters->model_view_projection_matrix = projection * view;
+        for (auto i = 0u; i < client.users.position.size(); i++) {
+            parameters->model_view_projection_matrix[1 + i] =
+                projection * view *
+                glm::translate(
+                    glm::mat4(1.0),
+                    glm::vec3(client.users.position[i])
+                ) *
+                glm::scale(glm::mat4(1.0), {0.1, 0.1, 0.1}) *
+                glm::mat4_cast(client.users.orientation[i]);
+        }
 
         VkMappedMemoryRange ranges[] = {
             VkMappedMemoryRange{
