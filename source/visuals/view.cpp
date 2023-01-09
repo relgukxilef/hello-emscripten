@@ -422,8 +422,8 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         for (auto j = 0u; j < descriptor_set_count; j++) {
             buffer_info[j] = {
                 .buffer = v.host_visible_buffer.get(),
-                .offset = sizeof(glm::mat4) * j,
-                .range = sizeof(glm::mat4)
+                .offset = sizeof(parameter) * j,
+                .range = sizeof(parameter)
             };
         }
 
@@ -501,8 +501,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             VkFramebufferCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = render_pass.get(),
-                .attachmentCount =
-                    static_cast<uint32_t>(attachments.size()),
+                .attachmentCount = static_cast<uint32_t>(attachments.size()),
                 .pAttachments = attachments.begin(),
                 .width = surface_extent.width,
                 .height = surface_extent.height,
@@ -582,10 +581,11 @@ VkResult view::draw(visuals &v, ::client& client) {
             v.device.get(), v.host_visible_memory.get(), 0, size, 0,
             (void**)&parameters
         ));
-        parameters->model_view_projection_matrix[0] = projection * view;
+        parameters->parameters[0].model_view_projection_matrix =
+            projection * view;
 
         for (auto i = 0u; i < client.users.position.size(); i++) {
-            parameters->model_view_projection_matrix[1 + i] =
+            parameters->parameters[1 + i].model_view_projection_matrix =
                 projection * view *
                 glm::translate(
                     glm::mat4(1.0),
