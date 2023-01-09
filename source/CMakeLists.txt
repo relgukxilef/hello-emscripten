@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.13)
 
 include(utility.cmake)
 
-find_package(Boost COMPONENTS system REQUIRED)
-
 add_library(
     hello STATIC
     hello.h hello.cpp
@@ -33,6 +31,7 @@ if (EMSCRIPTEN)
     add_executable(
         hello-gl
         main-em.cpp
+        network/websocket-em.cpp
     )
 
     set_target_properties(hello-gl PROPERTIES SUFFIX ".js")
@@ -67,6 +66,7 @@ else()
     find_package(glfw3 3.3 REQUIRED)
     find_package(Vulkan)
     find_package(OpenGL)
+    find_package(Boost COMPONENTS system REQUIRED)    
 
     target_sources(
         hello PRIVATE
@@ -105,6 +105,18 @@ else()
         Vulkan::Vulkan
         glfw
     )
+
+
+    add_executable(
+        server
+        server-main.cpp
+        # TODO: put these in a separate library
+        network/network_message.h network/network_message.cpp
+    )
+
+    target_compile_features(server PUBLIC cxx_std_20)
+
+    target_link_libraries(server PRIVATE ${Boost_LIBRARIES})
 endif()
 
 target_sources(
@@ -119,17 +131,6 @@ target_link_libraries(
 )
 
 target_compile_features(hello PUBLIC cxx_std_20)
-
-add_executable(
-    server
-    server-main.cpp
-    # TODO: put these in a separate library
-    network/network_message.h network/network_message.cpp
-)
-
-target_compile_features(server PUBLIC cxx_std_20)
-
-target_link_libraries(server PRIVATE ${Boost_LIBRARIES})
 
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 #set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)

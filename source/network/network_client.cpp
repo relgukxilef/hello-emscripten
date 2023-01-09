@@ -1,6 +1,7 @@
 #include "network_client.h"
 
 #include <algorithm>
+#include <string>
 
 void put_message(client& client, const char* buffer, size_t size) {
     std::string s(buffer, size);
