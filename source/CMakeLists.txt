@@ -64,7 +64,7 @@ if (EMSCRIPTEN)
     )
 
 else()
-    find_package(glfw3 3.3 REQUIRED)
+    find_package(glfw3 3.3)
     find_package(Vulkan)
     find_package(OpenGL)
     find_package(Boost COMPONENTS system REQUIRED)    
