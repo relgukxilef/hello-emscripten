@@ -108,7 +108,7 @@ bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
         // need to post because stream is not thread safe
         loop.d->context.post([this](){
             d->stream.async_write(
-                boost::asio::buffer(next_message),
+                boost::asio::buffer(next_message.data(), next_message.size()),
                 [this](boost::beast::error_code error, size_t) {
                     if (check(error)) return;
                     write_completed = true;

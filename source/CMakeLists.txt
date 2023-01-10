@@ -54,6 +54,7 @@ if (EMSCRIPTEN)
         hello-gl PRIVATE
         -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
+        -lwebsocket.js
     )
 
     target_link_options(
@@ -116,7 +117,7 @@ else()
 
     target_compile_features(server PUBLIC cxx_std_20)
 
-    target_link_libraries(server PRIVATE ${Boost_LIBRARIES})
+    target_link_libraries(server PRIVATE ${Boost_LIBRARIES} glm)
 endif()
 
 target_sources(
