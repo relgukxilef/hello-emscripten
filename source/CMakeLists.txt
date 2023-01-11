@@ -81,6 +81,8 @@ else()
 
     target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
 
+    target_include_directories(hello PRIVATE ${Boost_INCLUDE_DIRS})
+
     add_executable(
         hello-vk
         main-vk-glfw.cpp
@@ -118,6 +120,8 @@ else()
     target_compile_features(server PUBLIC cxx_std_20)
 
     target_link_libraries(server PRIVATE ${Boost_LIBRARIES} glm)
+
+    target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
 endif()
 
 target_sources(
