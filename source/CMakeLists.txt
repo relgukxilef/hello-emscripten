@@ -83,31 +83,35 @@ else()
 
     target_include_directories(hello PRIVATE ${Boost_INCLUDE_DIRS})
 
-    add_executable(
-        hello-vk
-        main-vk-glfw.cpp
-        main-glfw.h main-glfw.cpp
-        visuals/indirect_draw-vk.cpp
-    )
+    if (Vulkan_FOUND)
+        add_executable(
+            hello-vk
+            main-vk-glfw.cpp
+            main-glfw.h main-glfw.cpp
+            visuals/indirect_draw-vk.cpp
+        )
+    
+        target_link_libraries(
+            hello-vk PRIVATE
+            hello
+            Vulkan::Vulkan
+            glfw
+        )
+    endif()
 
-    add_executable(
-        hello-gl
-        main-gl-glfw.cpp
-        main-glfw.h main-glfw.cpp
-    )
+    if (OpenGL_FOUND)
+        add_executable(
+            hello-gl
+            main-gl-glfw.cpp
+            main-glfw.h main-glfw.cpp
+        )
 
-    target_link_libraries(
-        hello-gl PRIVATE
-        OpenGL::GL
-        glfw
-    )
-
-    target_link_libraries(
-        hello-vk PRIVATE
-        hello
-        Vulkan::Vulkan
-        glfw
-    )
+        target_link_libraries(
+            hello-gl PRIVATE
+            OpenGL::GL
+            glfw
+        )
+    endif()
 
 
     add_executable(
@@ -119,21 +123,25 @@ else()
 
     target_compile_features(server PUBLIC cxx_std_20)
 
-    target_link_libraries(server PRIVATE ${Boost_LIBRARIES} glm)
+    target_link_libraries(
+        server PRIVATE ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread>
+    )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
 endif()
 
-target_sources(
-    hello-gl PRIVATE
-    visuals/indirect_draw-gl.cpp
-)
-
-target_link_libraries(
-    hello-gl PRIVATE
-    hello
-    vulkangl
-)
+if(OpenGL_FOUND)
+    target_sources(
+        hello-gl PRIVATE
+        visuals/indirect_draw-gl.cpp
+    )
+    
+    target_link_libraries(
+        hello-gl PRIVATE
+        hello
+        vulkangl
+    )
+endif()
 
 target_compile_features(hello PUBLIC cxx_std_20)
 
