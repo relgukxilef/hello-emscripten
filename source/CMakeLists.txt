@@ -67,7 +67,7 @@ else()
     find_package(glfw3 3.3)
     find_package(Vulkan)
     find_package(OpenGL)
-    find_package(Boost COMPONENTS system REQUIRED)    
+    find_package(Boost COMPONENTS system REQUIRED)
 
     target_sources(
         hello PRIVATE
@@ -123,6 +123,8 @@ else()
 
     target_compile_features(server PUBLIC cxx_std_20)
 
+    target_link_libraries(server PRIVATE -static-libgcc -static-libstdc++)
+
     target_link_libraries(
         server PRIVATE ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread>
     )
@@ -130,7 +132,7 @@ else()
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
 endif()
 
-if(OpenGL_FOUND)
+if(OpenGL_FOUND OR EMSCRIPTEN)
     target_sources(
         hello-gl PRIVATE
         visuals/indirect_draw-gl.cpp

@@ -3,7 +3,9 @@
 #include "../network/network_message.h"
 
 client::client() {
-    connection.reset(new websocket(*this, event_loop, "localhost", 28750));
+    connection.reset(
+        new websocket(*this, event_loop, "hellovr.at", 443)
+    );
     next_network_update = std::chrono::steady_clock::now();
 }
 

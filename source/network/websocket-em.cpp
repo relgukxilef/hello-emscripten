@@ -45,8 +45,9 @@ websocket::websocket(
     client(client), loop(loop),
     d(new data{})
 {
+    auto url = "wss://" + std::string(host) + "/";
     EmscriptenWebSocketCreateAttributes websocket_attributes = {
-        host.data(), "binary", EM_FALSE
+        url.c_str(), "binary", EM_FALSE
     };
     auto websocket = emscripten_websocket_new(&websocket_attributes);
     emscripten_websocket_set_onmessage_callback(
