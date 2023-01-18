@@ -51,7 +51,7 @@ void read(websocket& websocket) {
         [&](boost::beast::error_code error, size_t size) {
             if (check(error)) return;
             put_message(
-                websocket.client,
+                websocket.c,
                 (const char*)websocket.d->buffer.cdata().data(), size
             );
             websocket.d->buffer.consume(websocket.d->buffer.size());
@@ -61,9 +61,9 @@ void read(websocket& websocket) {
 }
 
 websocket::websocket(
-    ::client& client, event_loop& loop, std::string_view host, unsigned port
+    ::client& c, event_loop& loop, std::string_view host, unsigned port
 ) :
-    client(client), loop(loop),
+    c(c), loop(loop),
     d(new data(loop.d->context))
 {
     loop.d->resolver.async_resolve(

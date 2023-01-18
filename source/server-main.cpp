@@ -107,13 +107,14 @@ void accept(boost::asio::ip::tcp::acceptor& acceptor) {
                     boost::beast::error_code error, std::size_t
                 ) {
                     printf(
-                        "T%s HTTP Read %s.\n",
+                        "T%s HTTP Read %s Method %s.\n",
                         boost::lexical_cast<std::string>(
                             std::this_thread::get_id()
                         ).c_str(),
                         boost::beast::buffers_to_string(
                             session->buffer.cdata()
-                        ).c_str()
+                        ).c_str(),
+                        session->request.method_string().begin()
                     );
                     if (!error) {
                         if (
@@ -168,8 +169,6 @@ void tick(boost::system::error_code error = {}) {
     if (server->writes_pending > 0) {
         printf("Tick skipped, last tick still in flight\n");
     } else {
-        printf("Tick\n");
-
         // TODO: instead of using remove_if use swap erase
         auto end = std::remove_if(
             server->sessions.begin(), server->sessions.end(),

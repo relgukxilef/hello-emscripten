@@ -8,7 +8,6 @@ void put_message(client& client, const char* buffer, size_t size) {
     for (char& c : s)
         if (c == 0)
             c = '.';
-    fprintf(stdout, "Message %s", s.c_str());
 
     if (!client.message_in_readable) {
         client.message_in.resize(size);
@@ -16,9 +15,8 @@ void put_message(client& client, const char* buffer, size_t size) {
         client.message_in_readable = true;
 
     } else {
-        fprintf(stdout, " skipped");
+        fprintf(stdout, "Message skipped\n");
     }
-    fprintf(stdout, "\n");
 }
 
 void set_disconnected(client& client) {

@@ -29,7 +29,7 @@ struct websocket {
     bool try_write_message(std::span<std::uint8_t> buffer);
     bool is_write_completed();
 
-    ::client& client;
+    ::client& c;
     event_loop& loop;
     std::unique_ptr<data> d;
 

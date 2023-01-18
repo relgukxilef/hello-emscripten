@@ -8,14 +8,27 @@
 
 #include "../state/client.h"
 
+struct websocket::data {
+    EMSCRIPTEN_WEBSOCKET_T websocket;
+    bool open = false;
+};
+
 EM_BOOL message_callback(
     int eventType, const EmscriptenWebSocketMessageEvent *websocketEvent, 
     void* userData
 ) {
     put_message(
-        ((websocket*)userData)->client,
+        ((websocket*)userData)->c,
         (const char*)websocketEvent->data, websocketEvent->numBytes
     );
+    return EM_TRUE;
+}
+
+EM_BOOL open_callback(
+    int eventType, const EmscriptenWebSocketOpenEvent *websocketEvent, 
+    void* userData
+) {
+    ((websocket*)userData)->d->open = true;
     return EM_TRUE;
 }
 
@@ -23,7 +36,7 @@ EM_BOOL close_callback(
     int eventType, const EmscriptenWebSocketCloseEvent *websocketEvent, 
     void* userData
 ) {
-    set_disconnected(((websocket*)userData)->client);
+    set_disconnected(((websocket*)userData)->c);
     return EM_TRUE;
 }
 
@@ -35,14 +48,10 @@ event_loop::event_loop() {
 event_loop::~event_loop() {
 }
 
-struct websocket::data {
-    EMSCRIPTEN_WEBSOCKET_T websocket;
-};
-
 websocket::websocket(
-    ::client& client, event_loop& loop, std::string_view host, unsigned port
+    ::client& c, event_loop& loop, std::string_view host, unsigned port
 ) :
-    client(client), loop(loop),
+    c(c), loop(loop),
     d(new data{})
 {
     auto url = "wss://" + std::string(host) + "/";
@@ -56,6 +65,9 @@ websocket::websocket(
     emscripten_websocket_set_onclose_callback(
         websocket, this, close_callback
     );
+    emscripten_websocket_set_onopen_callback(
+        websocket, this, open_callback
+    );
     d->websocket = websocket;
 }
 
@@ -65,9 +77,15 @@ websocket::~websocket() {
 }
 
 bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
+    if (d->open) {
+        emscripten_websocket_send_binary(
+            d->websocket, buffer.begin(), buffer.size()
+        );
+        return true;
+    }
     return false;
 }
 
 bool websocket::is_write_completed() {
-    return write_completed;
+    return true;
 }
