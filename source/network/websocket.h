@@ -20,16 +20,13 @@ struct event_loop {
 struct websocket {
     struct data;
 
-    websocket(
-        client& client, event_loop& loop, std::string_view host, unsigned port
-    );
+    websocket(client& client, event_loop& loop, std::string_view url);
     ~websocket();
 
     // buffer needs to stay valid until is_write_completed returns true
     bool try_write_message(std::span<std::uint8_t> buffer);
     bool is_write_completed();
 
-    ::client& c;
     event_loop& loop;
     std::unique_ptr<data> d;
 

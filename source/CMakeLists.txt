@@ -67,7 +67,8 @@ else()
     find_package(glfw3 3.3)
     find_package(Vulkan)
     find_package(OpenGL)
-    find_package(Boost COMPONENTS system REQUIRED)
+    find_package(Boost 1.81.0 COMPONENTS system url REQUIRED)
+    find_package(OpenSSL REQUIRED)
 
     target_sources(
         hello PRIVATE
@@ -77,6 +78,7 @@ else()
     target_link_libraries(
         hello PRIVATE
         ${CMAKE_DL_LIBS}
+        OpenSSL::SSL
     )
 
     target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
@@ -146,6 +148,10 @@ if(OpenGL_FOUND OR EMSCRIPTEN)
 endif()
 
 target_compile_features(hello PUBLIC cxx_std_20)
+
+if (MSVC)
+    add_definitions(/bigobj)
+endif ()
 
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 #set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
