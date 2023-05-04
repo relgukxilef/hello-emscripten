@@ -26,13 +26,12 @@ jobs:
         wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
         
     - name: Install Boost
-      id: boost
-      uses: egor-tensin/build-boost@v1
+      uses: MarkusJx/install-boost@v2.4.1
+      id: install-boost
       with:
-        version: 1.82.0
-        libraries: system url
-        platform: x64
-        configuration: Release
+          # A list of supported versions can be found here:
+          # https://github.com/MarkusJx/prebuilt-boost/blob/main/versions-manifest.json
+          boost_version: 1.81.0
     
     - uses: actions/checkout@v3
       with:
