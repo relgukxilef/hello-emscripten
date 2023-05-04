@@ -67,7 +67,7 @@ else()
     find_package(glfw3 3.3)
     find_package(Vulkan)
     find_package(OpenGL)
-    find_package(Boost 1.81.0 COMPONENTS system url REQUIRED)
+    find_package(Boost 1.81.0 COMPONENTS system REQUIRED)
     find_package(OpenSSL REQUIRED)
 
     target_sources(
