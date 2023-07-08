@@ -212,7 +212,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         VkDescriptorPoolSize pool_sizes[] {
             {
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                .descriptorCount = 1,
+                .descriptorCount = image_count * descriptor_set_count,
             },
         };
         VkDescriptorPoolCreateInfo create_info = {
