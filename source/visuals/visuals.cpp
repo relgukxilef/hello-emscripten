@@ -25,14 +25,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageTypeFlagsEXT,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void*
-) {
+) noexcept {
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer error: %s\n", callback_data->pMessage
         );
         // ignore error caused by Nsight
         if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
-            throw std::runtime_error("vulkan error");
+            assert(false);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer warning: %s\n", callback_data->pMessage
