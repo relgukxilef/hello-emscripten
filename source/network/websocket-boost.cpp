@@ -1,6 +1,7 @@
 #include "network_client.h"
 #include "websocket.h"
 
+#include <source_location>
 #include <thread>
 
 #include <boost/asio.hpp>
@@ -16,7 +17,7 @@ struct websocket::data {
     virtual ~data() = default;
     virtual void read() = 0;
     virtual void try_write_message(websocket& s) = 0;
-    bool write_completed = false;
+    std::atomic_bool write_completed = false;
     client& c;
 };
 
@@ -45,11 +46,17 @@ struct secure_websocket : public websocket::data {
     boost::asio::io_context& context;
 };
 
-bool check(boost::system::error_code error) {
+bool check(
+    boost::system::error_code error,
+    const std::source_location location = std::source_location::current()
+) {
     if (!error) {
         return false;
     }
-    fprintf(stderr, "Error: %s\n", error.message().c_str());
+    fprintf(
+        stderr, "Error %s:%u %s\n",
+        location.file_name(), location.line(), error.message().c_str()
+    );
     return true;
 }
 
@@ -99,9 +106,9 @@ websocket::~websocket() {
 }
 
 bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
-    if (write_completed) {
+    if (d->write_completed) {
         next_message = buffer;
-        write_completed = false;
+        d->write_completed = false;
         // need to post because stream is not thread safe
         loop.d->context.post([this](){
             d->try_write_message(*this);
@@ -112,7 +119,7 @@ bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
 }
 
 bool websocket::is_write_completed() {
-    return write_completed;
+    return d->write_completed;
 }
 
 void insecure_websocket::read() {
@@ -135,7 +142,7 @@ void insecure_websocket::try_write_message(websocket& s) {
         boost::asio::buffer(s.next_message.data(), s.next_message.size()),
         [&s](boost::beast::error_code error, size_t) {
             if (check(error)) return;
-            s.write_completed = true;
+            s.d->write_completed = true;
         }
     );
 }
@@ -157,7 +164,7 @@ insecure_websocket::insecure_websocket(
                     [this, url](
                         boost::system::error_code error,
                         boost::asio::ip::tcp::endpoint
-                        ) {
+                    ) {
                         if (check(error)) return;
                         stream.binary(true);
                         stream.async_handshake(
@@ -183,6 +190,7 @@ insecure_websocket::~insecure_websocket() {
         stream.async_close(
             boost::beast::websocket::close_code::normal,
             [&promise](const boost::system::error_code& error) {
+                check(error);
                 promise.set_value();
             }
         );
@@ -210,7 +218,7 @@ void secure_websocket::try_write_message(websocket& s) {
         boost::asio::buffer(s.next_message.data(), s.next_message.size()),
         [&s](boost::beast::error_code error, size_t) {
             if (check(error)) return;
-            s.write_completed = true;
+            s.d->write_completed = true;
         }
     );
 }
@@ -233,7 +241,7 @@ secure_websocket::secure_websocket(
                     [this, url](
                         boost::system::error_code error,
                         boost::asio::ip::tcp::endpoint
-                        ) {
+                    ) {
                         if (check(error)) return;
                         stream.binary(true);
                         stream.async_handshake(
@@ -260,6 +268,7 @@ secure_websocket::~secure_websocket() {
         stream.async_close(
             boost::beast::websocket::close_code::normal,
             [&promise](const boost::system::error_code& error) {
+                check(error);
                 promise.set_value();
             }
         );

@@ -85,6 +85,8 @@ else()
 
     target_include_directories(hello PRIVATE ${Boost_INCLUDE_DIRS})
 
+    target_compile_features(hello PUBLIC cxx_std_20)
+
     if (Vulkan_FOUND)
         add_executable(
             hello-vk

@@ -31,5 +31,4 @@ struct websocket {
     std::unique_ptr<data> d;
 
     std::span<std::uint8_t> next_message;
-    std::atomic_bool write_completed = false;
 };
