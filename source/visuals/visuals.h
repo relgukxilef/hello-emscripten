@@ -11,12 +11,29 @@
 
 #include "view.h"
 
-struct parameters {
+struct a2b10g10r10 {
+    std::uint32_t a : 2, b : 10, g : 10, r : 10;
+};
+
+// use array of struct because binding a single buffer range per draw is cheap
+// all Vulkan and GL implementations support aligning at 256
+// TODO: use minUniformBufferOffsetAlignment
+struct alignas(256) parameter {
     glm::mat4 model_view_projection_matrix;
+    glm::vec4 position;
+};
+
+struct parameters {
+    parameter parameters[32];
+};
+
+struct meshes {
+    a2b10g10r10 vertices_position[1024];
+    std::uint16_t faces_vertices[1024];
 };
 
 struct visuals {
-    visuals(VkInstance instance, VkSurfaceKHR surface);
+    visuals(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
     void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
@@ -46,6 +63,8 @@ struct visuals {
     unique_device_memory host_visible_memory, device_local_memory;
 
     unique_buffer host_visible_buffer, device_local_buffer;
+
+    std::uint32_t view_parameters_offset, user_position_offset;
 
     std::unique_ptr<::view> view;
 };

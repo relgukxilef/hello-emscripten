@@ -7,7 +7,7 @@
 #include "utility/vulkan_resource.h"
 
 hello::hello(VkInstance instance, VkSurfaceKHR surface) :
-    visuals(new ::visuals(instance, surface))
+    visuals(new ::visuals(client, instance, surface))
 {
     std::printf("Servus Welt 3!\n");
 }
@@ -19,13 +19,13 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
         std::fprintf(stderr, "Vulkan error. %s\n", error.what());
         if (error.result == VK_ERROR_DEVICE_LOST) {
             visuals.reset();
-            visuals.reset(new ::visuals(instance, surface));
+            visuals.reset(new ::visuals(client, instance, surface));
         } else {
             throw;
         }
     }
 }
 
-void hello::update(input &input) {
+void hello::update(input& input) {
     client.update(input);
 }

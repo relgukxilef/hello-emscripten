@@ -51,14 +51,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageTypeFlagsEXT,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void*
-) {
+) noexcept {
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer error: %s\n", callback_data->pMessage
         );
         // ignore error caused by Nsight
         if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
-            throw std::runtime_error("Vulkan error");
+            assert(false);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer warning: %s\n", callback_data->pMessage
@@ -108,10 +108,16 @@ int main() {
         extensions.get() + glfw_extension_count
     );
 
+    const char* enabled_layers[] = {
+        "VK_LAYER_KHRONOS_validation",
+    };
+
     unique_instance instance;
     VkInstanceCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = &debug_utils_messenger_create_info,
+        .enabledLayerCount = std::size(enabled_layers),
+        .ppEnabledLayerNames = enabled_layers,
         .enabledExtensionCount = static_cast<uint32_t>(extension_count),
         .ppEnabledExtensionNames = extensions.get(),
     };

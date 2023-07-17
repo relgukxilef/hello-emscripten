@@ -25,14 +25,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageTypeFlagsEXT,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
     void*
-) {
+) noexcept {
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer error: %s\n", callback_data->pMessage
         );
         // ignore error caused by Nsight
         if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
-            throw std::runtime_error("vulkan error");
+            assert(false);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer warning: %s\n", callback_data->pMessage
@@ -42,7 +42,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     return VK_FALSE;
 }
 
-visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
+visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     // create debug utils messenger
     VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -60,7 +60,7 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
     auto vkCreateDebugUtilsMessengerEXT =
         (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
             instance, "vkCreateDebugUtilsMessengerEXT"
-    );
+        );
     {
         check(vkCreateDebugUtilsMessengerEXT(
             instance, &debug_utils_messenger_create_info, nullptr,
@@ -185,6 +185,7 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
     }
 
     // create descriptor set
+    // TODO: move to command buffer recording to allow resizing
     {
         auto descriptor_set_layout_binding = {
             VkDescriptorSetLayoutBinding{
@@ -288,7 +289,13 @@ visuals::visuals(VkInstance instance, VkSurfaceKHR surface) {
         ));
     }
 
-    view.reset(new ::view(*this, instance, surface));
+    unsigned memory_offset = 0;
+    view_parameters_offset = memory_offset;
+    memory_offset += sizeof(parameters);
+    user_position_offset = memory_offset;
+    memory_offset += sizeof(glm::vec4) * 16;
+
+    view.reset(new ::view(client, *this, instance, surface));
 }
 
 void visuals::draw(
@@ -297,7 +304,7 @@ void visuals::draw(
     if (view) {
         if (view->draw(*this, client) != VK_SUCCESS) {
             view.reset(); // delete first
-            view.reset(new ::view(*this, instance, surface));
+            view.reset(new ::view(client, *this, instance, surface));
         }
     }
 }
