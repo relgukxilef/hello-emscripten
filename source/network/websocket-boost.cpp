@@ -7,25 +7,31 @@
 #include <boost/asio.hpp>
 #include <boost/beast.hpp>
 #include <boost/utility.hpp>
-#include <boost/url.hpp>
 #include <boost/beast/ssl.hpp>
 
 #include "../state/client.h"
 
+struct url_view
+{
+    url_view() = default;
+    url_view(std::string_view url);
+    std::string_view scheme, host, port, path;
+};
+
 struct websocket::data {
-    data(client& c) : c(c) {}
+    data(client &c) : c(c) {}
     virtual ~data() = default;
     virtual void read() = 0;
-    virtual void try_write_message(websocket& s) = 0;
+    virtual void try_write_message(websocket &s) = 0;
     std::atomic_bool write_completed = false;
-    client& c;
+    client &c;
 };
 
 struct insecure_websocket : public websocket::data {
     void read() override;
     void try_write_message(websocket& s) override;
 
-    insecure_websocket(client& c, event_loop& loop, boost::url url);
+    insecure_websocket(client &c, event_loop &loop, url_view url);
     ~insecure_websocket();
     boost::beast::websocket::stream<boost::asio::ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
@@ -36,7 +42,7 @@ struct secure_websocket : public websocket::data {
     void read() override;
     void try_write_message(websocket& s) override;
 
-    secure_websocket(client& c, event_loop& loop, boost::url url);
+    secure_websocket(client& c, event_loop& loop, url_view url);
     ~secure_websocket();
     boost::asio::ssl::context ssl_context;
     boost::beast::websocket::stream<
@@ -89,14 +95,13 @@ void read(websocket& websocket) {
 websocket::websocket(::client& c, event_loop& loop, std::string_view url) :
     loop(loop)
 {
-    boost::urls::url_view url_view(url);
-    if (url_view.scheme_id() == boost::urls::scheme::ws)
-        d.reset(new insecure_websocket(c, loop, url_view));
-    else if (url_view.scheme_id() == boost::urls::scheme::wss)
-        d.reset(new secure_websocket(c, loop, url_view));
+    if (url.starts_with("ws:"))
+        d.reset(new insecure_websocket(c, loop, url));
+    else if (url.starts_with("wss:"))
+        d.reset(new secure_websocket(c, loop, url));
     else
         throw std::runtime_error(
-            "Unsupported protocol " + std::string(url_view.scheme())
+            "Unsupported url " + std::string(url)
         );
 }
 
@@ -120,6 +125,29 @@ bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
 
 bool websocket::is_write_completed() {
     return d->write_completed;
+}
+
+url_view::url_view(std::string_view url) {
+    auto colon1 = url.find(":");
+    scheme = url.substr(0, colon1);
+    url = url.substr(colon1 + 1);
+    if (url.starts_with("//")) {
+        url = url.substr(2);
+        auto authority_end = url.find_first_of("/?#");
+        auto authority = url.substr(0, authority_end);
+        url = url.substr(authority_end);
+        auto at = authority.find_last_of("@");
+        if (at != std::string_view::npos) {
+            authority = authority.substr(at);
+        }
+        auto colon2 = authority.find(":");
+        if (colon2 != std::string_view::npos) {
+            port = authority.substr(colon2 + 1);
+            authority = authority.substr(0, colon2);
+        }
+        host = authority;
+    }
+    path = url;
 }
 
 void insecure_websocket::read() {
@@ -148,15 +176,15 @@ void insecure_websocket::try_write_message(websocket& s) {
 }
 
 insecure_websocket::insecure_websocket(
-    client& c, event_loop& loop, boost::url url
-    ) :
+    client& c, event_loop& loop, url_view url
+) :
     websocket::data(c), stream(loop.d->context), context(loop.d->context)
 {
     // post because resolver is not thread-safe
     context.post([url, &loop, this] () {
         loop.d->resolver.async_resolve(
-            url.host(),
-            url.port(),
+            url.host,
+            url.port,
             [=](boost::beast::error_code error, const auto results) {
                 if (check(error)) return;
                 boost::asio::async_connect(
@@ -168,7 +196,7 @@ insecure_websocket::insecure_websocket(
                         if (check(error)) return;
                         stream.binary(true);
                         stream.async_handshake(
-                            url.host(), url.path(),
+                            url.host, url.path,
                             [this](boost::beast::error_code error) {
                                 if (check(error)) return;
                                 // allow writing now
@@ -224,7 +252,7 @@ void secure_websocket::try_write_message(websocket& s) {
 }
 
 secure_websocket::secure_websocket(
-    client& c, event_loop& loop, boost::url url
+    client& c, event_loop& loop, url_view url
 ) :
     websocket::data(c), ssl_context{boost::asio::ssl::context::tlsv12_client},
     stream(loop.d->context, ssl_context), context(loop.d->context)
@@ -232,8 +260,8 @@ secure_websocket::secure_websocket(
     // post because resolver is not thread-safe
     context.post([url, &loop, this] () {
         loop.d->resolver.async_resolve(
-            url.host(),
-            url.port(),
+            url.host,
+            url.port,
             [=](boost::beast::error_code error, const auto results) {
                 if (check(error)) return;
                 boost::asio::async_connect(
@@ -245,7 +273,7 @@ secure_websocket::secure_websocket(
                         if (check(error)) return;
                         stream.binary(true);
                         stream.async_handshake(
-                            url.host(), url.path(),
+                            url.host, url.path,
                             [this](boost::beast::error_code error) {
                                 if (check(error)) return;
                                 // allow writing now
