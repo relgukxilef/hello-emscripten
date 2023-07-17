@@ -67,6 +67,8 @@ else()
     find_package(glfw3 3.3)
     find_package(Vulkan)
     find_package(OpenGL)
+    
+    set(Boost_USE_STATIC_LIBS ON)
     find_package(Boost 1.74.0 COMPONENTS system REQUIRED)
     find_package(OpenSSL REQUIRED)
 
@@ -127,7 +129,9 @@ else()
 
     target_compile_features(server PUBLIC cxx_std_20)
 
-    target_link_libraries(server PRIVATE -static-libgcc -static-libstdc++)
+    target_link_libraries(
+        server PRIVATE -static-libgcc -static-libstdc++ -static
+    )
 
     target_link_libraries(
         server PRIVATE ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread>
