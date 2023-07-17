@@ -196,7 +196,12 @@ insecure_websocket::insecure_websocket(
                         if (check(error)) return;
                         stream.binary(true);
                         stream.async_handshake(
-                            url.host, url.path,
+                            boost::string_view(
+                                url.host.data(), url.host.size()
+                            ),
+                            boost::string_view(
+                                url.path.data(), url.path.size()
+                            ),
                             [this](boost::beast::error_code error) {
                                 if (check(error)) return;
                                 // allow writing now
@@ -273,7 +278,12 @@ secure_websocket::secure_websocket(
                         if (check(error)) return;
                         stream.binary(true);
                         stream.async_handshake(
-                            url.host, url.path,
+                            boost::string_view(
+                                url.host.data(), url.host.size()
+                            ),
+                            boost::string_view(
+                                url.path.data(), url.path.size()
+                            ),
                             [this](boost::beast::error_code error) {
                                 if (check(error)) return;
                                 // allow writing now
