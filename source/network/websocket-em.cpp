@@ -54,7 +54,7 @@ websocket::websocket(::client& c, event_loop& loop, std::string_view url) :
     d(new data{c})
 {
     EmscriptenWebSocketCreateAttributes websocket_attributes = {
-        url.data(), "", EM_FALSE
+        url.data(), nullptr, EM_FALSE
     };
     auto websocket = emscripten_websocket_new(&websocket_attributes);
     emscripten_websocket_set_onmessage_callback(
