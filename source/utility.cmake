@@ -13,7 +13,7 @@ function(target_shader TARGET SHADER)
         OUTPUT ${output_path}.spv
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMAND 
-        ${GLSLC} --target-env=vulkan1.1 -O -o ${SHADER}.spv ${input_path}
+        ${GLSLC} --target-env=vulkan1.0 -O -o ${SHADER}.spv ${input_path}
         DEPENDS ${input_path}
         VERBATIM
     )
