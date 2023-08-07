@@ -4,7 +4,7 @@
 
 client::client() {
     connection.reset(
-        new websocket(*this, event_loop, "wss://hellovr.at:443/")
+        new websocket(*this, event_loop, "wss://hellovr.at/")
     );
     next_network_update = std::chrono::steady_clock::now();
 }

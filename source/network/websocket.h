@@ -20,7 +20,7 @@ struct event_loop {
 struct websocket {
     struct data;
 
-    websocket(client& client, event_loop& loop, std::string_view url);
+    websocket(client& client, event_loop& loop, std::string_view url_string);
     ~websocket();
 
     // buffer needs to stay valid until is_write_completed returns true

@@ -92,16 +92,21 @@ void read(websocket& websocket) {
     websocket.d->read();
 }
 
-websocket::websocket(::client& c, event_loop& loop, std::string_view url) :
+websocket::websocket(
+    ::client& c, event_loop& loop, std::string_view url_string
+) :
     loop(loop)
 {
-    if (url.starts_with("ws:"))
+    url_view url = url_string;
+    if (url.port.empty())
+        url.port = "443";
+    if (url.scheme == "ws")
         d.reset(new insecure_websocket(c, loop, url));
-    else if (url.starts_with("wss:"))
+    else if (url.scheme == "wss")
         d.reset(new secure_websocket(c, loop, url));
     else
         throw std::runtime_error(
-            "Unsupported url " + std::string(url)
+            "Unsupported url " + std::string(url_string)
         );
 }
 
@@ -262,6 +267,14 @@ secure_websocket::secure_websocket(
     websocket::data(c), ssl_context{boost::asio::ssl::context::tlsv12_client},
     stream(loop.d->context, ssl_context), context(loop.d->context)
 {
+    ssl_context.set_default_verify_paths();
+    ssl_context.set_verify_mode(boost::asio::ssl::verify_peer);
+    ssl_context.set_verify_callback(
+        [] (bool, boost::asio::ssl::verify_context&) {
+            // TODO
+            return true;
+        }
+    );
     // post because resolver is not thread-safe
     context.post([url, &loop, this] () {
         loop.d->resolver.async_resolve(
@@ -277,18 +290,24 @@ secure_websocket::secure_websocket(
                     ) {
                         if (check(error)) return;
                         stream.binary(true);
-                        stream.async_handshake(
-                            boost::string_view(
-                                url.host.data(), url.host.size()
-                            ),
-                            boost::string_view(
-                                url.path.data(), url.path.size()
-                            ),
-                            [this](boost::beast::error_code error) {
+                        stream.next_layer().async_handshake(
+                            boost::asio::ssl::stream_base::client,
+                            [this, url](boost::beast::error_code error) {
                                 if (check(error)) return;
-                                // allow writing now
-                                write_completed = true;
-                                read();
+                                stream.async_handshake(
+                                    boost::string_view(
+                                        url.host.data(), url.host.size()
+                                    ),
+                                    boost::string_view(
+                                        url.path.data(), url.path.size()
+                                    ),
+                                    [this](boost::beast::error_code error) {
+                                        if (check(error)) return;
+                                        // allow writing now
+                                        write_completed = true;
+                                        read();
+                                    }
+                                );
                             }
                         );
                     }
