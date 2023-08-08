@@ -58,26 +58,26 @@ void read(boost::intrusive_ptr<session> session) {
             "U WS Read %s.\n",
             boost::beast::buffers_to_string(session->buffer.cdata()).c_str()
         );
-        if (!error) {
-            // TODO
-            if (size >= message_size({{1}})) {
-                auto message = parse_message({
-                    reinterpret_cast<std::uint8_t*>(
-                        session->buffer.data().data()
-                    ),
-                    session->buffer.size()
-                });
-                if (message.users.position.size() == 1) {
-                    session->position = message.users.position[0];
-                    session->orientation = message.users.orientation[0];
-                }
-            }
-
-            session->buffer.consume(session->buffer.size());
-            read(std::move(session));
-        } else {
+        if (error) {
             printf("Error %s.\n", error.message().c_str());
+            return;
         }
+        // TODO
+        if (size >= message_size({{1}})) {
+            auto message = parse_message({
+                reinterpret_cast<std::uint8_t*>(
+                    session->buffer.data().data()
+                ),
+                session->buffer.size()
+            });
+            if (message.users.position.size() == 1) {
+                session->position = message.users.position[0];
+                session->orientation = message.users.orientation[0];
+            }
+        }
+
+        session->buffer.consume(session->buffer.size());
+        read(std::move(session));
     });
 }
 
@@ -96,70 +96,64 @@ void accept(boost::asio::ip::tcp::acceptor& acceptor) {
             ).c_str()
         );
 
-        if (!error) {
-            boost::intrusive_ptr<::session> session(
-                new ::session(std::move(socket))
-            );
+        if (error) {
+            return;
+        }
+        boost::intrusive_ptr<::session> session(
+            new ::session(std::move(socket))
+        );
 
-            boost::beast::http::async_read(
-                session->stream.next_layer(), session->buffer, session->request,
-                [session](
-                    boost::beast::error_code error, std::size_t
-                ) {
-                    printf(
-                        "T%s HTTP Read %s Method %s.\n",
-                        boost::lexical_cast<std::string>(
-                            std::this_thread::get_id()
-                        ).c_str(),
-                        boost::beast::buffers_to_string(
-                            session->buffer.cdata()
-                        ).c_str(),
-                        session->request.method_string().begin()
-                    );
-                    if (!error) {
-                        if (
-                            boost::beast::websocket::is_upgrade(
-                                session->request
-                            )
-                        ) {
-                            server->sessions.push_back(session);
-                            session->stream.async_accept(
-                                session->request,
-                                [session](
-                                    boost::beast::error_code error
-                                ) mutable {
-                                    printf(
-                                        "T%s WS Accept.\n",
-                                        boost::lexical_cast<std::string>(
-                                            std::this_thread::get_id()
-                                        ).c_str()
-                                    );
-                                    if (!error) {
-                                        session->stream.binary(true);
-                                        read(session);
-                                    } else {
-                                        printf(
-                                            "Error %s.\n",
-                                            error.message().c_str()
-                                        );
-                                    }
-                                }
+        boost::beast::http::async_read(
+            session->stream.next_layer(), session->buffer, session->request,
+            [session](boost::beast::error_code error, std::size_t) {
+                printf(
+                    "T%s HTTP Read %s Method %s.\n",
+                    boost::lexical_cast<std::string>(
+                        std::this_thread::get_id()
+                    ).c_str(),
+                    boost::beast::buffers_to_string(
+                        session->buffer.cdata()
+                    ).c_str(),
+                    session->request.method_string().begin()
+                );
+
+                if(error == boost::beast::http::error::end_of_stream) {
+                    return;
+                } else if (error) {
+                    printf("Error %s.\n", error.message().c_str());
+                    return;
+                }
+
+                if (!boost::beast::websocket::is_upgrade(session->request)) {
+                    // TODO
+                    return;
+                }
+
+                server->sessions.push_back(session);
+                session->stream.async_accept(
+                    session->request,
+                    [session](boost::beast::error_code error) mutable {
+                        printf(
+                            "T%s WS Accept.\n",
+                            boost::lexical_cast<std::string>(
+                                std::this_thread::get_id()
+                            ).c_str()
+                        );
+                        if (error) {
+                            printf(
+                                "Error %s.\n",
+                                error.message().c_str()
                             );
-                        } else {
-                            // TODO
                         }
 
-                    } else if(
-                        error == boost::beast::http::error::end_of_stream
-                    ) {
-                    } else {
-                        printf("Error %s.\n", error.message().c_str());
+                        session->stream.binary(true);
+                        read(session);
                     }
-                }
-            );
+                );
+            }
+        );
 
-            accept(acceptor);
-        }
+        accept(acceptor);
     });
 }
 
@@ -205,8 +199,7 @@ void tick(boost::system::error_code error = {}) {
                     boost::beast::error_code error, size_t
                 ) {
                     server->writes_pending--;
-                    if (!error) {
-                    } else {
+                    if (error) {
                         printf("Error %s.\n", error.message().c_str());
                     }
                 }
