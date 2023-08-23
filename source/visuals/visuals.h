@@ -4,9 +4,12 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include <vk_mem_alloc.h>
+
 #include <glm/glm.hpp>
 
 #include "../utility/vulkan_resource.h"
+#include "../utility/vulkan_memory_allocator_resource.h"
 #include "../state/client.h"
 
 #include "view.h"
@@ -48,6 +51,8 @@ struct visuals {
 
     unique_device device;
 
+    unique_allocator allocator;
+
     unique_semaphore swapchain_image_ready_semaphore;
 
     VkQueue graphics_queue, present_queue;
@@ -67,5 +72,6 @@ struct visuals {
     std::uint32_t view_parameters_offset, user_position_offset;
 
     std::unique_ptr<::view> view;
-};
 
+    unique_allocation allocation;
+};
