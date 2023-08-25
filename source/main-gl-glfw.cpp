@@ -59,6 +59,9 @@ int main() {
 
     gladLoadGLES2(glfwGetProcAddress);
 
+    vglSetDeviceMemory(256 * 1024 * 1024);
+    vglSetHostMemory(256 * 1024 * 1024);
+
     int width, height;
     glfwGetWindowSize(window.get(), &width, &height);
     vglSetCurrentSurfaceExtent(

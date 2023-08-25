@@ -14,3 +14,7 @@
 	path = submodules/glm
 	url = https://github.com/g-truc/glm.git
 	shallow = true
+[submodule "submodules/VulkanMemoryAllocator"]
+	path = submodules/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+	shallow = true

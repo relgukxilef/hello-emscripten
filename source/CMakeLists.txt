@@ -16,6 +16,8 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    utility/vulkan_memory_allocator_resource.h
+    utility/vulkan_memory_allocator_resource.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -25,6 +27,13 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
+    VulkanMemoryAllocator
+)
+
+target_compile_definitions(
+    hello PRIVATE
+    VMA_STATIC_VULKAN_FUNCTIONS=0
+    VMA_DYNAMIC_VULKAN_FUNCTIONS=1
 )
 
 if (EMSCRIPTEN)
