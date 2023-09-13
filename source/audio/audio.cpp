@@ -1,6 +1,10 @@
 #include "audio.h"
 #include <AL/alc.h>
-#include <AL/alext.h>
+
+// emscripten workaround
+// https://github.com/emscripten-core/emscripten/issues/9851
+#define AL_FORMAT_MONO_FLOAT32                   0x10010
+#define AL_FORMAT_STEREO_FLOAT32                 0x10011
 
 #include <opus_defines.h>
 
