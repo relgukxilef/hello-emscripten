@@ -29,7 +29,6 @@ target_link_libraries(
     Vulkan-Headers
     glm
     opus
-    OpenAL::OpenAL
 )
 
 if (EMSCRIPTEN)
@@ -60,6 +59,7 @@ if (EMSCRIPTEN)
         -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
         -lwebsocket.js
+        -lopenal
     )
 
     target_link_options(
@@ -86,6 +86,7 @@ else()
         hello PRIVATE
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
+        OpenAL::OpenAL
     )
 
     target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
