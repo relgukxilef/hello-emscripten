@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-#include <alc.h>
+#include <AL/alc.h>
 #include <assert.h>
 
 #include "resource.h"

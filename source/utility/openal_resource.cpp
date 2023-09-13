@@ -1,5 +1,5 @@
 #include "openal_resource.h"
-#include "al.h"
+#include <AL/al.h>
 
 const char* openal_error::what() const noexcept {
     switch (error) {

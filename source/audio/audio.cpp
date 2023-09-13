@@ -1,5 +1,6 @@
 #include "audio.h"
-#include "alc.h"
+#include <AL/alc.h>
+#include <AL/alext.h>
 
 #include <opus_defines.h>
 
@@ -12,7 +13,7 @@ audio::audio() {
     const char *devicename = alcGetString(NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
 
     capture_device = alcCaptureOpenDevice(
-        devicename, 48000, AL_FORMAT_MONO16, 1024
+        devicename, 48000, AL_FORMAT_MONO_FLOAT32, 1024
     );
     check(capture_device);
 }
