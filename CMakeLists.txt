@@ -13,3 +13,5 @@ add_subdirectory(submodules/VulkanGL EXCLUDE_FROM_ALL)
 
 set(OPUS_STACK_PROTECTOR OFF)
 add_subdirectory(submodules/opus EXCLUDE_FROM_ALL)
+
+add_subdirectory(submodules/openal-soft EXCLUDE_FROM_ALL)

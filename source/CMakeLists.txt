@@ -18,6 +18,7 @@ add_library(
     network/network_message.h network/network_message.cpp
     audio/audio.h audio/audio.cpp
     utility/opus_resource.h utility/opus_resource.cpp
+    utility/openal_resource.h utility/openal_resource.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -28,6 +29,7 @@ target_link_libraries(
     Vulkan-Headers
     glm
     opus
+    OpenAL::OpenAL
 )
 
 if (EMSCRIPTEN)
