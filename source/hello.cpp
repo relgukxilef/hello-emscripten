@@ -7,7 +7,8 @@
 #include "utility/vulkan_resource.h"
 
 hello::hello(VkInstance instance, VkSurfaceKHR surface) :
-    visuals(new ::visuals(client, instance, surface))
+    visuals(new ::visuals(client, instance, surface)),
+    audio(new ::audio())
 {
     std::printf("Servus Welt 3!\n");
 }

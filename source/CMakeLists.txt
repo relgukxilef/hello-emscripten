@@ -16,6 +16,8 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    audio/audio.h audio/audio.cpp
+    utility/opus_resource.h utility/opus_resource.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -25,6 +27,7 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
+    opus
 )
 
 if (EMSCRIPTEN)
