@@ -86,6 +86,9 @@ else()
         hello PRIVATE
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
+    )
+    target_link_libraries(
+        hello PUBLIC
         OpenAL::OpenAL
     )
 
