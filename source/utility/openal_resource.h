@@ -30,7 +30,7 @@ void openal_delete(T** t) {
 
 template<unsigned N, typename T, auto Deleter>
 void openal_array_delete(std::array<T, N>* t) {
-    Deleter(N, begin(*t));
+    Deleter(N, t->data());
 }
 
 typedef unique_resource<

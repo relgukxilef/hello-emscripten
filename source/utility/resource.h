@@ -25,8 +25,8 @@ struct unique_resource {
     auto operator*() {
         return *value;
     }
-    T operator->() {
-        return value;
+    T* operator->() {
+        return &value;
     }
     operator bool() const {
         return value != Null;

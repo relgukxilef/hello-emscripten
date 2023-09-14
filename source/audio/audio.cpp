@@ -36,7 +36,7 @@ audio::audio() {
     alcMakeContextCurrent(context.get());
     check(playback_device);
 
-    alGenBuffers(std::size(buffers.get()), begin(buffers.get()));
+    alGenBuffers(std::size(buffers.get()), buffers->data());
     openal_check();
 
     std::fill(std::begin(buffer_data), std::end(buffer_data), 0.0f);
@@ -51,7 +51,7 @@ audio::audio() {
         buffer_data_begin += 8 * 1024;
     }
 
-    alGenSources(size(sources.get()), std::begin(sources.get()));
+    alGenSources(size(sources.get()), sources->data());
     openal_check();
 
     alSourcef(sources.get()[0], AL_PITCH, 1);
@@ -62,7 +62,7 @@ audio::audio() {
     openal_check();
 
     alSourceQueueBuffers(
-        sources.get()[0], std::size(buffers.get()), std::begin(buffers.get())
+        sources.get()[0], std::size(buffers.get()), buffers->data()
     );
     openal_check();
 
