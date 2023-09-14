@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <cstdio>
 
 #include <AL/alc.h>
 #include <assert.h>
@@ -15,7 +16,10 @@ struct openal_error : public std::exception {
     ALCenum error;
 };
 
-inline openal_error::openal_error(ALCenum error) noexcept : error(error) {}
+inline openal_error::openal_error(ALCenum error) noexcept : error(error) {
+    std::puts(what());
+    std::puts("\n");
+}
 
 template<typename T, auto Deleter>
 void openal_delete(T** t) {
