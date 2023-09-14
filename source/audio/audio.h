@@ -6,6 +6,8 @@
 #include "../utility/opus_resource.h"
 #include "../utility/openal_resource.h"
 
+constexpr std::size_t buffer_size = 4 * 1024;
+
 struct audio {
     audio();
 
@@ -17,8 +19,8 @@ struct audio {
     unique_openal_playback_device playback_device;
     unique_openal_context context;
 
-    ALshort buffer_data[4 * 8 * 1024];
+    ALshort buffer_data[2 * buffer_size];
 
-    unique_openal_buffers<4> buffers;
+    unique_openal_buffers<2> buffers;
     unique_openal_sources<1> sources;
 };

@@ -23,7 +23,7 @@ audio::audio() {
     device_name = alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
 
     capture_device = alcCaptureOpenDevice(
-        device_name, 48000, AL_FORMAT_MONO16, 4 * 8 * 1024
+        device_name, 48000, AL_FORMAT_MONO16, 4 * buffer_size
     );
     check(capture_device);
 
@@ -45,10 +45,10 @@ audio::audio() {
     for (auto buffer : buffers.get()) {
         alBufferData(
             buffer, AL_FORMAT_MONO16, buffer_data_begin,
-            8 * 1024 * sizeof(ALshort), 48000
+            buffer_size * sizeof(ALshort), 48000
         );
         openal_check();
-        buffer_data_begin += 8 * 1024;
+        buffer_data_begin += buffer_size;
     }
 
     alGenSources(size(sources.get()), sources->data());
@@ -71,7 +71,7 @@ audio::audio() {
 }
 
 void audio::update() {
-    ALshort capture_data[8 * 1024];
+    ALshort capture_data[buffer_size];
     std::fill(std::begin(capture_data), std::end(capture_data), 0.0f);
     ALCenum error;
 
