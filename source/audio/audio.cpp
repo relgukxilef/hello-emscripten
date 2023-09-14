@@ -103,8 +103,6 @@ void audio::update() {
 
             alSourceQueueBuffers(sources.get()[0], 1, &unqueued_buffer);
             openal_check();
-
-            std::printf("Updated buffer %i\n", unqueued_buffer);
         }
     }
 
