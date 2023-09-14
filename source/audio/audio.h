@@ -17,7 +17,7 @@ struct audio {
     unique_openal_playback_device playback_device;
     unique_openal_context context;
 
-    float buffer_data[4 * 8 * 1024];
+    ALshort buffer_data[4 * 8 * 1024];
 
     unique_openal_buffers<4> buffers;
     unique_openal_sources<1> sources;
