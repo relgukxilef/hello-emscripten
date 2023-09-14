@@ -14,10 +14,10 @@ audio::audio() {
     encoder = opus_encoder_create(48000, 1, OPUS_APPLICATION_VOIP, &error);
     opus_check(error);
 
-    const char *devicename = alcGetString(NULL, ALC_DEFAULT_DEVICE_SPECIFIER);
+    const char *device_name = alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
 
     capture_device = alcCaptureOpenDevice(
-        devicename, 48000, AL_FORMAT_MONO_FLOAT32, 1024
+        device_name, 48000, AL_FORMAT_MONO_FLOAT32, 1024
     );
     check(capture_device);
 }

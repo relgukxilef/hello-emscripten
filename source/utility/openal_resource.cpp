@@ -12,7 +12,9 @@ const char* openal_error::what() const noexcept {
     case AL_INVALID_OPERATION:
         return "Illegal AL call.";
     case AL_OUT_OF_MEMORY:
-        return "Not enough memory to execute the AL call.";
+        return 
+            "Not enough memory to execute the AL call or "
+            "the specified device is invalid, or can not capture audio.";
     default:
         return "Other openal error.";
     }
