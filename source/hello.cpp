@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "utility/openal_resource.h"
 #include "utility/vulkan_resource.h"
 
 hello::hello(VkInstance instance, VkSurfaceKHR surface) :
@@ -16,6 +17,7 @@ hello::hello(VkInstance instance, VkSurfaceKHR surface) :
 void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
     try {
         visuals->draw(client, instance, surface);
+
     } catch (vulkan_error& error) {
         std::fprintf(stderr, "Vulkan error. %s\n", error.what());
         if (error.result == VK_ERROR_DEVICE_LOST) {
@@ -24,6 +26,13 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
         } else {
             throw;
         }
+    }
+
+    try {
+        audio->update();
+        
+    } catch (openal_error& error) {
+        std::fprintf(stderr, "OpenAL error. %s\n", error.what());
     }
 }
 

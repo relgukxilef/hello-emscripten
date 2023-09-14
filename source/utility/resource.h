@@ -32,7 +32,11 @@ struct unique_resource {
         return value != Null;
     }
 
-    const T& get() {
+    const T& get() const {
+        return value;
+    };
+
+    T& get() {
         return value;
     };
 

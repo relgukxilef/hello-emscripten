@@ -15,7 +15,6 @@ void put_message(client& client, const char* buffer, size_t size) {
         client.message_in_readable = true;
 
     } else {
-        fprintf(stdout, "Message skipped\n");
     }
 }
 
