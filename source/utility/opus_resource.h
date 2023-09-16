@@ -16,16 +16,18 @@ struct opus_error : public std::exception {
 
 inline opus_error::opus_error(int error) noexcept : error(error) {}
 
-inline void opus_check(int error) {
-    if (error == OPUS_OK) {
-        return;
+inline int opus_check(int error) {
+    if (error >= 0) {
+        return error;
     } else {
         throw opus_error(error);
     }
 }
 
-inline void opus_encoder_delete(OpusEncoder** encoder) {
-    opus_encoder_destroy(*encoder);
-}
+typedef unique_resource<
+    OpusEncoder*, handle_delete<OpusEncoder, opus_encoder_destroy>
+> unique_opus_encoder;
 
-typedef unique_resource<OpusEncoder*, opus_encoder_delete> unique_opus_encoder;
+typedef unique_resource<
+    OpusDecoder*, handle_delete<OpusDecoder, opus_decoder_destroy>
+> unique_opus_decoder;

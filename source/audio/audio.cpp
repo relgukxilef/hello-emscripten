@@ -15,6 +15,8 @@ audio::audio() {
     int error;
     encoder = opus_encoder_create(48000, 1, OPUS_APPLICATION_VOIP, &error);
     opus_check(error);
+    decoder = opus_decoder_create(48000, 1, &error);
+    opus_check(error);
 
     const char *device_name = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
     playback_device = alcOpenDevice(device_name);
@@ -86,6 +88,15 @@ void audio::update() {
         } else {
             openal_check(error);
         }
+
+        auto result = opus_check(opus_encode(
+            encoder.get(), capture_data, std::size(capture_data),
+            encoded_audio.data(), encoded_audio.size()
+        ));
+        opus_check(opus_decode(
+            decoder.get(), encoded_audio.data(), result,
+            capture_data, std::size(capture_data), 0
+        ));
 
         ALuint unqueued_buffer = 0;
         alSourceUnqueueBuffers(sources.get()[0], 1, &unqueued_buffer);

@@ -29,6 +29,8 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
     }
 
     try {
+        unsigned char buffer[1024];
+        audio->encoded_audio = buffer;
         audio->update();
         
     } catch (openal_error& error) {

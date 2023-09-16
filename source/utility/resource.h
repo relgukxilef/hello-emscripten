@@ -43,3 +43,8 @@ struct unique_resource {
 private:
     T value;
 };
+
+template<typename T, auto Deleter>
+void handle_delete(T** t) {
+    Deleter(*t);
+}

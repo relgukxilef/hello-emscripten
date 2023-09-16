@@ -23,26 +23,21 @@ inline openal_error::openal_error(ALCenum error) noexcept : error(error) {
     std::puts("\n");
 }
 
-template<typename T, auto Deleter>
-void openal_delete(T** t) {
-    Deleter(*t);
-}
-
 template<unsigned N, typename T, auto Deleter>
 void openal_array_delete(std::array<T, N>* t) {
     Deleter(N, t->data());
 }
 
 typedef unique_resource<
-    ALCdevice*, openal_delete<ALCdevice, alcCloseDevice>
+    ALCdevice*, handle_delete<ALCdevice, alcCloseDevice>
 > unique_openal_playback_device;
 
 typedef unique_resource<
-    ALCdevice*, openal_delete<ALCdevice, alcCaptureCloseDevice>
+    ALCdevice*, handle_delete<ALCdevice, alcCaptureCloseDevice>
 > unique_openal_capture_device;
 
 typedef unique_resource<
-    ALCcontext*, openal_delete<ALCcontext, alcDestroyContext>
+    ALCcontext*, handle_delete<ALCcontext, alcDestroyContext>
 > unique_openal_context;
 
 template<std::size_t N>

@@ -1,13 +1,15 @@
 #pragma once
 
+#include <span>
+
 #include <opus.h>
 #include <AL/al.h>
 
 #include "../utility/opus_resource.h"
 #include "../utility/openal_resource.h"
 
-constexpr std::size_t buffer_count = 4;
-constexpr std::size_t buffer_size = 8 * 1024;
+constexpr std::size_t buffer_count = 8;
+constexpr std::size_t buffer_size = 960;
 
 struct audio {
     audio();
@@ -15,6 +17,7 @@ struct audio {
     void update();
 
     unique_opus_encoder encoder;
+    unique_opus_decoder decoder;
 
     unique_openal_capture_device capture_device;
     unique_openal_playback_device playback_device;
@@ -24,4 +27,6 @@ struct audio {
 
     unique_openal_buffers<buffer_count> buffers;
     unique_openal_sources<1> sources;
+
+    std::span<unsigned char> encoded_audio;
 };
