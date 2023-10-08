@@ -133,6 +133,7 @@ bool websocket::is_write_completed() {
 }
 
 url_view::url_view(std::string_view url) {
+    // TODO: crashes when path is empty
     auto colon1 = url.find(":");
     scheme = url.substr(0, colon1);
     url = url.substr(colon1 + 1);
