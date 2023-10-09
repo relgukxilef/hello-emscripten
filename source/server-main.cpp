@@ -51,17 +51,23 @@ struct server_t {
 
 server_t* server;
 
-void read(boost::intrusive_ptr<session> session) {
-    session->stream.async_read(session->buffer, [session](
-        boost::beast::error_code error, size_t size
-    ) {
+boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
+    boost::system::error_code error;
+    auto completion_token =
+        boost::asio::redirect_error(boost::asio::use_awaitable, error);
+
+    while (true) {
+        size_t size = co_await session->stream.async_read(
+            session->buffer, completion_token
+        );
+
         printf(
             "U WS Read %s.\n",
             boost::beast::buffers_to_string(session->buffer.cdata()).c_str()
         );
         if (error) {
             printf("Error %s.\n", error.message().c_str());
-            return;
+            co_return;
         }
         // TODO
         if (size >= message_size({{1}})) {
@@ -78,8 +84,7 @@ void read(boost::intrusive_ptr<session> session) {
         }
 
         session->buffer.consume(session->buffer.size());
-        read(std::move(session));
-    });
+    }
 }
 
 boost::asio::awaitable<void> accept(
@@ -159,7 +164,7 @@ boost::asio::awaitable<void> accept(
 
     server->sessions.push_back(session);
 
-    read(session);
+    co_await read(session);
 }
 
 void tick(boost::system::error_code error = {}) {
