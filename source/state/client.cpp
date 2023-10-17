@@ -2,11 +2,19 @@
 
 #include "../network/network_message.h"
 
+// These may differ between server and client
+unsigned message_user_capacity = 16;
+unsigned message_audio_capacity = 200;
+
 client::client() {
     connection.reset(
         new websocket(*this, event_loop, "ws://localhost:28750/")
     );
     next_network_update = std::chrono::steady_clock::now();
+    in_message = message(message_user_capacity, message_audio_capacity);
+    in_buffer.resize(capacity(in_message));
+    out_message = message(message_user_capacity, message_audio_capacity);
+    out_buffer.resize(capacity(out_message));
 }
 
 void client::update(::input &input) {
@@ -64,13 +72,16 @@ void client::update(::input &input) {
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
         if (connection->is_write_completed()) {
-            message_header header = {{1}};
-            message.resize(message_size(header));
-            *reinterpret_cast<message_header*>(message.data()) = header;
-            auto data = parse_message({message.data(), message.size()});
-            data.users.position[0] = user_position;
-            data.users.orientation[0] = user_orientation;
-            connection->try_write_message({message.data(), message.size()});
+            out_message.users.size = 1;
+            auto &p = out_message.users.position;
+            p.x[0].value = user_position.x;
+            p.y[0].value = user_position.y;
+            p.z[0].value = user_position.z;
+            // TODO
+
+            write(out_message, out_buffer);
+
+            connection->try_write_message(out_buffer);
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
@@ -78,22 +89,22 @@ void client::update(::input &input) {
     }
 
     if (message_in_readable) {
-        auto header = *reinterpret_cast<message_header*>(message_in.data());
-        auto data = parse_message({message_in.data(), message_in.size()});
-        std::size_t user_count = header.users.size;
+        read(in_message, in_buffer);
+        std::size_t user_count = in_message.users.size;
+
         if (user_count != users.position.size()) {
             users.position.resize(user_count);
             users.orientation.resize(user_count);
             update_number++;
         }
-        std::move(
-            data.users.position.begin(), data.users.position.end(),
-            users.position.begin()
-        );
-        std::move(
-            data.users.orientation.begin(), data.users.orientation.end(),
-            users.orientation.begin()
-        );
+
+        for (size_t index = 0; index < user_count; index++) {
+            users.position[index].x = in_message.users.position.x[index].value;
+            users.position[index].y = in_message.users.position.y[index].value;
+            users.position[index].z = in_message.users.position.z[index].value;
+        }
+        // TODO
+
         message_in_readable = false;
     }
 }

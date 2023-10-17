@@ -16,6 +16,7 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    utility/serialization.h utility/serialization.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -159,3 +160,6 @@ endif ()
 
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 #set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)

@@ -10,8 +10,8 @@ void put_message(client& client, const char* buffer, size_t size) {
             c = '.';
 
     if (!client.message_in_readable) {
-        client.message_in.resize(size);
-        std::move(buffer, buffer + size, client.message_in.data());
+        client.in_buffer.resize(size);
+        std::move(buffer, buffer + size, client.in_buffer.data());
         client.message_in_readable = true;
 
     } else {

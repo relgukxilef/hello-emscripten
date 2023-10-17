@@ -11,6 +11,7 @@
 
 #include "input.h"
 #include "../network/websocket.h"
+#include "../network/network_message.h"
 
 struct client {
     client();
@@ -36,11 +37,13 @@ struct client {
     std::chrono::steady_clock::time_point next_network_update;
 
     // out-going
-    std::vector<std::uint8_t> message;
+    message out_message;
+    std::vector<std::uint8_t> out_buffer;
 
     // in-comming
     // TODO: might need a queue for delta compression
-    std::vector<std::uint8_t> message_in;
+    message in_message;
+    std::vector<std::uint8_t> in_buffer;
     std::atomic_bool message_in_readable;
 
     // TODO: maybe should be in another struct
