@@ -73,11 +73,17 @@ void client::update(::input &input) {
     if (now > next_network_update) {
         if (connection->is_write_completed()) {
             out_message.users.size = 1;
+
             auto &p = out_message.users.position;
-            p.x[0].value = user_position.x;
-            p.y[0].value = user_position.y;
-            p.z[0].value = user_position.z;
-            // TODO
+            p.x.values[0] = user_position.x;
+            p.y.values[0] = user_position.y;
+            p.z.values[0] = user_position.z;
+
+            auto &o = out_message.users.orientation;
+            o.x.values[0] = user_orientation.x;
+            o.y.values[0] = user_orientation.y;
+            o.z.values[0] = user_orientation.z;
+            o.w.values[0] = user_orientation.w;
 
             write(out_message, out_buffer);
 
@@ -99,11 +105,17 @@ void client::update(::input &input) {
         }
 
         for (size_t index = 0; index < user_count; index++) {
-            users.position[index].x = in_message.users.position.x[index].value;
-            users.position[index].y = in_message.users.position.y[index].value;
-            users.position[index].z = in_message.users.position.z[index].value;
+            auto &p = in_message.users.position;
+            users.position[index].x = p.x.values[index];
+            users.position[index].y = p.y.values[index];
+            users.position[index].z = p.z.values[index];
+
+            auto &o = in_message.users.orientation;
+            users.orientation[index].x = o.x.values[index];
+            users.orientation[index].y = o.y.values[index];
+            users.orientation[index].z = o.z.values[index];
+            users.orientation[index].w = o.w.values[index];
         }
-        // TODO
 
         message_in_readable = false;
     }

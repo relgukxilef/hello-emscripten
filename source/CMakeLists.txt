@@ -17,6 +17,7 @@ add_library(
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
     utility/serialization.h utility/serialization.cpp
+    utility/unique_span.h
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)

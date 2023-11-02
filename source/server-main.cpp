@@ -91,12 +91,12 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
                 auto &p = session->m.users.position;
                 auto &o = session->m.users.orientation;
                 session->position =
-                    glm::vec3{p.x[0].value, p.y[0].value, p.z[0].value};
+                    glm::vec3{p.x.values[0], p.y.values[0], p.z.values[0]};
                 session->orientation = glm::normalize(glm::quat{
-                    o.w[0].value,
-                    o.x[0].value,
-                    o.y[0].value,
-                    o.z[0].value
+                    o.w.values[0],
+                    o.x.values[0],
+                    o.y.values[0],
+                    o.z.values[0]
                 });
             }
         }
@@ -213,14 +213,17 @@ void tick(boost::system::error_code error = {}) {
         server->m.users.size = size;
         auto &p = server->m.users.position;
         for (auto s : boost::adaptors::index(server->tick_positions)) {
-            p.x[s.index()].value = s.value().x;
-            p.y[s.index()].value = s.value().y;
-            p.z[s.index()].value = s.value().z;
+            p.x.values[s.index()] = s.value().x;
+            p.y.values[s.index()] = s.value().y;
+            p.z.values[s.index()] = s.value().z;
         }
-        /*auto &o = server->m.users.orientation;
-        for (auto *v : {&o.x, &o.y, &o.z, &o.w}) {
-            v->size = size;
-        }*/
+        auto &o = server->m.users.orientation;
+        for (auto s : boost::adaptors::index(server->tick_orientations)) {
+            o.x.values[s.index()] = s.value().x;
+            o.y.values[s.index()] = s.value().y;
+            o.z.values[s.index()] = s.value().z;
+            o.w.values[s.index()] = s.value().w;
+        }
 
         write(server->m, server->buffer);
 
