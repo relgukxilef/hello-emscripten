@@ -69,7 +69,7 @@ else()
     find_package(OpenGL)
     
     set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.74.0 COMPONENTS system REQUIRED)
+    find_package(Boost 1.74.0 COMPONENTS system serialization log REQUIRED)
     find_package(OpenSSL REQUIRED)
 
     target_sources(
@@ -123,6 +123,7 @@ else()
         server-main.cpp
         # TODO: put these in a separate library
         network/network_message.h network/network_message.cpp
+        network/utility.h network/utility.cpp
     )
 
     target_compile_features(server PUBLIC cxx_std_20)
@@ -132,7 +133,8 @@ else()
     )
 
     target_link_libraries(
-        server PRIVATE ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread>
+        server PRIVATE
+        ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread> OpenSSL::SSL
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})

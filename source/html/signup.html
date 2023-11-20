@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+    <body>
+        <div class="container">
+            <form action="http://localhost:28750/api/v0/users" method="post">
+                <h1>Sign Up</h1>
+                <hr>
+                <div>
+                    <label for="name"><b>Username (optional)</b></label>
+                    <input type="text" placeholder="Enter Username" name="name">
+                    <div>If you don't specify a username you will be given a random username.</div>
+                </div>
+                If you want to share content with other users, you need to specify an authentication method. Otherwise, you can skip the next fields.
+                <div>
+                    <label for="password"><b>Password (optional)</b></label>
+                    <input type="password" placeholder="Enter Password" name="password">
+                    <label for="passwordRepeat"><b>Repeat Password</b></label>
+                    <input type="password" placeholder="Repeat Password" name="passwordRepeat">
+                    <label for="passwordAddress"><b>Email address (optional)</b></label>
+                    <input type="text" placeholder="Enter email address" name="passwordAddress">
+                    <div>If you specify an email address, we will use it to send you a password reset link if you forget your password. If you choose not to specify an email address and you forget your password, your account will be lost. Your password and email address are both stored in a way that makes them impossible to read, even for someone with full access to the servers.</div>
+                </div>
+                <div>
+                    <label for="address"><b>Email address (optional)</b></label>
+                    <input type="text" placeholder="Enter email address" name="address">
+                    <div>To log in with your email address, we will send you a link every time you want to log in. Your email address is stored in a way that makes it impossible to read, even for someone with full access to the servers.</div>
+                </div>
+                <div>
+                    <img src="example_otp.png" alt="QR-Code"/>
+                    <div>PS7HKTORNFVKZVG5DX766NHKD7CDSVSI</div>
+                    <input type="hidden" name="otp" value="PS7HKTORNFVKZVG5DX766NHKD7CDSVSI">
+                    <div>To use one-time passwords scan this code with your authenticator. Alternatively, copy the code manually into your authenticator. To log in you will use the code given to you by the authenticator.</div>
+                </div>
+                You can add additional authentication methods and two-factor authentication in your account settings later.
+                <div>
+                    Automatically delete my account after 
+                    <select name="deleteAfter">
+                        <option value="1">1 month</option>
+                        <option value="3">3 months</option>
+                        <option value="6">6 months</option>
+                        <option value="12">1 year</option>
+                        <option value="24">2 year</option>
+                    </select>
+                    days of inactivity.
+                </div>
+                <p>By creating an account you agree to our <a href="#" style="color:dodgerblue">Terms & Privacy</a>.</p>
+                <div class="clearfix">
+                    <button type="button" class="cancelbtn">Cancel</button>
+                    <button type="submit" class="signupbtn">Sign Up</button>
+                </div>
+            </form>
+        </div>
+    </body>
+</html>

@@ -11,11 +11,19 @@
 #include <boost/intrusive_ptr.hpp>
 #include <boost/smart_ptr/intrusive_ref_counter.hpp>
 #include <boost/range/adaptor/indexed.hpp>
+#include <boost/log/trivial.hpp>
+#include <boost/archive/iterators/base64_from_binary.hpp>
+#include <boost/archive/iterators/transform_width.hpp>
+#include <boost/iostreams/stream.hpp>
+
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include <openssl/rand.h>
+
 #include "network/network_message.h"
+#include "network/utility.h"
 
 enum { port = 28750 };
 std::chrono::milliseconds tick_time{50};
@@ -47,6 +55,7 @@ struct server_t {
     std::vector<glm::quat> tick_orientations;
     std::vector<boost::intrusive_ptr<session>> sessions;
     boost::asio::steady_timer tick_timer;
+    std::span<char> login_secret;
 };
 
 server_t* server;
@@ -89,7 +98,7 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
 
 boost::asio::awaitable<void> accept(
     boost::asio::io_context &context,
-    boost::asio::ip::tcp::acceptor& acceptor
+    boost::asio::ip::tcp::acceptor &acceptor
 ) {
     boost::system::error_code error;
     auto completion_token =
@@ -141,6 +150,41 @@ boost::asio::awaitable<void> accept(
 
     if (!boost::beast::websocket::is_upgrade(session->request)) {
         // TODO
+        auto target = session->request.target();
+        auto body = session->request.body();
+
+        std::string_view name;
+
+        parse_form(body, {
+            {"name", &name}
+        });
+
+        fwrite(name.data(), 1, name.size(), stdout);
+
+        uint8_t noise[4];
+        RAND_bytes(noise, sizeof(noise));
+
+        boost::beast::http::response<boost::beast::http::string_body> response {
+            boost::beast::http::status::created, session->request.version()
+        };
+        response.set(
+            boost::beast::http::field::content_type, "application/json"
+        );
+        char response_buffer[512];
+        auto response_span = jwt{
+            0,
+            unix_time(), unix_time() + 500
+        }.write(server->login_secret, response_buffer);
+        response.body().append(response_span.begin(), response_span.end());
+        // TODO: response has garbage at the end
+        // TODO: put into json
+
+        BOOST_LOG_TRIVIAL(info) << "User sign up";
+
+        co_await async_write(
+            session->stream.next_layer(), response, completion_token
+        );
+
         co_return;
     }
 
@@ -227,11 +271,25 @@ void tick(boost::system::error_code error = {}) {
     server->tick_timer.async_wait(tick);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     boost::asio::io_context context;
 
     server_t current_server(context);
     ::server = &current_server;
+
+    for (auto arg = argv; *arg != nullptr; arg++) {
+        if (strcmp(*arg, "--login.secret") == 0) {
+            arg++;
+            if (*arg != nullptr) {
+                // TODO: the comman line argument will hold a path to a file
+                // containing the secret, instead of the secret
+                // TODO: create a login module that stores this secret
+                server->login_secret = {*arg, strlen(*arg)};
+            }
+        }
+    }
+
+    assert(!server->login_secret.empty());
 
     boost::asio::ip::tcp::acceptor acceptor(
         context, boost::asio::ip::tcp::endpoint{{}, port}
