@@ -281,7 +281,7 @@ int main(int argc, char *argv[]) {
         if (strcmp(*arg, "--login.secret") == 0) {
             arg++;
             if (*arg != nullptr) {
-                // TODO: the comman line argument will hold a path to a file
+                // TODO: the command line argument should hold a path to a file
                 // containing the secret, instead of the secret
                 // TODO: create a login module that stores this secret
                 server->login_secret = {*arg, *arg + strlen(*arg)};

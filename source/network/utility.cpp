@@ -133,7 +133,8 @@ char *jwt::write(
     range_stream destination = buffer;
 
     destination.cursor = base64_encode(
-        std::views::all(header), destination.right()
+        {std::begin(header), std::end(header) - 1},
+        destination.right()
     );
     append(destination, ".");
 
@@ -144,7 +145,7 @@ char *jwt::write(
         payload,
         "{\"sub\":", subject, ",\"iat\":", issued_at,
         ",\"exp\":", expiration, "}"
-        );
+    );
 
     destination.cursor = base64_encode(payload.left(), destination.right());
 
@@ -183,7 +184,7 @@ bool jwt::read(
     if (
         payload.size() != signature.size() ||
         !std::equal(signature.begin(), signature.end(), payload.begin())
-        ) {
+    ) {
         return false;
     }
     puts("signature checked");
