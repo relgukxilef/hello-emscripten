@@ -3,7 +3,7 @@
 #include <charconv>
 #include <string_view>
 #include <initializer_list>
-#include <span>
+#include <ranges>
 
 void parse_form(
     std::string_view body,
@@ -11,25 +11,38 @@ void parse_form(
     parameters
 );
 
+struct range_stream : public std::ranges::subrange<char*> {
+    range_stream(std::ranges::subrange<char*> buffer) :
+        std::ranges::subrange<char*>(buffer), cursor(buffer.begin()) {}
+    std::ranges::subrange<char*> right() {
+        return {cursor, end()};
+    }
+    std::ranges::subrange<char*> left() {
+        return {begin(), cursor};
+    }
+
+    char *cursor;
+};
+
 void append(std::span<char> &buffer, std::span<const char> string);
 
 template<int N>
-void append(std::span<char> &buffer, const char (&string)[N]) {
+void append(range_stream &buffer, const char (&string)[N]) {
     append(buffer, {string, string + N - 1});
 }
 
 template<std::integral T>
-void append(std::span<char> &buffer, T number) {
-    buffer = {
-        std::to_chars(buffer.data(), buffer.data() + buffer.size(), number).ptr,
-        buffer.data() + buffer.size()
-    };
+void append(range_stream &buffer, T number) {
+    buffer.cursor = buffer.begin() + (
+        std::to_chars(
+            buffer.right().data(), buffer.data() + buffer.size(), number
+        ).ptr -
+        buffer.data()
+    );
 }
 
 template<class T1, class T2, class... R>
-void append(
-    std::span<char> &buffer, const T1 &t1, const T2 &t2, const R &... r
-) {
+void append(range_stream &buffer, const T1 &t1, const T2 &t2, const R &... r) {
     append(buffer, t1);
     append(buffer, t2, r...);
 }
@@ -39,9 +52,13 @@ std::uint64_t unix_time();
 struct jwt {
     std::uint64_t subject, issued_at, expiration;
 
-    std::span<char> write(std::span<char> secret, std::span<char> buffer);
+    char *write(
+        std::ranges::subrange<const char*> secret,
+        std::ranges::subrange<char*> buffer
+    );
 
     bool read(
-        std::span<char> secret, std::span<const char> buffer, uint64_t now
+        std::ranges::subrange<const char*> secret,
+        std::ranges::subrange<char*> buffer, uint64_t now
     );
 };

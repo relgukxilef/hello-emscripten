@@ -3,6 +3,7 @@
 #include <charconv>
 #include <chrono>
 #include <span>
+#include <algorithm>
 
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/iterator/transform_iterator.hpp>
@@ -32,17 +33,11 @@ void parse_form(
     }
 }
 
-void skip(std::span<char> &buffer, std::span<const char> string) {
-    buffer = {buffer.begin() + string.size(), buffer.end()};
-}
-
-void append(std::span<char> &buffer, std::span<const char> string) {
-    auto out_begin = buffer.begin(), out_end = buffer.end();
-    auto in_begin = string.begin(), in_end = string.end();
-    while (in_begin != in_end && out_begin != out_end) {
-        *out_begin++ = *in_begin++;
+void append(range_stream &buffer, std::span<const char> string) {
+    auto in = string.begin();
+    while (in != string.end() && buffer.cursor != buffer.end()) {
+        *buffer.cursor++ = *in++;
     }
-    buffer = {out_begin, out_end};
 }
 
 char to_base64(char six_bit) {
@@ -77,44 +72,48 @@ std::uint64_t unix_time() {
     return std::chrono::duration_cast<std::chrono::seconds>(epoch).count();
 }
 
-std::span<char> base64_encode(
-    std::string_view input, std::span<char> output
+char *base64_encode(
+    std::ranges::subrange<const char *> input,
+    std::ranges::subrange<char*> output
 ) {
-    typedef boost::archive::iterators::transform_width<char*, 6, 8>
-        base64_iterator;
+    typedef boost::archive::iterators::transform_width<
+        const char *, 6, 8
+        > base64_iterator;
 
-    auto in_begin = base64_iterator(
-        input.data()), in_end = base64_iterator(input.data() + input.size()
-    );
+    auto
+        in_begin = base64_iterator(input.begin()),
+        in_end = base64_iterator(input.end());
     auto out_begin = output.begin(), out_end = output.end();
 
     while (in_begin != in_end && out_begin != out_end) {
         *out_begin++ = to_base64(*in_begin++);
     }
-    return {output.begin(), out_begin};
+    return out_begin;
 }
 
-std::span<char> base64_decode(
-    std::string_view input, std::span<char> output
-    ) {
+char *base64_decode(
+    std::ranges::subrange<const char*> input,
+    std::ranges::subrange<char*> output
+) {
     typedef boost::archive::iterators::transform_width<
         boost::transform_iterator<from_base64, const char*>, 8, 6
     > base64_iterator;
 
     auto in_begin = base64_iterator(input.data());
     auto in_end = base64_iterator(input.data() + input.size());
-    auto out_begin = output.begin(), out_end = output.end();
+    auto out_begin = output.begin();
 
-    while (in_begin != in_end && out_begin != out_end) {
+    while (in_begin != in_end && out_begin != output.end()) {
         *out_begin++ = *in_begin++;
     }
-    return {output.begin(), out_begin};
+    return out_begin;
 }
 
-std::span<char> hmac_sha256(
-    std::span<const char> key, std::span<const char> message,
-    std::span<char> destination
-    ) {
+char *hmac_sha256(
+    std::ranges::subrange<const char*> key,
+    std::ranges::subrange<const char*> message,
+    std::ranges::subrange<char*> destination
+) {
     unsigned int size = 0;
     HMAC(
         EVP_sha256(),
@@ -122,40 +121,46 @@ std::span<char> hmac_sha256(
         (unsigned char*)message.data(), message.size(),
         (unsigned char*)destination.data(), &size
     );
-    return {destination.data(), size};
+    return destination.begin() + size;
 }
 
-std::span<char> jwt::write(std::span<char> secret, std::span<char> buffer) {
+char *jwt::write(
+    std::ranges::subrange<const char*> secret,
+    std::ranges::subrange<char*> buffer
+) {
     char header[] = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
 
-    auto span = buffer;
+    range_stream destination = buffer;
 
-    skip(span, base64_encode(header, span));
-    append(span, ".");
+    destination.cursor = base64_encode(
+        std::views::all(header), destination.right()
+    );
+    append(destination, ".");
 
     char payload_buffer[128];
-    std::span<char> payload(payload_buffer);
+    range_stream payload(payload_buffer);
 
     append(
         payload,
         "{\"sub\":", subject, ",\"iat\":", issued_at,
         ",\"exp\":", expiration, "}"
-    );
+        );
 
-    skip(span, base64_encode({payload_buffer, payload.data()}, span));
+    destination.cursor = base64_encode(payload.left(), destination.right());
 
-    skip(payload, hmac_sha256(
-        secret, {buffer.begin(), buffer.size() - span.size()}, payload_buffer
-    ));
+    payload.cursor = payload.begin();
+    payload.cursor = hmac_sha256(secret, destination.left(), payload_buffer);
 
-    append(span, ".");
-    skip(span, base64_encode({payload_buffer, payload.data()}, span));
+    append(destination, ".");
+    destination.cursor = base64_encode(payload.left(), destination.right());
 
-    return {buffer.begin(), buffer.size() - span.size()};
+    return destination.cursor;
 }
 
 bool jwt::read(
-    std::span<char> secret, std::span<const char> buffer, uint64_t now
+    std::ranges::subrange<const char*> secret,
+    std::ranges::subrange<char*> buffer,
+    uint64_t now
 ) {
     char payload_buffer[128];
     auto buffer_end = buffer.data() + buffer.size();
@@ -163,13 +168,18 @@ bool jwt::read(
     auto dot1 = std::find(buffer.data(), buffer_end, '.');
     auto dot2 = std::find(dot1 + 1, buffer_end, '.');
 
-    std::span<char> payload = payload_buffer;
+    std::ranges::subrange<char*> payload = std::views::all(payload_buffer);
 
     char signature_buffer[32];
-    auto signature =
-        hmac_sha256(secret, {buffer.data(), dot2}, signature_buffer);
+    std::ranges::subrange<char*> signature = {
+        std::begin(signature_buffer),
+        hmac_sha256(secret, {buffer.data(), dot2}, signature_buffer)
+    };
 
-    payload = base64_decode({dot2 + 1, buffer_end}, payload_buffer);
+    payload = {
+        payload.begin(),
+        base64_decode({dot2 + 1, buffer_end}, payload_buffer)
+    };
     if (
         payload.size() != signature.size() ||
         !std::equal(signature.begin(), signature.end(), payload.begin())
@@ -178,38 +188,26 @@ bool jwt::read(
     }
     puts("signature checked");
 
-    payload = base64_decode({dot1 + 1, dot2}, payload_buffer);
+    payload = {
+        payload.begin(),
+        base64_decode({dot1 + 1, dot2}, payload_buffer)
+    };
 
 
-    auto end = payload.data() + payload.size();
+    auto result = std::ranges::search(payload, "\"sub\":");
+    if (!result)
+        return false;
+    std::from_chars(result.begin(), result.end(), subject);
 
-    {
-        char query[] = "\"sub\":";
-        auto iterator = std::search(
-            payload.data(), end, std::begin(query), std::end(query) - 1
-            );
-        if (iterator == end)
-            return false;
-        std::from_chars(iterator + std::size(query) - 1, end, subject);
-    }
-    {
-        char query[] = "\"iat\":";
-        auto iterator = std::search(
-            payload.data(), end, std::begin(query), std::end(query) - 1
-            );
-        if (iterator == end)
-            return false;
-        std::from_chars(iterator + std::size(query) - 1, end, issued_at);
-    }
-    {
-        char query[] = "\"exp\":";
-        auto iterator = std::search(
-            payload.data(), end, std::begin(query), std::end(query) - 1
-            );
-        if (iterator == end)
-            return false;
-        std::from_chars(iterator + std::size(query) - 1, end, expiration);
-    }
+    result = std::ranges::search(payload, "\"iat\":");
+    if (!result)
+        return false;
+    std::from_chars(result.begin(), result.end(), issued_at);
+
+    result = std::ranges::search(payload, "\"exp\":");
+    if (result)
+        return false;
+    std::from_chars(result.begin(), result.end(), expiration);
 
     if (issued_at > now || now >= expiration) {
         return false;

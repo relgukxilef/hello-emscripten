@@ -55,7 +55,7 @@ struct server_t {
     std::vector<glm::quat> tick_orientations;
     std::vector<boost::intrusive_ptr<session>> sessions;
     boost::asio::steady_timer tick_timer;
-    std::span<char> login_secret;
+    std::ranges::subrange<const char*> login_secret;
 };
 
 server_t* server;
@@ -171,11 +171,11 @@ boost::asio::awaitable<void> accept(
             boost::beast::http::field::content_type, "application/json"
         );
         char response_buffer[512];
-        auto response_span = jwt{
+        auto response_end = jwt{
             0,
             unix_time(), unix_time() + 500
         }.write(server->login_secret, response_buffer);
-        response.body().append(response_span.begin(), response_span.end());
+        response.body().append(std::begin(response_buffer), response_end);
         // TODO: response has garbage at the end
         // TODO: put into json
 
@@ -284,7 +284,7 @@ int main(int argc, char *argv[]) {
                 // TODO: the comman line argument will hold a path to a file
                 // containing the secret, instead of the secret
                 // TODO: create a login module that stores this secret
-                server->login_secret = {*arg, strlen(*arg)};
+                server->login_secret = {*arg, *arg + strlen(*arg)};
             }
         }
     }
