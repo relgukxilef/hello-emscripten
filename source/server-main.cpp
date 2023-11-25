@@ -151,18 +151,13 @@ boost::asio::awaitable<void> accept(
     if (!boost::beast::websocket::is_upgrade(session->request)) {
         // TODO
         auto target = session->request.target();
-        auto body = session->request.body();
+        auto &body = session->request.body();
 
-        std::string_view name;
+        std::ranges::subrange<char*> name;
 
-        parse_form(body, {
+        parse_form({body.data(), body.data() + body.size()}, {
             {"name", &name}
         });
-
-        fwrite(name.data(), 1, name.size(), stdout);
-
-        uint8_t noise[4];
-        RAND_bytes(noise, sizeof(noise));
 
         boost::beast::http::response<boost::beast::http::string_body> response {
             boost::beast::http::status::created, session->request.version()
@@ -171,13 +166,25 @@ boost::asio::awaitable<void> accept(
             boost::beast::http::field::content_type, "application/json"
         );
         char response_buffer[512];
-        auto response_end = jwt{
-            0,
-            unix_time(), unix_time() + 500
-        }.write(server->login_secret, response_buffer);
-        response.body().append(std::begin(response_buffer), response_end);
-        // TODO: response has garbage at the end
-        // TODO: put into json
+
+        range_stream response_body = std::ranges::subrange(response_buffer);
+
+        append(
+            response_body,
+            "{\"name\":\"", name,
+            "\",\"id\":", 1234,
+            ",\"bearer\":\""
+        );
+
+        response_body.cursor = jwt{
+            0, unix_time() + 500
+        }.write(
+            {response_body.cursor, response_body.end()}, server->login_secret
+        );
+
+        append(response_body, "\"}");
+
+        response.body().append(response_body.begin(), response_body.cursor);
 
         BOOST_LOG_TRIVIAL(info) << "User sign up";
 

@@ -2,7 +2,7 @@
 
 #include <charconv>
 #include <chrono>
-#include <span>
+#include <string_view>
 #include <algorithm>
 
 #include <boost/archive/iterators/transform_width.hpp>
@@ -11,29 +11,30 @@
 #include <openssl/hmac.h>
 
 void parse_form(
-    std::string_view body,
-    std::initializer_list<std::pair<std::string_view, std::string_view*>>
-        parameters
+    std::ranges::subrange<char*> body,
+    std::initializer_list<std::pair<
+        std::string_view, std::ranges::subrange<char*>*
+    >> parameters
 ) {
     auto c = body.begin();
     while (c != body.end()) {
         auto c2 = c;
         while (c != body.end() && *c++ != '=');
-        std::string_view key{c2, c - 1};
+        std::ranges::subrange<char*> key{c2, c - 1};
 
         c2 = c;
         while (c != body.end() && *c++ != '&');
-        std::string_view value{c2, c - 1};
+        std::ranges::subrange<char*> value{c2, c - 1};
 
         for (auto parameter : parameters) {
-            if (parameter.first == key) {
+            if (std::ranges::equal(parameter.first, key)) {
                 *parameter.second = value;
             }
         }
     }
 }
 
-void append(range_stream &buffer, std::span<const char> string) {
+void append(range_stream &buffer, std::ranges::subrange<const char*> string) {
     auto in = string.begin();
     while (in != string.end() && buffer.cursor != buffer.end()) {
         *buffer.cursor++ = *in++;
@@ -78,7 +79,7 @@ char *base64_encode(
 ) {
     typedef boost::archive::iterators::transform_width<
         const char *, 6, 8
-        > base64_iterator;
+    > base64_iterator;
 
     auto
         in_begin = base64_iterator(input.begin()),
@@ -125,10 +126,10 @@ char *hmac_sha256(
 }
 
 char *jwt::write(
-    std::ranges::subrange<const char*> secret,
-    std::ranges::subrange<char*> buffer
+    std::ranges::subrange<char*> buffer,
+    std::ranges::subrange<const char*> secret
 ) {
-    char header[] = "{\"alg\":\"HS256\",\"typ\":\"JWT\"}";
+    char header[] = "{\"alg\":\"HS256\"}";
 
     range_stream destination = buffer;
 
@@ -143,7 +144,7 @@ char *jwt::write(
 
     append(
         payload,
-        "{\"sub\":", subject, ",\"iat\":", issued_at,
+        "{\"sub\":", subject,
         ",\"exp\":", expiration, "}"
     );
 
@@ -200,19 +201,25 @@ bool jwt::read(
         return false;
     std::from_chars(result.begin(), result.end(), subject);
 
-    result = std::ranges::search(payload, "\"iat\":");
-    if (!result)
-        return false;
-    std::from_chars(result.begin(), result.end(), issued_at);
-
     result = std::ranges::search(payload, "\"exp\":");
     if (result)
         return false;
     std::from_chars(result.begin(), result.end(), expiration);
 
-    if (issued_at > now || now >= expiration) {
+    if (now >= expiration) {
         return false;
     }
 
     return true;
+}
+
+char *copy(
+    std::ranges::subrange<char*> destination,
+    std::ranges::subrange<const char*> source
+) {
+    return std::copy(
+        source.begin(),
+        source.begin() + std::min(source.size(), destination.size()),
+        destination.begin()
+    );
 }

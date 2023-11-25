@@ -1,14 +1,14 @@
 #pragma once
 
 #include <charconv>
-#include <string_view>
 #include <initializer_list>
 #include <ranges>
 
 void parse_form(
-    std::string_view body,
-    std::initializer_list<std::pair<std::string_view, std::string_view*>>
-    parameters
+    std::ranges::subrange<char*> body,
+    std::initializer_list<std::pair<
+        std::string_view, std::ranges::subrange<char*>*
+    >> parameters
 );
 
 struct range_stream : public std::ranges::subrange<char*> {
@@ -24,7 +24,12 @@ struct range_stream : public std::ranges::subrange<char*> {
     char *cursor;
 };
 
-void append(std::span<char> &buffer, std::span<const char> string);
+char *copy(
+    std::ranges::subrange<char*> buffer,
+    std::ranges::subrange<const char*> secret
+);
+
+void append(range_stream &buffer, std::ranges::subrange<const char*> string);
 
 template<int N>
 void append(range_stream &buffer, const char (&string)[N]) {
@@ -50,11 +55,11 @@ void append(range_stream &buffer, const T1 &t1, const T2 &t2, const R &... r) {
 std::uint64_t unix_time();
 
 struct jwt {
-    std::uint64_t subject, issued_at, expiration;
+    std::uint64_t subject, expiration;
 
     char *write(
-        std::ranges::subrange<const char*> secret,
-        std::ranges::subrange<char*> buffer
+        std::ranges::subrange<char*> buffer,
+        std::ranges::subrange<const char*> secret
     );
 
     bool read(
