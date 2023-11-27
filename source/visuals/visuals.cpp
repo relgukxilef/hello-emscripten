@@ -9,14 +9,17 @@
 
 #include "../utility/out_ptr.h"
 
+struct file_deleter {
+    void operator()(FILE*f) const { fclose(f); }
+};
+
 std::vector<uint8_t> read_file(const char* name) {
-    FILE* file = fopen(name, "rb");
-    fseek(file, 0, SEEK_END);
-    auto size = ftell(file);
+    std::unique_ptr<FILE, file_deleter> file(fopen(name, "rb"));
+    fseek(file.get(), 0, SEEK_END);
+    auto size = ftell(file.get());
     std::vector<uint8_t> content(size);
-    fseek(file, 0, SEEK_SET);
-    fread(content.data(), sizeof(uint8_t), size, file);
-    fclose(file);
+    fseek(file.get(), 0, SEEK_SET);
+    fread(content.data(), sizeof(uint8_t), size, file.get());
     return content;
 }
 
