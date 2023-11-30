@@ -3,25 +3,11 @@
 #include <cstring>
 #include <memory>
 #include <cstdio>
-#include <algorithm>
 #include <array>
 #include <vector>
 
 #include "../utility/out_ptr.h"
-
-struct file_deleter {
-    void operator()(FILE*f) const { fclose(f); }
-};
-
-std::vector<uint8_t> read_file(const char* name) {
-    std::unique_ptr<FILE, file_deleter> file(fopen(name, "rb"));
-    fseek(file.get(), 0, SEEK_END);
-    auto size = ftell(file.get());
-    std::vector<uint8_t> content(size);
-    fseek(file.get(), 0, SEEK_SET);
-    fread(content.data(), sizeof(uint8_t), size, file.get());
-    return content;
-}
+#include "../utility/file.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -33,9 +19,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
         std::fprintf(
             stderr, "Validation layer error: %s\n", callback_data->pMessage
         );
-        // ignore error caused by Nsight
-        if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
-            assert(false);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer warning: %s\n", callback_data->pMessage

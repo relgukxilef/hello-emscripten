@@ -1,5 +1,6 @@
 #include "client.h"
 
+#include "../utility/file.h"
 #include "../network/network_message.h"
 
 client::client() {
@@ -7,6 +8,9 @@ client::client() {
         new websocket(*this, event_loop, "wss://hellovr.at:443/")
     );
     next_network_update = std::chrono::steady_clock::now();
+
+    auto test_file = read_file("D:/Felix/Documents/Qt_Projects/hello-emscripten/test_files/AvatarSample_B.vrm");
+    test_model = model({test_file.data(), test_file.data() + test_file.size()});
 }
 
 void client::update(::input &input) {

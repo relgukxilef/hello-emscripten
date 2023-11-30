@@ -16,6 +16,9 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    state/file_cache.h state/file_cache.cpp
+    state/model.h state/model.cpp
+    utility/file.h utility/file.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -65,11 +68,10 @@ if (EMSCRIPTEN)
 
 else()
     find_package(glfw3 3.3)
-    find_package(Vulkan)
+    find_package(Vulkan 1.1)
     find_package(OpenGL)
     
     set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.74.0 COMPONENTS system REQUIRED)
     find_package(OpenSSL REQUIRED)
 
     target_sources(
@@ -81,9 +83,11 @@ else()
         hello PRIVATE
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
+        Boost::beast
+        Boost::json
     )
 
-    target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
+    #target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
 
     target_include_directories(hello PRIVATE ${Boost_INCLUDE_DIRS})
 

@@ -11,6 +11,7 @@
 
 #include "input.h"
 #include "../network/websocket.h"
+#include "model.h"
 
 struct client {
     client();
@@ -31,7 +32,12 @@ struct client {
     struct {
         std::vector<glm::vec3> position;
         std::vector<glm::quat> orientation;
+        std::vector<unsigned> avatar;
     } users;
+
+    std::string world_path;
+
+    model test_model;
 
     std::chrono::steady_clock::time_point next_network_update;
 
