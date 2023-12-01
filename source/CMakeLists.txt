@@ -85,6 +85,7 @@ else()
         OpenSSL::SSL
         Boost::beast
         Boost::json
+        Boost::static_string
     )
 
     #target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
