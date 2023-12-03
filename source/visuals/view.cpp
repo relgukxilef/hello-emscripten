@@ -728,8 +728,12 @@ VkResult view::draw(visuals &v, ::client& client) {
                     glm::mat4(1.0),
                     glm::vec3(client.users.position[i])
                 ) *
-                glm::scale(glm::mat4(1.0), {0.1, 0.1, 0.1}) *
-                glm::mat4_cast(client.users.orientation[i]);
+                glm::mat4_cast(client.users.orientation[i]) *
+                glm::scale(glm::mat4(1.0), {-0.1, -0.1, 0.1}) *
+                glm::translate(
+                    glm::mat4(1.0),
+                    glm::vec3(0, -1.5, 0)
+                );
         }
 
         VkMappedMemoryRange ranges[] = {
