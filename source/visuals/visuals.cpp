@@ -66,6 +66,9 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         physical_device = devices[0]; // just pick the first one
     }
 
+    // find memory types
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
+
     uint32_t queue_family_count = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(
         physical_device, &queue_family_count, nullptr
@@ -210,21 +213,15 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         ));
     }
 
-    // find memory types
-    {
-        VkPhysicalDeviceMemoryProperties properties;
-        vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
-
-        for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
-            if (
-                (
-                    properties.memoryTypes[i].propertyFlags &
-                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-                ) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            ) {
-                host_visible_memory_type_index = i;
-                break;
-            }
+    for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
+        if (
+            (
+                properties.memoryTypes[i].propertyFlags &
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+            ) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        ) {
+            host_visible_memory_type_index = i;
+            break;
         }
     }
 

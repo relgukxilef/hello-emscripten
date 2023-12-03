@@ -27,7 +27,8 @@ void record_command_buffer(
     check(vkBeginCommandBuffer(image.draw_command_buffer, &begin_info));
 
     VkClearValue clearValue[]{
-        {{{0.929f, 0.788f, 0.318f, 1.0f}}}, // color
+        {.color{{0.929f, 0.788f, 0.318f, 1.0f}}},
+        {.depthStencil{1.0f, 0}}
     };
     VkRenderPassBeginInfo render_pass_begin_info{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -256,29 +257,50 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             },
+            VkAttachmentDescription{
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            },
         };
-        auto attachment_references = {
+        auto color_attachment_references = {
             VkAttachmentReference{
                 .attachment = 0,
                 .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             },
         };
+        VkAttachmentReference depth_attachment_reference{
+            .attachment = 1,
+            .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
         auto subpasses = {
             VkSubpassDescription{
                 .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
                 .colorAttachmentCount =
-                    static_cast<uint32_t>(attachment_references.size()),
-                .pColorAttachments = attachment_references.begin(),
+                    static_cast<uint32_t>(color_attachment_references.size()),
+                .pColorAttachments = color_attachment_references.begin(),
+                .pDepthStencilAttachment = &depth_attachment_reference,
             },
         };
         auto subpass_dependencies = {
             VkSubpassDependency{
                 .srcSubpass = VK_SUBPASS_EXTERNAL,
                 .dstSubpass = 0,
-                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .srcStageMask =
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                .dstStageMask =
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
                 .srcAccessMask = 0,
-                .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .dstAccessMask =
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             },
         };
         VkRenderPassCreateInfo create_info = {
@@ -529,8 +551,89 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         }
 
         {
+            VkImageCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .extent = {
+                    .width = surface_extent.width,
+                    .height = surface_extent.height,
+                    .depth = 1
+                },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            check(vkCreateImage(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.depth_image)
+            ));
+
+            VkMemoryRequirements memory_requirements;
+            vkGetImageMemoryRequirements(
+                v.device.get(), image.depth_image.get(), &memory_requirements
+            );
+
+            uint32_t depth_memory_type_index = 0;
+            for (uint32_t i = 0; i < v.properties.memoryTypeCount; i++) {
+                if (
+                    (
+                        v.properties.memoryTypes[i].propertyFlags &
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                    ) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+                    (1 << i) & memory_requirements.memoryTypeBits
+                ) {
+                    depth_memory_type_index = i;
+                    break;
+                }
+            }
+
+            VkMemoryAllocateInfo allocate_info = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = memory_requirements.size,
+                .memoryTypeIndex = depth_memory_type_index,
+            };
+
+            check(vkAllocateMemory(
+                v.device.get(), &allocate_info, nullptr,
+                out_ptr(image.depth_memory)
+            ));
+
+            check(vkBindImageMemory(
+                v.device.get(), image.depth_image.get(),
+                image.depth_memory.get(), 0
+            ));
+        }
+
+        {
+            VkImageViewCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = image.depth_image.get(),
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .subresourceRange = {
+                    .aspectMask =
+                        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+            check(vkCreateImageView(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.depth_view)
+            ));
+        }
+
+        {
             auto attachments = {
                 image.image_view.get(),
+                image.depth_view.get(),
             };
             VkFramebufferCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,

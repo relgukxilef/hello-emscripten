@@ -43,6 +43,8 @@ struct visuals {
 
     VkPhysicalDevice physical_device;
 
+    VkPhysicalDeviceMemoryProperties properties;
+
     uint32_t graphics_queue_family = 0;
     uint32_t present_queue_family = 0;
 
@@ -58,7 +60,7 @@ struct visuals {
 
     unique_pipeline_layout pipeline_layout;
 
-    std::uint32_t host_visible_memory_type_index;
+    uint32_t host_visible_memory_type_index, device_local_memory_type_index;
 
     unique_device_memory host_visible_memory, device_local_memory;
 

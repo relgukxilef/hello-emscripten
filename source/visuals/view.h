@@ -15,7 +15,10 @@ struct image {
 
     std::unique_ptr<VkDescriptorSet[]> descriptor_sets;
 
+    unique_image depth_image;
+    unique_device_memory depth_memory;
     unique_image_view image_view;
+    unique_image_view depth_view;
     unique_framebuffer framebuffer;
 
     unique_semaphore draw_finished_semaphore;
