@@ -6,8 +6,12 @@
 #include <boost/json.hpp>
 #include <boost/static_string.hpp>
 
+#include "../utility/math.h"
+
 template<std::integral T>
 T read(std::ranges::subrange<uint8_t*> &b) {
+    if (b.size() < sizeof(T))
+        return 0;
     T v = 0;
     std::array<std::uint8_t, sizeof(T)> bytes;
     for (size_t i = 0; i < sizeof(T); i++)
@@ -17,6 +21,17 @@ T read(std::ranges::subrange<uint8_t*> &b) {
         v |= T(bytes[i]) << (i * 8);
     b = {b.begin() + sizeof(T), b.end()};
     return v;
+}
+
+template<std::integral T>
+void write(std::ranges::subrange<uint8_t*> &b, T value) {
+    if (b.size() < sizeof(T))
+        return;
+    T v = value;
+    for (size_t i = 0; i < sizeof(T); i++)
+        // assume little-endian
+        b[i] = uint8_t(v >> (i * 8));
+    b = {b.begin() + sizeof(T), b.end()};
 }
 
 struct parse_exception : public std::exception {
@@ -76,7 +91,7 @@ enum struct primitive_mode {
 };
 
 struct buffer_view {
-    uint32_t offset, stride;
+    uint32_t offset, length, stride = 0;
 };
 
 struct accessor {
@@ -137,7 +152,7 @@ struct handler {
             state = state::root;
         }
         if (
-            depth == 3 && state == state::meshes_n_primitives
+            depth == 4 && state == state::meshes_n_primitives
         ) {
             state = state::meshes_n;
         }
@@ -235,6 +250,8 @@ struct handler {
                 buffer_views.back().offset = i;
             } else if (key == "byteStride") {
                 buffer_views.back().stride = i;
+            } else if (key == "byteLength") {
+                buffer_views.back().length = i;
             }
         } else if (state == state::accessors_n) {
             if (key == "bufferView") {
@@ -321,4 +338,47 @@ model::model(std::ranges::subrange<uint8_t*> file) {
     json_parser.write_some(
         false, reinterpret_cast<char*>(file.data()), json_length, error
     );
+    auto &h = json_parser.handler();
+
+    file = {file.begin() + round_up(json_length, 4), file.end()};
+
+    if (file.empty())
+        // TODO: external data
+        return;
+
+    auto binary_length = read<uint32_t>(file);
+    parse_check(read<uint32_t>(file) == 0x004E4942); // chunk type == BIN
+
+    for (auto p = 0ul; p < h.primitives.size(); p++) {
+        auto a = h.primitives[p].positions;
+        auto v = h.accessors[a].buffer_view;
+        auto offset = h.accessors[a].offset + h.buffer_views[v].offset;
+        auto start_index = positions.size() / 12;
+        assert(h.buffer_views[v].stride == 0 || h.buffer_views[v].stride == 12);
+        positions.insert(
+            positions.end(),
+            file.begin() + offset,
+            file.begin() + offset + h.accessors[a].count * 12
+        );
+
+        a = h.primitives[p].indices;
+        v = h.accessors[a].buffer_view;
+        offset = h.accessors[a].offset + h.buffer_views[v].offset;
+
+        assert(h.accessors[a].type == component_type::unsigned_int);
+        auto new_indices_begin = indices.size();
+        indices.resize(indices.size() + h.accessors[a].count * 4);
+        std::ranges::subrange<uint8_t*> new_indices(
+            indices.data() + new_indices_begin, indices.data() + indices.size()
+        );
+        std::ranges::subrange<uint8_t*> old_indices(
+            file.data() + offset, file.data() + offset + new_indices.size()
+        );
+
+        while (!old_indices.empty()) {
+            write<uint32_t>(
+                new_indices, read<uint32_t>(old_indices) + start_index
+            );
+        }
+    }
 }

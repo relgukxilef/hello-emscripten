@@ -19,6 +19,7 @@ add_library(
     state/file_cache.h state/file_cache.cpp
     state/model.h state/model.cpp
     utility/file.h utility/file.cpp
+    utility/math.h
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)

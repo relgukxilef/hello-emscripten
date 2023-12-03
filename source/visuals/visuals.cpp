@@ -8,6 +8,7 @@
 
 #include "../utility/out_ptr.h"
 #include "../utility/file.h"
+#include "../utility/math.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -280,6 +281,34 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     memory_offset += sizeof(parameters);
     user_position_offset = memory_offset;
     memory_offset += sizeof(glm::vec4) * 16;
+    model_position_offset = memory_offset;
+
+    memory_offset = round_up(model_position_offset, 128);
+
+    {
+        uint8_t *memory;
+        check(vkMapMemory(
+            device.get(), host_visible_memory.get(), 0, memory_size, 0,
+            (void**)&memory
+        ));
+
+        uint8_t *i = memory + memory_offset;
+
+        i = std::ranges::copy(client.test_model.positions, i).out;
+        model_indices_offset = i - memory;
+        i = std::ranges::copy(client.test_model.indices, i).out;
+
+        VkMappedMemoryRange ranges[] = {
+            VkMappedMemoryRange{
+                .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+                .memory = host_visible_memory.get(),
+                .offset = 0,
+                .size = static_cast<VkDeviceSize>(memory_size),
+            }
+        };
+        check(vkFlushMappedMemoryRanges(device.get(), 1, ranges));
+        vkUnmapMemory(device.get(), host_visible_memory.get());
+    }
 
     view.reset(new ::view(client, *this, instance, surface));
 }

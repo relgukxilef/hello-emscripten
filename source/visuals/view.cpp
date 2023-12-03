@@ -10,9 +10,11 @@
 #include "visuals.h"
 
 #include "../utility/out_ptr.h"
+#include "../utility/math.h"
 
 void record_command_buffer(
-    client& client, view& view, image& image, VkPipelineLayout pipeline_layout
+    client& client, visuals& visuals, view& view, image& image,
+    VkPipelineLayout pipeline_layout
 ) {
     VkSurfaceCapabilitiesKHR capabilities = view.capabilities;
     unsigned
@@ -69,13 +71,27 @@ void record_command_buffer(
         image.descriptor_sets[0],
     };
 
+    VkBuffer vertex_buffers[] = {visuals.host_visible_buffer.get()};
+    VkDeviceSize offsets[] = {visuals.model_position_offset};
+    vkCmdBindVertexBuffers(
+        image.draw_command_buffer, 0, std::size(vertex_buffers),
+        vertex_buffers, offsets
+    );
+    vkCmdBindIndexBuffer(
+        image.draw_command_buffer, visuals.host_visible_buffer.get(),
+        visuals.model_indices_offset, VK_INDEX_TYPE_UINT32
+    );
+
     vkCmdBindDescriptorSets(
         image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
     );
 
     // draw world
-    vkCmdDraw(image.draw_command_buffer, 4, 1, 0, 0);
+    /*vkCmdDrawIndexed(
+        image.draw_command_buffer, client.test_model.indices.size() / 4,
+        1, 0, 0, 0
+    );*/
 
     // draw other users
     for (int i = 0; i < client.users.position.size(); i++) {
@@ -87,8 +103,9 @@ void record_command_buffer(
             image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
             pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
         );
-        vkCmdDraw(
-            image.draw_command_buffer, 14, 1, 4, 0
+        vkCmdDrawIndexed(
+            image.draw_command_buffer, client.test_model.indices.size() / 4,
+            1, 0, 0, 0
         );
     }
 
@@ -294,17 +311,34 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .pName = "main",
             }
         };
+        VkVertexInputBindingDescription vertex_input_binding_description[]{
+            {
+                .binding = 0,
+                .stride = 4 * 3,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
+        };
+        VkVertexInputAttributeDescription vertex_input_attribute_description[]{
+            VkVertexInputAttributeDescription{
+                .location = 0,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = 0,
+            }
+        };
         VkPipelineVertexInputStateCreateInfo input_state_create_info{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = 0,
-            .pVertexBindingDescriptions = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions = nullptr,
+            .vertexBindingDescriptionCount =
+                std::size(vertex_input_binding_description),
+            .pVertexBindingDescriptions = vertex_input_binding_description,
+            .vertexAttributeDescriptionCount =
+                std::size(vertex_input_attribute_description),
+            .pVertexAttributeDescriptions = vertex_input_attribute_description,
         };
         VkPipelineInputAssemblyStateCreateInfo assembly_state_create_info{
             .sType =
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             .primitiveRestartEnable = VK_FALSE,
         };
         VkPipelineViewportStateCreateInfo viewport_state_create_info{
@@ -524,7 +558,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ));
 
         record_command_buffer(
-            c, *this, image,
+            c, v, *this, image,
             v.pipeline_layout.get()
         );
     }
@@ -558,7 +592,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         if (client.update_number != image.update_number) {
             check(vkResetCommandBuffer(image.draw_command_buffer, 0));
             record_command_buffer(
-                client, *v.view, image, v.pipeline_layout.get()
+                client, v, *v.view, image, v.pipeline_layout.get()
             );
             image.update_number = client.update_number;
         }
@@ -575,7 +609,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         ::parameters* parameters;
 
         // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
-        uint32_t size = ((sizeof(::parameters) - 1) / 128 + 1) * 128;
+        uint32_t size = round_up(sizeof(::parameters), 128);
 
         check(vkMapMemory(
             v.device.get(), v.host_visible_memory.get(), 0, size, 0,
