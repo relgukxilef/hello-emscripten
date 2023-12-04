@@ -361,6 +361,16 @@ model::model(std::ranges::subrange<uint8_t*> file) {
             file.begin() + offset + h.accessors[a].count * 12
         );
 
+        a = h.primitives[p].normals;
+        v = h.accessors[a].buffer_view;
+        offset = h.accessors[a].offset + h.buffer_views[v].offset;
+        assert(h.buffer_views[v].stride == 0 || h.buffer_views[v].stride == 12);
+        normals.insert(
+            normals.end(),
+            file.begin() + offset,
+            file.begin() + offset + h.accessors[a].count * 12
+        );
+
         a = h.primitives[p].indices;
         v = h.accessors[a].buffer_view;
         offset = h.accessors[a].offset + h.buffer_views[v].offset;

@@ -20,7 +20,7 @@ struct a2b10g10r10 {
 // TODO: use minUniformBufferOffsetAlignment
 struct alignas(256) parameter {
     glm::mat4 model_view_projection_matrix;
-    glm::vec4 position;
+    glm::mat4 model_matrix;
 };
 
 struct parameters {
@@ -67,7 +67,8 @@ struct visuals {
     unique_buffer host_visible_buffer, device_local_buffer;
 
     uint32_t view_parameters_offset, user_position_offset;
-    uint32_t model_position_offset, model_indices_offset;
+    uint32_t
+        model_position_offset, model_normal_offset, model_indices_offset;
 
     std::unique_ptr<::view> view;
 };

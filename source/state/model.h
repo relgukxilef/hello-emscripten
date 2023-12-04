@@ -24,7 +24,7 @@ struct model {
         primitive_count, vertex_count, primitive_offset,
         position_offset, normal_offset, texture_coordinate_offset;
 
-    std::vector<uint8_t> content;
     std::vector<uint8_t> positions;
+    std::vector<uint8_t> normals;
     std::vector<uint8_t> indices;
 };

@@ -72,8 +72,12 @@ void record_command_buffer(
         image.descriptor_sets[0],
     };
 
-    VkBuffer vertex_buffers[] = {visuals.host_visible_buffer.get()};
-    VkDeviceSize offsets[] = {visuals.model_position_offset};
+    VkBuffer vertex_buffers[] = {
+        visuals.host_visible_buffer.get(), visuals.host_visible_buffer.get()
+    };
+    VkDeviceSize offsets[] = {
+        visuals.model_position_offset, visuals.model_normal_offset
+    };
     vkCmdBindVertexBuffers(
         image.draw_command_buffer, 0, std::size(vertex_buffers),
         vertex_buffers, offsets
@@ -339,6 +343,11 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .stride = 4 * 3,
                 .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
             },
+            {
+                .binding = 1,
+                .stride = 4 * 3,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
         };
         VkVertexInputAttributeDescription vertex_input_attribute_description[]{
             VkVertexInputAttributeDescription{
@@ -346,7 +355,13 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .binding = 0,
                 .format = VK_FORMAT_R32G32B32_SFLOAT,
                 .offset = 0,
-            }
+            },
+            VkVertexInputAttributeDescription{
+                .location = 1,
+                .binding = 1,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = 0,
+            },
         };
         VkPipelineVertexInputStateCreateInfo input_state_create_info{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -722,18 +737,19 @@ VkResult view::draw(visuals &v, ::client& client) {
             projection * view;
 
         for (auto i = 0u; i < client.users.position.size(); i++) {
-            parameters->parameters[1 + i].model_view_projection_matrix =
-                projection * view *
-                glm::translate(
+            auto model= glm::translate(
                     glm::mat4(1.0),
                     glm::vec3(client.users.position[i])
                 ) *
                 glm::mat4_cast(client.users.orientation[i]) *
-                glm::scale(glm::mat4(1.0), {-0.1, -0.1, 0.1}) *
+                glm::scale(glm::mat4(1.0), {-1, -1, 1}) *
                 glm::translate(
                     glm::mat4(1.0),
-                    glm::vec3(0, -1.5, 0)
+                    glm::vec3(0, -1.37, 0.08)
                 );
+            parameters->parameters[1 + i].model_view_projection_matrix =
+                projection * view * model;
+            parameters->parameters[1 + i].model_matrix = model;
         }
 
         VkMappedMemoryRange ranges[] = {

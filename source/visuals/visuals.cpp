@@ -292,6 +292,8 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         uint8_t *i = memory + memory_offset;
 
         i = std::ranges::copy(client.test_model.positions, i).out;
+        model_normal_offset = i - memory;
+        i = std::ranges::copy(client.test_model.normals, i).out;
         model_indices_offset = i - memory;
         i = std::ranges::copy(client.test_model.indices, i).out;
 
