@@ -68,7 +68,8 @@ struct visuals {
 
     uint32_t view_parameters_offset, user_position_offset;
     uint32_t
-        model_position_offset, model_normal_offset, model_indices_offset;
+        model_position_offset, model_normal_offset,
+        model_texture_coordinate_offset, model_indices_offset;
 
     std::unique_ptr<::view> view;
 };

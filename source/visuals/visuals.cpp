@@ -294,6 +294,8 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         i = std::ranges::copy(client.test_model.positions, i).out;
         model_normal_offset = i - memory;
         i = std::ranges::copy(client.test_model.normals, i).out;
+        model_texture_coordinate_offset = i - memory;
+        i = std::ranges::copy(client.test_model.texture_coordinates, i).out;
         model_indices_offset = i - memory;
         i = std::ranges::copy(client.test_model.indices, i).out;
 

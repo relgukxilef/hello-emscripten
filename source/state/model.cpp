@@ -100,7 +100,7 @@ struct accessor {
 };
 
 struct primitive {
-    uint32_t positions, normals, indices;
+    uint32_t positions, normals, texture_coordinates, indices;
     primitive_mode mode;
 };
 
@@ -268,6 +268,8 @@ struct handler {
                 primitives.back().positions = i;
             } else if (key == "NORMAL") {
                 primitives.back().normals = i;
+            } else if (key == "TEXCOORD_0") {
+                primitives.back().texture_coordinates = i;
             }
         } else if (depth == 5 && state == state::meshes_n_primitives_n) {
             if (key == "mode") {
@@ -350,10 +352,11 @@ model::model(std::ranges::subrange<uint8_t*> file) {
     parse_check(read<uint32_t>(file) == 0x004E4942); // chunk type == BIN
 
     for (auto p = 0ul; p < h.primitives.size(); p++) {
+        auto start_index = positions.size() / 12;
+
         auto a = h.primitives[p].positions;
         auto v = h.accessors[a].buffer_view;
         auto offset = h.accessors[a].offset + h.buffer_views[v].offset;
-        auto start_index = positions.size() / 12;
         assert(h.buffer_views[v].stride == 0 || h.buffer_views[v].stride == 12);
         positions.insert(
             positions.end(),
@@ -369,6 +372,16 @@ model::model(std::ranges::subrange<uint8_t*> file) {
             normals.end(),
             file.begin() + offset,
             file.begin() + offset + h.accessors[a].count * 12
+        );
+
+        a = h.primitives[p].texture_coordinates;
+        v = h.accessors[a].buffer_view;
+        offset = h.accessors[a].offset + h.buffer_views[v].offset;
+        assert(h.buffer_views[v].stride == 0 || h.buffer_views[v].stride == 8);
+        texture_coordinates.insert(
+            texture_coordinates.end(),
+            file.begin() + offset,
+            file.begin() + offset + h.accessors[a].count * 8
         );
 
         a = h.primitives[p].indices;

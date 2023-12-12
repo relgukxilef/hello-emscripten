@@ -73,10 +73,13 @@ void record_command_buffer(
     };
 
     VkBuffer vertex_buffers[] = {
-        visuals.host_visible_buffer.get(), visuals.host_visible_buffer.get()
+        visuals.host_visible_buffer.get(), visuals.host_visible_buffer.get(),
+        visuals.host_visible_buffer.get(),
     };
     VkDeviceSize offsets[] = {
-        visuals.model_position_offset, visuals.model_normal_offset
+        visuals.model_position_offset,
+        visuals.model_normal_offset,
+        visuals.model_texture_coordinate_offset,
     };
     vkCmdBindVertexBuffers(
         image.draw_command_buffer, 0, std::size(vertex_buffers),
@@ -348,6 +351,11 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .stride = 4 * 3,
                 .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
             },
+            {
+                .binding = 2,
+                .stride = 4 * 2,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
         };
         VkVertexInputAttributeDescription vertex_input_attribute_description[]{
             VkVertexInputAttributeDescription{
@@ -360,6 +368,12 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .location = 1,
                 .binding = 1,
                 .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = 0,
+            },
+            VkVertexInputAttributeDescription{
+                .location = 2,
+                .binding = 2,
+                .format = VK_FORMAT_R32G32_SFLOAT,
                 .offset = 0,
             },
         };
