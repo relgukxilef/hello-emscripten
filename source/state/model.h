@@ -28,4 +28,5 @@ struct model {
     std::vector<uint8_t> normals;
     std::vector<uint8_t> texture_coordinates;
     std::vector<uint8_t> indices;
+    std::vector<uint8_t> images;
 };

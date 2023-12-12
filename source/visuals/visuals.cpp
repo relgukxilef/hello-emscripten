@@ -298,6 +298,8 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         i = std::ranges::copy(client.test_model.texture_coordinates, i).out;
         model_indices_offset = i - memory;
         i = std::ranges::copy(client.test_model.indices, i).out;
+        model_images_offset = i - memory;
+        i = std::ranges::copy(client.test_model.images, i).out;
 
         VkMappedMemoryRange ranges[] = {
             VkMappedMemoryRange{
