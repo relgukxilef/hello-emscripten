@@ -1,6 +1,7 @@
 #include "hello.h"
 
 #include <cstdio>
+#include <cstring>
 
 #include <vulkan/vulkan_core.h>
 
