@@ -10,10 +10,12 @@
 #include "visuals.h"
 
 #include "../utility/out_ptr.h"
+#include "../utility/trace.h"
 
 void record_command_buffer(
     client& client, view& view, image& image, VkPipelineLayout pipeline_layout
 ) {
+    scope_trace trace;
     VkSurfaceCapabilitiesKHR capabilities = view.capabilities;
     unsigned
         width = capabilities.currentExtent.width,
@@ -531,6 +533,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 }
 
 VkResult view::draw(visuals &v, ::client& client) {
+    scope_trace trace;
     uint32_t image_index;
     VkResult result = vkAcquireNextImageKHR(
         v.device.get(), swapchain.get(), ~0ul,

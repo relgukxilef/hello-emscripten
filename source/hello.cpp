@@ -4,6 +4,7 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "utility/trace.h"
 #include "utility/vulkan_resource.h"
 
 hello::hello(char* arguments[], VkInstance instance, VkSurfaceKHR surface)
@@ -25,6 +26,7 @@ hello::hello(char* arguments[], VkInstance instance, VkSurfaceKHR surface)
 }
 
 void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
+    scope_trace trace;
     try {
         visuals->draw(*client, instance, surface);
     } catch (vulkan_error& error) {
@@ -39,5 +41,6 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
 }
 
 void hello::update(input& input) {
+    scope_trace trace;
     client->update(input);
 }

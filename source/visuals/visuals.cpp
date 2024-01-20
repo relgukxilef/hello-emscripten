@@ -8,8 +8,10 @@
 #include <vector>
 
 #include "../utility/out_ptr.h"
+#include "../utility/trace.h"
 
 std::vector<uint8_t> read_file(const char* name) {
+    scope_trace trace;
     FILE* file = fopen(name, "rb");
     fseek(file, 0, SEEK_END);
     auto size = ftell(file);
@@ -301,6 +303,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
 void visuals::draw(
     ::client& client, VkInstance instance, VkSurfaceKHR surface
 ) {
+    scope_trace trace;
     if (view) {
         if (view->draw(*this, client) != VK_SUCCESS) {
             view.reset(); // delete first

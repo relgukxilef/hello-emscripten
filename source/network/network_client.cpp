@@ -3,7 +3,10 @@
 #include <algorithm>
 #include <string>
 
+#include "../utility/trace.h"
+
 void put_message(client& client, const char* buffer, size_t size) {
+    scope_trace trace;
     std::string s(buffer, size);
     for (char& c : s)
         if (c == 0)

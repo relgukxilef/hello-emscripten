@@ -16,6 +16,7 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    utility/trace.h utility/trace.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
