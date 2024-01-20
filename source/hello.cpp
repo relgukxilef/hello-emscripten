@@ -7,7 +7,7 @@
 
 #include "utility/vulkan_resource.h"
 
-hello::hello(char* arguments[], VkInstance instance, VkSurfaceKHR surface)
+hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface)
 {
     std::string_view server = "wss://hellovr.at:443/";
     for (auto argument = arguments; *argument != nullptr; argument++) {
