@@ -1,0 +1,33 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "id": {
+            "type": "integer"
+        },
+        "role": {
+            "type": "string",
+            "oneOf": [
+                {
+                    "const": "guest",
+                    "description": "The user may interact with worlds and other users, but no data about them is persisted. They cannot upload worlds or avatars, do not have a friend list, and can not be added to other users' friend lists."
+                },
+                {
+                    "const": "creator",
+                    "description": "The user may interact with worlds and other users, upload, edit and delete their own worlds and avatars, and add users to friend lists and be added to friend lists by other users. They need to have an authentication method configured."
+                }
+            ]
+        },
+        "bearer": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "name",
+        "id",
+        "role",
+        "bearer"
+    ]
+}

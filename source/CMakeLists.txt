@@ -70,7 +70,7 @@ else()
     
     set(Boost_USE_STATIC_LIBS ON)
     find_package(Boost 1.74.0 COMPONENTS system serialization log REQUIRED)
-    find_package(OpenSSL REQUIRED)
+    find_package(OpenSSL 3.2 REQUIRED)
 
     target_sources(
         hello PRIVATE
@@ -124,6 +124,7 @@ else()
         # TODO: put these in a separate library
         network/network_message.h network/network_message.cpp
         network/utility.h network/utility.cpp
+        server/login.h server/login.cpp
     )
 
     target_compile_features(server PUBLIC cxx_std_20)

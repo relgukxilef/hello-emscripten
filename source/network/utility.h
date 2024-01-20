@@ -67,3 +67,25 @@ struct jwt {
         std::ranges::subrange<char*> buffer, uint64_t now
     );
 };
+
+/**
+ * @brief write_password creates a new salt and writes the password settings and
+ * the Argon2 hashed password into buffer.
+ */
+char *write_password(
+    std::ranges::subrange<char*> buffer,
+    std::ranges::subrange<const char*> user_input,
+    std::ranges::subrange<const char*> pepper,
+    unsigned m = 64*1024, unsigned t = 1
+);
+
+/**
+ * @brief is_password_valid reads the password settings and the salt from the
+ * buffer and compares it with the user input.
+ */
+bool is_password_valid(
+    std::ranges::subrange<const char*> buffer,
+    std::ranges::subrange<const char*> user_input,
+    std::ranges::subrange<const char*> pepper,
+    unsigned m = 64*1024, unsigned t = 1
+);

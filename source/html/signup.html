@@ -26,6 +26,7 @@
                     <div>To log in with your email address, we will send you a link every time you want to log in. Your email address is stored in a way that makes it impossible to read, even for someone with full access to the servers.</div>
                 </div>
                 <div>
+                    <!-- This should only be shown on a second page -->
                     <img src="example_otp.png" alt="QR-Code"/>
                     <div>PS7HKTORNFVKZVG5DX766NHKD7CDSVSI</div>
                     <input type="hidden" name="otp" value="PS7HKTORNFVKZVG5DX766NHKD7CDSVSI">
@@ -37,11 +38,11 @@
                     <select name="deleteAfter">
                         <option value="1">1 month</option>
                         <option value="3">3 months</option>
-                        <option value="6">6 months</option>
+                        <option value="6" selected>6 months</option>
                         <option value="12">1 year</option>
                         <option value="24">2 year</option>
                     </select>
-                    days of inactivity.
+                    of inactivity.
                 </div>
                 <p>By creating an account you agree to our <a href="#" style="color:dodgerblue">Terms & Privacy</a>.</p>
                 <div class="clearfix">

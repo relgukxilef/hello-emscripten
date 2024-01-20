@@ -9,6 +9,10 @@
 #include <boost/iterator/transform_iterator.hpp>
 #include <openssl/evp.h>
 #include <openssl/hmac.h>
+#include <openssl/params.h>
+#include <openssl/kdf.h>
+#include <openssl/rand.h>
+#include <openssl/core_names.h>
 
 void parse_form(
     std::ranges::subrange<char*> body,
@@ -147,6 +151,9 @@ char *jwt::write(
         "{\"sub\":", subject,
         ",\"exp\":", expiration, "}"
     );
+    // Putting roles/groups/entitlements in the token is good if they differ per
+    // token. E.g. some rights are only available to a user, if they logged in
+    // using a certain method, even if the user in general has those rights.
 
     destination.cursor = base64_encode(payload.left(), destination.right());
 
@@ -221,5 +228,123 @@ char *copy(
         source.begin(),
         source.begin() + std::min(source.size(), destination.size()),
         destination.begin()
+    );
+}
+
+char* write_password(
+    std::ranges::subrange<char*> buffer,
+    std::ranges::subrange<const char*> user_input,
+    std::ranges::subrange<const char *> pepper, unsigned int m, unsigned int t
+) {
+    // TODO: normalize user_input and check for invalid characters
+
+    EVP_KDF *function = EVP_KDF_fetch(nullptr, "ARGON2D", nullptr);
+    EVP_KDF_CTX *context = EVP_KDF_CTX_new(function);
+
+    unsigned char salt[8];
+    RAND_bytes(salt, std::size(salt));
+    uint32_t lanes = 1;
+
+    unsigned char hash[128 / 8];
+
+    if (buffer.size() < std::size(hash) * 2)
+        return buffer.end();
+
+    OSSL_PARAM parameters[] = {
+        OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &m),
+        OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
+        OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &t),
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KDF_PARAM_SALT, salt, std::size(salt)
+        ),
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KDF_PARAM_SECRET,
+            (void *)pepper.data(),
+            pepper.size()
+        ),
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KDF_PARAM_PASSWORD,
+            (void *)user_input.data(),
+            user_input.size()
+        ),
+        OSSL_PARAM_construct_end()
+    };
+
+    EVP_KDF_derive(
+        context, hash, std::size(hash), parameters
+    );
+
+    size_t hex_length = 0;
+    OPENSSL_buf2hexstr_ex(
+        buffer.begin(), buffer.size(), &hex_length, salt, std::size(salt), 0
+    );
+    buffer.advance(hex_length - 1);
+    OPENSSL_buf2hexstr_ex(
+        buffer.begin(), buffer.size(), &hex_length, hash, std::size(hash), 0
+    );
+    buffer.advance(hex_length - 1);
+
+    EVP_KDF_CTX_free(context);
+    EVP_KDF_free(function);
+
+    return buffer.begin();
+}
+
+bool is_password_valid(
+    std::ranges::subrange<const char*> buffer,
+    std::ranges::subrange<const char*> user_input,
+    std::ranges::subrange<const char*> pepper,
+    unsigned m, unsigned t
+) {
+    char hex_salt[16 + 1] = {0};
+    std::copy(buffer.begin(), buffer.begin() + 16, hex_salt);
+    char hex_hash[32 + 1] = {0};
+    std::copy(buffer.begin() + 16, buffer.begin() + 16 + 32, hex_hash);
+
+    unsigned char salt[8 + 1] = {0};
+    unsigned char hash_a[128 / 8 + 1] = {0};
+
+    if (buffer.size() < (std::size(salt) + std::size(hash_a)) * 2)
+        return buffer.end();
+
+    OPENSSL_hexstr2buf_ex(salt, std::size(salt), nullptr, hex_salt, 0);
+    OPENSSL_hexstr2buf_ex(hash_a, std::size(hash_a), nullptr, hex_hash, 0);
+
+    // TODO: normalize user_input and check for invalid characters
+    // TODO: read parameters from buffer
+
+    EVP_KDF *function = EVP_KDF_fetch(nullptr, "ARGON2D", nullptr);
+    EVP_KDF_CTX *context = EVP_KDF_CTX_new(function);
+
+    unsigned char hash_b[128 / 8];
+
+    uint32_t lanes = 1;
+
+    OSSL_PARAM parameters[] = {
+        OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_MEMCOST, &m),
+        OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ARGON2_LANES, &lanes),
+        OSSL_PARAM_construct_uint32(OSSL_KDF_PARAM_ITER, &t),
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KDF_PARAM_SALT, salt, std::size(salt)
+        ),
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KDF_PARAM_SECRET,
+            (void *)pepper.data(),
+            pepper.size()
+        ),
+        OSSL_PARAM_construct_octet_string(
+            OSSL_KDF_PARAM_PASSWORD,
+            (void *)user_input.data(),
+            user_input.size()
+        ),
+        OSSL_PARAM_construct_end()
+    };
+
+    EVP_KDF_derive(
+        context, hash_b, std::size(hash_b), parameters
+    );
+
+    return OPENSSL_strncasecmp(
+        (const char *)hash_a, (const char *)hash_b, std::size(hash_a)
     );
 }

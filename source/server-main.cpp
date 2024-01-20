@@ -55,7 +55,8 @@ struct server_t {
     std::vector<glm::quat> tick_orientations;
     std::vector<boost::intrusive_ptr<session>> sessions;
     boost::asio::steady_timer tick_timer;
-    std::ranges::subrange<const char*> login_secret;
+    std::ranges::subrange<const char *> login_secret;
+    std::ranges::subrange<const char *> login_pepper;
 };
 
 server_t* server;
@@ -153,10 +154,11 @@ boost::asio::awaitable<void> accept(
         auto target = session->request.target();
         auto &body = session->request.body();
 
-        std::ranges::subrange<char*> name;
+        std::ranges::subrange<char*> name, password;
 
         parse_form({body.data(), body.data() + body.size()}, {
-            {"name", &name}
+            {"name", &name},
+            {"password", &password},
         });
 
         boost::beast::http::response<boost::beast::http::string_body> response {
@@ -169,10 +171,29 @@ boost::asio::awaitable<void> accept(
 
         range_stream response_body = std::ranges::subrange(response_buffer);
 
+        // guest login
         append(
             response_body,
             "{\"name\":\"", name,
+            // TODO: should guest ids come from a separate range?
             "\",\"id\":", 1234,
+            ",\"role\":\"guest\""
+            ",\"hash\":\""
+        );
+
+        auto password_begin = response_body.cursor;
+        response_body.cursor = write_password(
+            response_body.right(), password, server->login_pepper
+        );
+
+        assert(is_password_valid(
+            {password_begin, response_body.cursor}, password,
+            server->login_pepper
+        ));
+
+        append(
+            response_body,
+            "\"",
             ",\"bearer\":\""
         );
 
@@ -292,6 +313,11 @@ int main(int argc, char *argv[]) {
                 // containing the secret, instead of the secret
                 // TODO: create a login module that stores this secret
                 server->login_secret = {*arg, *arg + strlen(*arg)};
+            }
+        } else if (strcmp(*arg, "--login.pepper") == 0) {
+            arg++;
+            if (*arg != nullptr) {
+                server->login_pepper = {*arg, *arg + strlen(*arg)};
             }
         }
     }
