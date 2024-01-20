@@ -1,4 +1,5 @@
 #include "main-glfw.h"
+#include "utility/trace.h"
 
 glm::vec2 deadzone(glm::vec2 stick) {
     float length = glm::length(stick);
@@ -10,6 +11,7 @@ glm::vec2 deadzone(glm::vec2 stick) {
 }
 
 void update(input& input, GLFWwindow* window, float delta) {
+    scope_trace trace;
     glm::dvec2 cursor_position;
     glfwGetCursorPos(window, &cursor_position.x, &cursor_position.y);
 
