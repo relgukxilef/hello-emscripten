@@ -1,3 +1,4 @@
+#include <coroutine>
 #include <thread>
 #include <memory>
 #include <atomic>
@@ -50,17 +51,23 @@ struct server_t {
 
 server_t* server;
 
-void read(boost::intrusive_ptr<session> session) {
-    session->stream.async_read(session->buffer, [session](
-        boost::beast::error_code error, size_t size
-    ) {
+boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
+    boost::system::error_code error;
+    auto completion_token =
+        boost::asio::redirect_error(boost::asio::use_awaitable, error);
+
+    while (true) {
+        size_t size = co_await session->stream.async_read(
+            session->buffer, completion_token
+        );
+
         printf(
             "U WS Read %s.\n",
             boost::beast::buffers_to_string(session->buffer.cdata()).c_str()
         );
         if (error) {
             printf("Error %s.\n", error.message().c_str());
-            return;
+            co_return;
         }
         // TODO
         if (size >= message_size({{1}})) {
@@ -77,84 +84,87 @@ void read(boost::intrusive_ptr<session> session) {
         }
 
         session->buffer.consume(session->buffer.size());
-        read(std::move(session));
-    });
+    }
 }
 
-void accept(boost::asio::ip::tcp::acceptor& acceptor) {
-    acceptor.async_accept(acceptor.get_executor(), [&acceptor](
-        boost::system::error_code error,
-        boost::asio::ip::tcp::socket&& socket
-    ) {
+boost::asio::awaitable<void> accept(
+    boost::asio::io_context &context,
+    boost::asio::ip::tcp::acceptor& acceptor
+) {
+    boost::system::error_code error;
+    auto completion_token =
+        boost::asio::redirect_error(boost::asio::use_awaitable, error);
+
+    auto socket = co_await acceptor.async_accept(completion_token);
+
+    printf(
+        "T%s Accept %s.\n",
+        boost::lexical_cast<std::string>(
+            std::this_thread::get_id()
+        ).c_str(),
+        boost::lexical_cast<std::string>(
+            socket.remote_endpoint()
+        ).c_str()
+    );
+
+    if (error)
+        co_return;
+
+    co_spawn(context, accept(context, acceptor), boost::asio::detached);
+
+    boost::intrusive_ptr<::session> session(
+        new ::session(std::move(socket))
+    );
+
+    co_await async_read(
+        session->stream.next_layer(), session->buffer, session->request,
+        completion_token
+    );
+
+    printf(
+        "T%s HTTP Read %s Method %s.\n",
+        boost::lexical_cast<std::string>(
+            std::this_thread::get_id()
+        ).c_str(),
+        boost::beast::buffers_to_string(
+            session->buffer.cdata()
+        ).c_str(),
+        session->request.method_string().data()
+    );
+
+    if(error == boost::beast::http::error::end_of_stream) {
+        co_return;
+    } else if (error) {
+        printf("Error %s.\n", error.message().c_str());
+        co_return;
+    }
+
+    if (!boost::beast::websocket::is_upgrade(session->request)) {
+        // TODO
+        co_return;
+    }
+
+    co_await session->stream.async_accept(session->request, completion_token);
+
+    printf(
+        "T%s WS Accept.\n",
+        boost::lexical_cast<std::string>(
+            std::this_thread::get_id()
+        ).c_str()
+    );
+    if (error) {
         printf(
-            "T%s Accept %s.\n",
-            boost::lexical_cast<std::string>(
-                std::this_thread::get_id()
-            ).c_str(),
-            boost::lexical_cast<std::string>(
-                socket.remote_endpoint()
-            ).c_str()
+            "Error %s.\n",
+            error.message().c_str()
         );
+        co_return;
+    }
 
-        if (error) {
-            return;
-        }
-        boost::intrusive_ptr<::session> session(
-            new ::session(std::move(socket))
-        );
+    session->stream.binary(true);
 
-        boost::beast::http::async_read(
-            session->stream.next_layer(), session->buffer, session->request,
-            [session](boost::beast::error_code error, std::size_t) {
-                printf(
-                    "T%s HTTP Read %s Method %s.\n",
-                    boost::lexical_cast<std::string>(
-                        std::this_thread::get_id()
-                    ).c_str(),
-                    boost::beast::buffers_to_string(
-                        session->buffer.cdata()
-                    ).c_str(),
-                    session->request.method_string().begin()
-                );
+    server->sessions.push_back(session);
 
-                if(error == boost::beast::http::error::end_of_stream) {
-                    return;
-                } else if (error) {
-                    printf("Error %s.\n", error.message().c_str());
-                    return;
-                }
-
-                if (!boost::beast::websocket::is_upgrade(session->request)) {
-                    // TODO
-                    return;
-                }
-
-                server->sessions.push_back(session);
-                session->stream.async_accept(
-                    session->request,
-                    [session](boost::beast::error_code error) mutable {
-                        printf(
-                            "T%s WS Accept.\n",
-                            boost::lexical_cast<std::string>(
-                                std::this_thread::get_id()
-                            ).c_str()
-                        );
-                        if (error) {
-                            printf(
-                                "Error %s.\n",
-                                error.message().c_str()
-                            );
-                        }
-
-                        session->stream.binary(true);
-                        read(session);
-                    }
-                );
-            }
-        );
-
-        accept(acceptor);
-    });
+    co_await read(session);
 }
 
 void tick(boost::system::error_code error = {}) {
@@ -233,7 +243,7 @@ int main() {
 
     acceptor.listen();
 
-    accept(acceptor);
+    co_spawn(context, accept(context, acceptor), boost::asio::detached);
 
     tick();
 

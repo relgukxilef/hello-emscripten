@@ -2,9 +2,9 @@
 
 #include "../network/network_message.h"
 
-client::client() {
+client::client(std::string_view server) {
     connection.reset(
-        new websocket(*this, event_loop, "wss://hellovr.at/")
+        new websocket(*this, event_loop, server)
     );
     next_network_update = std::chrono::steady_clock::now();
 }

@@ -8,12 +8,12 @@
 #include "state/input.h"
 
 struct hello {
-    hello(VkInstance instance, VkSurfaceKHR surface);
+    hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface);
 
     void draw(VkInstance instance, VkSurfaceKHR surface);
     void update(::input& input);
 
-    ::client client;
+    std::unique_ptr<::client> client;
     std::unique_ptr<::visuals> visuals;
     std::unique_ptr<::audio> audio;
 };
