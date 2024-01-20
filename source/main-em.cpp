@@ -190,7 +190,10 @@ int main() {
 
     update_canvas_size();
 
-    h.reset(new hello(vglCreateInstanceForGL(), vglCreateSurfaceForGL()));
+    char *arguments = nullptr;
+    h.reset(
+        new hello(&arguments, vglCreateInstanceForGL(), vglCreateSurfaceForGL())
+    );
 
     EM_ASM(document.getElementById("canvas").focus(););
 

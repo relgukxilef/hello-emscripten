@@ -46,7 +46,7 @@ void error_callback(int error, const char* description) {
     std::fprintf(stderr, "Error %i: %s\n", error, description);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     unique_glfw glfw;
 
     glfwSetErrorCallback(error_callback);
@@ -65,7 +65,7 @@ int main() {
         { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
     );
 
-    hello h(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
+    hello h(argv, vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
     ::input input {};
 
