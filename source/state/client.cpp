@@ -6,12 +6,13 @@
 unsigned message_user_capacity = 16;
 unsigned message_audio_capacity = 200;
 
-client::client() {
+client::client(std::string_view server) {
     connection.reset(
-        new websocket(*this, event_loop, "ws://localhost:28750/")
+        new websocket(*this, event_loop, server)
     );
     next_network_update = std::chrono::steady_clock::now();
     in_message = message(message_user_capacity, message_audio_capacity);
+    message_in_readable = false;
     in_buffer.resize(capacity(in_message));
     out_message = message(message_user_capacity, message_audio_capacity);
     out_buffer.resize(capacity(out_message));

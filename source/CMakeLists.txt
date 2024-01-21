@@ -71,7 +71,7 @@ else()
     find_package(OpenGL)
     
     set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.74.0 COMPONENTS system REQUIRED)
+    find_package(Boost 1.74.0 COMPONENTS system filesystem REQUIRED)
     find_package(OpenSSL REQUIRED)
 
     target_sources(
@@ -138,6 +138,16 @@ else()
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
+
+
+    add_executable(
+        test
+        test-main.cpp
+    )
+
+    add_dependencies(test hello-gl hello-vk server)
+
+    target_link_libraries(test PRIVATE ${Boost_LIBRARIES})
 endif()
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
