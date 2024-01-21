@@ -20,22 +20,35 @@
 enum { port = 28750 };
 std::chrono::milliseconds tick_time{50};
 
+unsigned message_user_capacity = 16;
+unsigned message_audio_capacity = 200;
+
+std::span<std::uint8_t> to_span(boost::beast::flat_buffer &buffer) {
+    return {
+        reinterpret_cast<std::uint8_t*>(buffer.data().data()), buffer.size()
+    };
+}
+
 struct session : public boost::intrusive_ref_counter<session> {
     // Need either ref counting or counting the number of outstanding operations
-    session(boost::asio::ip::tcp::socket&& socket) : stream(std::move(socket)) {
-    }
+    session(boost::asio::ip::tcp::socket&& socket) :
+        stream(std::move(socket)), m(1, message_audio_capacity)
+    {}
     boost::beast::http::request<boost::beast::http::string_body> request;
     boost::beast::websocket::stream<boost::asio::ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
     glm::vec3 position;
     glm::quat orientation;
+    message m;
     // TODO: may need a queue for messages because async_write cannot be called
     // before the last async_write completed
 };
 
 struct server_t {
     server_t(boost::asio::io_context& context) :
-        tick_timer(context, std::chrono::steady_clock::now())
+        tick_timer(context, std::chrono::steady_clock::now()),
+        m(message_user_capacity, message_audio_capacity),
+        buffer(capacity(m), 0)
     {}
     // Need one state that can be written when messages arrive
     // and one that can be read to send out messages
@@ -47,6 +60,8 @@ struct server_t {
     std::vector<glm::quat> tick_orientations;
     std::vector<boost::intrusive_ptr<session>> sessions;
     boost::asio::steady_timer tick_timer;
+    message m;
+    std::vector<std::uint8_t> buffer;
 };
 
 server_t* server;
@@ -61,25 +76,28 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
             session->buffer, completion_token
         );
 
-        printf(
-            "U WS Read %s.\n",
-            boost::beast::buffers_to_string(session->buffer.cdata()).c_str()
-        );
         if (error) {
             printf("Error %s.\n", error.message().c_str());
             co_return;
         }
-        // TODO
-        if (size >= message_size({{1}})) {
-            auto message = parse_message({
-                reinterpret_cast<std::uint8_t*>(
-                    session->buffer.data().data()
-                ),
-                session->buffer.size()
-            });
-            if (message.users.position.size() == 1) {
-                session->position = message.users.position[0];
-                session->orientation = message.users.orientation[0];
+        printf(
+            "U WS Read %zu bytes.\n", size
+        );
+
+        if (session->buffer.size() > 0) {
+            read(session->m, to_span(session->buffer));
+            assert(session->m.users.size == 1);
+            if (session->m.users.size == 1) {
+                auto &p = session->m.users.position;
+                auto &o = session->m.users.orientation;
+                session->position =
+                    glm::vec3{p.x.values[0], p.y.values[0], p.z.values[0]};
+                session->orientation = glm::normalize(glm::quat{
+                    o.w.values[0],
+                    o.x.values[0],
+                    o.y.values[0],
+                    o.z.values[0]
+                });
             }
         }
 
@@ -191,20 +209,29 @@ void tick(boost::system::error_code error = {}) {
                 session.value()->orientation;
         }
 
-        server->writes_pending = server->sessions.size();
+        auto size = server->sessions.size();
+        server->m.users.size = size;
+        auto &p = server->m.users.position;
+        for (auto s : boost::adaptors::index(server->tick_positions)) {
+            p.x.values[s.index()] = s.value().x;
+            p.y.values[s.index()] = s.value().y;
+            p.z.values[s.index()] = s.value().z;
+        }
+        auto &o = server->m.users.orientation;
+        for (auto s : boost::adaptors::index(server->tick_orientations)) {
+            o.x.values[s.index()] = s.value().x;
+            o.y.values[s.index()] = s.value().y;
+            o.z.values[s.index()] = s.value().z;
+            o.w.values[s.index()] = s.value().w;
+        }
+
+        write(server->m, server->buffer);
+
+        server->writes_pending = size;
 
         for (auto& session : server->sessions) {
-            // TODO: use a ConstBufferSequence containing multiple continuous
-            // buffers to only send the data this client needs
-            message_header header[] = {{{
-                static_cast<uint16_t>(server->tick_positions.size())
-            }},};
             session->stream.async_write(
-                std::array<boost::asio::const_buffer, 3>{
-                    boost::asio::buffer(header),
-                    boost::asio::buffer(server->tick_positions),
-                    boost::asio::buffer(server->tick_orientations)
-                },
+                boost::asio::buffer(server->buffer),
                 [](
                     boost::beast::error_code error, size_t
                 ) {
