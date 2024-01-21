@@ -80,9 +80,6 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
             printf("Error %s.\n", error.message().c_str());
             co_return;
         }
-        printf(
-            "U WS Read %zu bytes.\n", size
-        );
 
         if (session->buffer.size() > 0) {
             read(session->m, to_span(session->buffer));

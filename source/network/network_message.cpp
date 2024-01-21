@@ -25,6 +25,9 @@ void apply(message &m, F f) {
     auto &o = m.users.orientation;
     for (auto *v : {&o.x, &o.y, &o.z, &o.w})
         apply_fixed_point<int16_t, 15, float>(m.users.size, *v, f);
+
+    apply(m.audio_size, f);
+    apply(m.audio_size, m.audio, f);
 }
 
 initial_message::initial_message(unsigned int extension_capacity) {

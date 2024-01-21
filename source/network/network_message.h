@@ -45,6 +45,9 @@ struct message {
         unique_span<std::uint16_t> audio_size;
         unique_span<std::uint8_t> audio;
     } users;
+
+    std::uint16_t audio_size;
+    unique_span<std::uint8_t> audio;
 };
 
 void write(initial_message &m, std::span<std::uint8_t> b);
