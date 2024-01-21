@@ -2,11 +2,20 @@
 
 #include "../network/network_message.h"
 
+// These may differ between server and client
+unsigned message_user_capacity = 16;
+unsigned message_audio_capacity = 200;
+
 client::client(std::string_view server) {
     connection.reset(
         new websocket(*this, event_loop, server)
     );
     next_network_update = std::chrono::steady_clock::now();
+    in_message = message(message_user_capacity, message_audio_capacity);
+    message_in_readable = false;
+    in_buffer.resize(capacity(in_message));
+    out_message = message(message_user_capacity, message_audio_capacity);
+    out_buffer.resize(capacity(out_message));
 }
 
 void client::update(::input &input) {
@@ -64,13 +73,22 @@ void client::update(::input &input) {
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
         if (connection->is_write_completed()) {
-            message_header header = {{1}};
-            message.resize(message_size(header));
-            *reinterpret_cast<message_header*>(message.data()) = header;
-            auto data = parse_message({message.data(), message.size()});
-            data.users.position[0] = user_position;
-            data.users.orientation[0] = user_orientation;
-            connection->try_write_message({message.data(), message.size()});
+            out_message.users.size = 1;
+
+            auto &p = out_message.users.position;
+            p.x.values[0] = user_position.x;
+            p.y.values[0] = user_position.y;
+            p.z.values[0] = user_position.z;
+
+            auto &o = out_message.users.orientation;
+            o.x.values[0] = user_orientation.x;
+            o.y.values[0] = user_orientation.y;
+            o.z.values[0] = user_orientation.z;
+            o.w.values[0] = user_orientation.w;
+
+            write(out_message, out_buffer);
+
+            connection->try_write_message(out_buffer);
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
@@ -78,22 +96,28 @@ void client::update(::input &input) {
     }
 
     if (message_in_readable) {
-        auto header = *reinterpret_cast<message_header*>(message_in.data());
-        auto data = parse_message({message_in.data(), message_in.size()});
-        std::size_t user_count = header.users.size;
+        read(in_message, in_buffer);
+        std::size_t user_count = in_message.users.size;
+
         if (user_count != users.position.size()) {
             users.position.resize(user_count);
             users.orientation.resize(user_count);
             update_number++;
         }
-        std::move(
-            data.users.position.begin(), data.users.position.end(),
-            users.position.begin()
-        );
-        std::move(
-            data.users.orientation.begin(), data.users.orientation.end(),
-            users.orientation.begin()
-        );
+
+        for (size_t index = 0; index < user_count; index++) {
+            auto &p = in_message.users.position;
+            users.position[index].x = p.x.values[index];
+            users.position[index].y = p.y.values[index];
+            users.position[index].z = p.z.values[index];
+
+            auto &o = in_message.users.orientation;
+            users.orientation[index].x = o.x.values[index];
+            users.orientation[index].y = o.y.values[index];
+            users.orientation[index].z = o.z.values[index];
+            users.orientation[index].w = o.w.values[index];
+        }
+
         message_in_readable = false;
     }
 }
