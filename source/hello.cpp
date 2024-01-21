@@ -39,17 +39,15 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
             throw;
         }
     }
-
-    try {
-        unsigned char buffer[1024];
-        audio->encoded_audio = buffer;
-        audio->update();
-        
-    } catch (openal_error& error) {
-        std::fprintf(stderr, "OpenAL error. %s\n", error.what());
-    }
 }
 
 void hello::update(input& input) {
     client->update(input);
+
+    try {
+        audio->update(*client);
+
+    } catch (openal_error& error) {
+        std::fprintf(stderr, "OpenAL error. %s\n", error.what());
+    }
 }

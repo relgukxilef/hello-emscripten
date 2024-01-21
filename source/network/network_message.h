@@ -26,7 +26,7 @@ namespace extensions {
 struct initial_message {
     initial_message(unsigned extension_capacity);
 
-    std::uint16_t size;
+    std::uint16_t size = 0;
     unique_span<uuid> extensions;
 };
 
@@ -35,7 +35,7 @@ struct message {
     message(unsigned user_capacity, unsigned audio_capacity);
 
     struct {
-        std::uint16_t size;
+        std::uint16_t size = 0;
         struct {
             unique_span<float> x, y, z;
         } position;
@@ -46,7 +46,7 @@ struct message {
         unique_span<std::uint8_t> audio;
     } users;
 
-    std::uint16_t audio_size;
+    std::uint16_t audio_size = 0;
     unique_span<std::uint8_t> audio;
 };
 

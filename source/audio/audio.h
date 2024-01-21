@@ -1,10 +1,11 @@
 #pragma once
 
-#include <span>
+#include <ranges>
 
 #include <opus.h>
 #include <AL/al.h>
 
+#include "../state/client.h"
 #include "../utility/opus_resource.h"
 #include "../utility/openal_resource.h"
 
@@ -14,7 +15,7 @@ constexpr std::size_t buffer_size = 960;
 struct audio {
     audio();
 
-    void update();
+    void update(::client &client);
 
     unique_opus_encoder encoder;
     unique_opus_decoder decoder;
@@ -27,6 +28,4 @@ struct audio {
 
     unique_openal_buffers<buffer_count> buffers;
     unique_openal_sources<1> sources;
-
-    std::span<unsigned char> encoded_audio;
 };

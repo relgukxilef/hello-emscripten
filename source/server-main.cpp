@@ -83,7 +83,8 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
 
         if (session->buffer.size() > 0) {
             read(session->m, to_span(session->buffer));
-            assert(session->m.users.size == 1);
+            if (session->m.users.size != 1)
+                co_return;
             if (session->m.users.size == 1) {
                 auto &p = session->m.users.position;
                 auto &o = session->m.users.orientation;
@@ -220,6 +221,13 @@ void tick(boost::system::error_code error = {}) {
             o.y.values[s.index()] = s.value().y;
             o.z.values[s.index()] = s.value().z;
             o.w.values[s.index()] = s.value().w;
+        }
+
+        if (size > 0) {
+            server->m.audio_size = server->sessions[0]->m.audio_size;
+            std::ranges::copy(
+                server->sessions[0]->m.audio, server->m.audio.begin()
+            );
         }
 
         write(server->m, server->buffer);

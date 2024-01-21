@@ -19,11 +19,12 @@ audio::audio() {
     opus_check(error);
 
     const char *device_name = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
+    printf("Audio out: %s\n", device_name);
     playback_device = alcOpenDevice(device_name);
     check(playback_device);
 
     device_name = alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
-
+    printf("Audio in: %s\n", device_name);
     capture_device = alcCaptureOpenDevice(
         device_name, 48000, AL_FORMAT_MONO16, 4 * buffer_size
     );
@@ -72,7 +73,7 @@ audio::audio() {
     openal_check();
 }
 
-void audio::update() {
+void audio::update(::client& client) {
     ALshort capture_data[buffer_size];
     std::fill(std::begin(capture_data), std::end(capture_data), 0.0f);
     ALCenum error;
@@ -83,38 +84,37 @@ void audio::update() {
             std::size(capture_data)
         );
         error = alcGetError(capture_device.get());
-        if (error == ALC_INVALID_VALUE) {
+        if (error == ALC_INVALID_VALUE)
             break; // nothing to capture
-        } else {
-            openal_check(error);
-        }
 
-        auto result = opus_check(opus_encode(
+        openal_check(error);
+
+        client.encoded_audio_in_size = opus_check(opus_encode(
             encoder.get(), capture_data, std::size(capture_data),
-            encoded_audio.data(), encoded_audio.size()
+            client.encoded_audio_in.data(), client.encoded_audio_in.size()
         ));
         opus_check(opus_decode(
-            decoder.get(), encoded_audio.data(), result,
+            decoder.get(), client.encoded_audio_out.data(),
+            client.encoded_audio_out_size,
             capture_data, std::size(capture_data), 0
         ));
 
         ALuint unqueued_buffer = 0;
         alSourceUnqueueBuffers(sources.get()[0], 1, &unqueued_buffer);
         error = alGetError();
-        if (error == AL_INVALID_VALUE) {
-            // not ready to play new samples, drop them
-        } else {
-            openal_check(error);
+        if (error == AL_INVALID_VALUE)
+            break; // not ready to play new samples, drop them
 
-            alBufferData(
-                unqueued_buffer, AL_FORMAT_MONO16, std::begin(capture_data),
-                std::size(capture_data) * sizeof(ALshort), 48000
-            );
-            openal_check();
+        openal_check(error);
 
-            alSourceQueueBuffers(sources.get()[0], 1, &unqueued_buffer);
-            openal_check();
-        }
+        alBufferData(
+            unqueued_buffer, AL_FORMAT_MONO16, std::begin(capture_data),
+            std::size(capture_data) * sizeof(ALshort), 48000
+        );
+        openal_check();
+
+        alSourceQueueBuffers(sources.get()[0], 1, &unqueued_buffer);
+        openal_check();
     }
 
     ALint state=0;

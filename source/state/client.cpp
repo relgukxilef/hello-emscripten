@@ -1,6 +1,7 @@
 #include "client.h"
 
 #include "../network/network_message.h"
+#include "../utility/serialization.h"
 
 // These may differ between server and client
 unsigned message_user_capacity = 16;
@@ -16,6 +17,8 @@ client::client(std::string_view server) {
     in_buffer.resize(capacity(in_message));
     out_message = message(message_user_capacity, message_audio_capacity);
     out_buffer.resize(capacity(out_message));
+    encoded_audio_in.resize(message_audio_capacity);
+    encoded_audio_out.resize(message_audio_capacity);
 }
 
 void client::update(::input &input) {
@@ -86,6 +89,9 @@ void client::update(::input &input) {
             o.z.values[0] = user_orientation.z;
             o.w.values[0] = user_orientation.w;
 
+            out_message.audio_size = encoded_audio_in_size;
+            copy(encoded_audio_in, out_message.audio);
+
             write(out_message, out_buffer);
 
             connection->try_write_message(out_buffer);
@@ -117,6 +123,9 @@ void client::update(::input &input) {
             users.orientation[index].z = o.z.values[index];
             users.orientation[index].w = o.w.values[index];
         }
+
+        encoded_audio_out_size = in_message.audio_size;
+        copy(in_message.audio, encoded_audio_out);
 
         message_in_readable = false;
     }

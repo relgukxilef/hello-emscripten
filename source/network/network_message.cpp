@@ -45,6 +45,7 @@ message::message(unsigned user_capacity, unsigned audio_capacity) {
     }
     users.audio_size = {user_capacity};
     users.audio = {user_capacity * audio_capacity};
+    audio = {audio_capacity};
 }
 
 void write(initial_message &m, std::span<std::uint8_t> b) {

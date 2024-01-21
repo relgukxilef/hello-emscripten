@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <span>
 #include <memory>
 #include <chrono>
 #include <atomic>
@@ -25,6 +24,9 @@ struct client {
     glm::vec2 touch_previous_position[input::touch::size];
     int rotation_touch = -1, movement_touch = -1;
 
+    std::vector<std::uint8_t> encoded_audio_in;
+    unsigned encoded_audio_in_size = 0;
+
     // no need to double/tripple buffer the state if the messages are already
     // buffered
     unsigned time;
@@ -33,6 +35,8 @@ struct client {
         std::vector<glm::vec3> position;
         std::vector<glm::quat> orientation;
     } users;
+    std::vector<std::uint8_t> encoded_audio_out;
+    unsigned encoded_audio_out_size = 0;
 
     std::chrono::steady_clock::time_point next_network_update;
 

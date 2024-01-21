@@ -11,6 +11,15 @@ struct unique_span {
     T &operator[](size_t index) {
         return values[index];
     }
+    T *begin() {
+        return values.get();
+    }
+    T *end() {
+        return values.get() + capacity;
+    }
+    size_t size() const {
+        return capacity;
+    }
     std::unique_ptr<T[]> values;
     unsigned capacity = 0;
 };
