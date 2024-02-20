@@ -16,6 +16,11 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    audio/audio.h audio/audio.cpp
+    utility/opus_resource.h utility/opus_resource.cpp
+    utility/openal_resource.h utility/openal_resource.cpp
+    utility/serialization.h utility/serialization.cpp
+    utility/unique_span.h
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -25,6 +30,7 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
+    opus
 )
 
 if (EMSCRIPTEN)
@@ -55,6 +61,7 @@ if (EMSCRIPTEN)
         -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
         -lwebsocket.js
+        -lopenal
     )
 
     target_link_options(
@@ -81,6 +88,10 @@ else()
         hello PRIVATE
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
+    )
+    target_link_libraries(
+        hello PUBLIC
+        OpenAL::OpenAL
     )
 
     target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
@@ -169,3 +180,6 @@ endif ()
 
 #set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 #set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)

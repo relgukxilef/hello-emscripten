@@ -5,9 +5,11 @@
 
 #include <vulkan/vulkan_core.h>
 
+#include "utility/openal_resource.h"
 #include "utility/vulkan_resource.h"
 
-hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface)
+hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
+    audio(new ::audio())
 {
     std::string_view server = "wss://hellovr.at:443/";
     for (auto argument = arguments; *argument != nullptr; argument++) {
@@ -41,4 +43,11 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
 
 void hello::update(input& input) {
     client->update(input);
+
+    try {
+        audio->update(*client);
+
+    } catch (openal_error& error) {
+        std::fprintf(stderr, "OpenAL error. %s\n", error.what());
+    }
 }

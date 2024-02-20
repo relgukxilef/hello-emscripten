@@ -14,3 +14,11 @@
 	path = submodules/glm
 	url = https://github.com/g-truc/glm.git
 	shallow = true
+[submodule "submodules/opus"]
+	path = submodules/opus
+	url = https://gitlab.xiph.org/xiph/opus.git
+	shallow = true
+[submodule "submodules/openal-soft"]
+	path = submodules/openal-soft
+	url = https://github.com/kcat/openal-soft.git
+	shallow = true
