@@ -8,11 +8,12 @@ layout(location = 1) in vec3 fragment_normal;
 
 layout(binding = 1) uniform sampler2D image;
 
-vec2 filtered_step(vec2 x, vec2 width) {
-    return clamp(x / width + vec2(0.5), vec2(0), vec2(1));
+float filtered_step(float x, float width) {
+    return clamp(x / width + 0.5, 0.0, 1.0);
 }
 
 void main() {
     color = texture(image, fragment_texture_coordinate);
-    color *= dot(fragment_normal, vec3(1, 0, 0)) * 0.5 + 0.5;
+    color.a = filtered_step(color.a - 0.5, fwidth(color.a));
+    //color.rgb *= dot(fragment_normal, vec3(1, 0, 0)) * 0.5 + 0.5;
 }

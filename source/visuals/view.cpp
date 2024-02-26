@@ -63,7 +63,8 @@ void record_command_buffer(
 
     VkClearValue clearValue[]{
         {.color{{0.929f, 0.788f, 0.318f, 1.0f}}},
-        {.depthStencil{1.0f, 0}}
+        {.depthStencil{1.0f, 0}},
+        {.color{{0.929f, 0.788f, 0.318f, 1.0f}}},
     };
     VkRenderPassBeginInfo render_pass_begin_info{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -291,6 +292,26 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         auto attachments = {
             VkAttachmentDescription{
                 .format = surface_format.format,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            },
+            VkAttachmentDescription{
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            },
+            VkAttachmentDescription{
+                .format = surface_format.format,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -298,16 +319,6 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                 .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-            },
-            VkAttachmentDescription{
-                .format = VK_FORMAT_D24_UNORM_S8_UINT,
-                .samples = VK_SAMPLE_COUNT_1_BIT,
-                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             },
         };
         auto color_attachment_references = {
@@ -320,12 +331,17 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .attachment = 1,
             .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
+        VkAttachmentReference resolve_attachment_reference{
+            .attachment = 2,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        };
         auto subpasses = {
             VkSubpassDescription{
                 .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
                 .colorAttachmentCount =
                     static_cast<uint32_t>(color_attachment_references.size()),
                 .pColorAttachments = color_attachment_references.begin(),
+                .pResolveAttachments = &resolve_attachment_reference,
                 .pDepthStencilAttachment = &depth_attachment_reference,
             },
         };
@@ -447,8 +463,10 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         };
         VkPipelineMultisampleStateCreateInfo multisample_state_create_info{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .rasterizationSamples = VK_SAMPLE_COUNT_2_BIT,
             .sampleShadingEnable = VK_FALSE,
+            .alphaToCoverageEnable = VK_TRUE,
+            .alphaToOneEnable = VK_TRUE,
         };
         VkPipelineColorBlendAttachmentState color_blend_attachment_state{
             .blendEnable = VK_FALSE,
@@ -610,9 +628,70 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ));
 
         {
+            VkImageCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = surface_format.format,
+                .extent = {
+                    .width = surface_extent.width,
+                    .height = surface_extent.height,
+                    .depth = 1
+                },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage =
+                    VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            check(vkCreateImage(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.color_image)
+            ));
+
+            VkMemoryRequirements memory_requirements;
+            vkGetImageMemoryRequirements(
+                v.device.get(), image.color_image.get(), &memory_requirements
+            );
+
+            uint32_t color_memory_type_index = 0;
+            for (uint32_t i = 0; i < v.properties.memoryTypeCount; i++) {
+                if (
+                    (
+                        v.properties.memoryTypes[i].propertyFlags &
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                        ) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+                    (1 << i) & memory_requirements.memoryTypeBits
+                    ) {
+                    color_memory_type_index = i;
+                    break;
+                }
+            }
+
+            VkMemoryAllocateInfo allocate_info = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = memory_requirements.size,
+                .memoryTypeIndex = color_memory_type_index,
+            };
+
+            check(vkAllocateMemory(
+                v.device.get(), &allocate_info, nullptr,
+                out_ptr(image.color_memory)
+            ));
+
+            check(vkBindImageMemory(
+                v.device.get(), image.color_image.get(),
+                image.color_memory.get(), 0
+            ));
+        }
+
+        {
             VkImageViewCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image = swapchain_images[i],
+                .image = image.color_image.get(),
                 .viewType = VK_IMAGE_VIEW_TYPE_2D,
                 .format = surface_format.format,
                 .subresourceRange = {
@@ -625,7 +704,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             };
             check(vkCreateImageView(
                 v.device.get(), &create_info, nullptr,
-                out_ptr(image.image_view)
+                out_ptr(image.color_view)
             ));
         }
 
@@ -641,7 +720,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 },
                 .mipLevels = 1,
                 .arrayLayers = 1,
-                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
                 .tiling = VK_IMAGE_TILING_OPTIMAL,
                 .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                 .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -710,9 +789,30 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         }
 
         {
+            VkImageViewCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = swapchain_images[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = surface_format.format,
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+            check(vkCreateImageView(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.image_view)
+            ));
+        }
+
+        {
             auto attachments = {
-                image.image_view.get(),
+                image.color_view.get(),
                 image.depth_view.get(),
+                image.image_view.get(),
             };
             VkFramebufferCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,

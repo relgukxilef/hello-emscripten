@@ -118,7 +118,9 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         };
 
-        VkPhysicalDeviceFeatures device_features{};
+        VkPhysicalDeviceFeatures device_features{
+            .alphaToOne = VK_TRUE,
+        };
         VkDeviceCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
             .queueCreateInfoCount =
@@ -127,7 +129,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .enabledExtensionCount =
                 static_cast<uint32_t>(std::size(enabled_extension_names)),
             .ppEnabledExtensionNames = enabled_extension_names,
-            .pEnabledFeatures = &device_features
+            .pEnabledFeatures = &device_features,
         };
 
         check(vkCreateDevice(
