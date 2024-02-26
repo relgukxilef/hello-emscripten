@@ -10,6 +10,17 @@
  * TOOD: allow partial and streamed parsing and conversion.
  */
 struct model {
+    struct primitive {
+        uint32_t vertex_begin;
+        uint32_t face_begin, face_size;
+        uint32_t image_index;
+    };
+
+    struct image {
+        uint32_t begin, size;
+        uint32_t width, height;
+    };
+
     model() = default;
     model(std::ranges::subrange<uint8_t*> file);
 
@@ -17,7 +28,7 @@ struct model {
     // short positions.xyz*, short normals.xyz*, short texture_coordinates.uv*,
     // short joints.xyzw*, byte weights.xyzw*
     // short indices*
-    // All indices are 16 bit. Meshes with more vertices than fit into that, are
+    // Indices are 16 bit. Meshes with more vertices than fit into that, are
     // split up.
 
     unsigned
@@ -28,5 +39,7 @@ struct model {
     std::vector<uint8_t> normals;
     std::vector<uint8_t> texture_coordinates;
     std::vector<uint8_t> indices;
-    std::vector<uint8_t> images;
+    std::vector<uint8_t> pixels;
+    std::vector<primitive> primitives;
+    std::vector<image> images;
 };

@@ -78,6 +78,10 @@ enum struct state {
     meshes_n_primitives_n,
     meshes_n_primitives_n_targets,
     meshes_n_primitives_n_targets_n,
+    materials,
+    materials_n,
+    materials_n_pbr_metallic_roughness,
+    materials_n_pbr_metallic_roughness_base_color_texture,
     images,
     images_n,
     textures,
@@ -105,9 +109,13 @@ struct accessor {
     component_type type;
 };
 
-struct primitive {
-    uint32_t positions, normals, texture_coordinates, indices;
+struct primitive_info {
+    uint32_t positions, normals, texture_coordinates, indices, material;
     primitive_mode mode;
+};
+
+struct material_info {
+    uint32_t pbr_metallic_roughness_base_color_texture;
 };
 
 struct handler {
@@ -136,6 +144,8 @@ struct handler {
                 state = state::meshes;
             } else if (key == "images") {
                 state = state::images;
+            } else if (key == "materials") {
+                state = state::materials;
             }
         } else if (state == state::meshes_n) {
             if (key == "primitives") {
@@ -155,7 +165,8 @@ struct handler {
                 state == state::nodes ||
                 state == state::accessors ||
                 state == state::meshes ||
-                state == state::images
+                state == state::images ||
+                state == state::materials
             )
         ) {
             state = state::root;
@@ -190,6 +201,16 @@ struct handler {
         } else if (state == state::images) {
             state = state::images_n;
             images.push_back(0);
+        } else if (state == state::materials) {
+            state = state::materials_n;
+            materials.push_back({});
+        } else if (state == state::materials_n) {
+            if (key == "pbrMetallicRoughness")
+                state = state::materials_n_pbr_metallic_roughness;
+        } else if (state == state::materials_n_pbr_metallic_roughness) {
+            if (key == "baseColorTexture")
+                state = state::
+                    materials_n_pbr_metallic_roughness_base_color_texture;
         }
         key.clear();
         depth++;
@@ -211,12 +232,21 @@ struct handler {
                 state = state::meshes;
             } else if (state == state::images_n) {
                 state = state::images;
+            } else if (state == state::materials_n) {
+                state = state::materials;
             }
         } else if (depth == 5) {
             if (state == state::meshes_n_primitives_n) {
                 state = state::meshes_n_primitives;
             }
         }
+        if (state == state::materials_n_pbr_metallic_roughness)
+            state = state::materials_n;
+        else if (
+            state ==
+            state::materials_n_pbr_metallic_roughness_base_color_texture
+        )
+            state = state::materials_n_pbr_metallic_roughness;
         depth--;
         return true;
     }
@@ -290,10 +320,19 @@ struct handler {
                 primitives.back().mode = static_cast<primitive_mode>(i);
             } else if (key == "indices") {
                 primitives.back().indices = i;
+            } else if (key == "material") {
+                primitives.back().material = i;
             }
         } else if (state == state::images_n) {
             if (key == "bufferView") {
                 images.back() = i;
+            }
+        } else if (
+            state ==
+            state::materials_n_pbr_metallic_roughness_base_color_texture
+        ) {
+            if (key == "index") {
+                materials.back().pbr_metallic_roughness_base_color_texture = i;
             }
         }
         key.clear();
@@ -339,13 +378,14 @@ struct handler {
 
     std::vector<buffer_view> buffer_views;
     std::vector<accessor> accessors;
-    std::vector<primitive> primitives;
+    std::vector<primitive_info> primitives;
+    std::vector<material_info> materials;
     std::vector<unsigned> images;
 };
 
 std::vector<uint8_t> read_png(
     std::ranges::subrange<uint8_t*> file,
-    unsigned &width
+    unsigned &width, unsigned &height
 ) {
     png_structp png = png_create_read_struct(
         PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr
@@ -365,7 +405,7 @@ std::vector<uint8_t> read_png(
     png_read_info(png, info);
 
     width = png_get_image_width(png, info);
-    auto height = png_get_image_height(png, info);
+    height = png_get_image_height(png, info);
     auto color_type = png_get_color_type(png, info);
     auto bit_depth  = png_get_bit_depth(png, info);
 
@@ -399,7 +439,7 @@ std::vector<uint8_t> read_png(
     std::vector<uint8_t> pixels(width * height * 4);
     std::vector<uint8_t*> rows(height);
     for (auto r = 0u; r < height; r++) {
-        rows[r] = pixels.data() + r * width;
+        rows[r] = pixels.data() + r * width * 4;
     }
 
     png_read_image(png, rows.data());
@@ -438,6 +478,14 @@ model::model(std::ranges::subrange<uint8_t*> file) {
 
     for (auto p = 0ul; p < h.primitives.size(); p++) {
         auto start_index = positions.size() / 12;
+
+        primitives.push_back({
+            static_cast<uint32_t>(start_index),
+            static_cast<uint32_t>(indices.size() / 4),
+            h.accessors[h.primitives[p].indices].count,
+            h.materials[h.primitives[p].material].
+            pbr_metallic_roughness_base_color_texture
+        });
 
         auto a = h.primitives[p].positions;
         auto v = h.accessors[a].buffer_view;
@@ -484,9 +532,7 @@ model::model(std::ranges::subrange<uint8_t*> file) {
         );
 
         while (!old_indices.empty()) {
-            write<uint32_t>(
-                new_indices, read<uint32_t>(old_indices) + start_index
-            );
+            write<uint32_t>(new_indices, read<uint32_t>(old_indices));
         }
     }
 
@@ -494,11 +540,16 @@ model::model(std::ranges::subrange<uint8_t*> file) {
         auto v = h.images[i];
         auto offset = h.buffer_views[v].offset;
         auto length = h.buffer_views[v].length;
-        unsigned width = 0;
+        uint32_t width, height;
         auto image = read_png(
-            {file.data() + offset, file.data() + offset + length}, width
+            {file.data() + offset, file.data() + offset + length},
+            width, height
         );
-        images.insert(images.end(), image.begin(), image.end());
-        break;
+        images.push_back({
+            static_cast<uint32_t>(pixels.size()),
+            static_cast<uint32_t>(image.size()),
+            width, height
+        });
+        pixels.insert(pixels.end(), image.begin(), image.end());
     }
 }

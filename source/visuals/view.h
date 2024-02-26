@@ -39,12 +39,11 @@ struct view {
 
     unique_descriptor_pool descriptor_pool;
 
-    unique_command_pool command_pool;
     unique_swapchain swapchain;
 
     VkExtent2D surface_extent;
 
-    unsigned descriptor_set_count = 32; // per image
+    unsigned descriptor_set_count = 128; // per image
 
     unique_render_pass render_pass;
 

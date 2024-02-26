@@ -60,7 +60,7 @@ void client::update(::input &input) {
         user_orientation * glm::vec3(input.motion.x, 0, input.motion.y);
 
     // physics
-    user_position.z = glm::max(0.0f, user_position.z);
+    //user_position.z = glm::max(0.0f, user_position.z);
 
     // user interface
     input.prefer_pointer_locked = true;

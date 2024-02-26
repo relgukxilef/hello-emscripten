@@ -37,7 +37,7 @@ struct visuals {
 
     void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
-    std::uint32_t memory_size = 128 * 1024 * 1024;
+    std::uint32_t memory_size = 1u * 1024 * 1024 * 1024;
 
     unique_debug_utils_messenger debug_utils_messenger;
 
@@ -66,11 +66,17 @@ struct visuals {
 
     unique_buffer host_visible_buffer, device_local_buffer;
 
+    std::vector<unique_image> model_images;
+    std::vector<unique_image_view> model_image_views;
+    unique_sampler default_sampler;
+
     uint32_t view_parameters_offset, user_position_offset;
     uint32_t
         model_position_offset, model_normal_offset,
         model_texture_coordinate_offset, model_indices_offset,
         model_images_offset;
+
+    unique_command_pool command_pool;
 
     std::unique_ptr<::view> view;
 };
