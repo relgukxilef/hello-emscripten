@@ -400,8 +400,6 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             out_ptr(model_images.back())
         ));
 
-        image_begin = round_up(image_begin + image.size, 1024);
-
         {
             check(vkBindImageMemory(
                 device.get(), model_images.back().get(),
@@ -428,6 +426,8 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                 out_ptr(model_image_views.back())
             ));
         }
+
+        image_begin = round_up(image_begin + image.size, 1024);
 
         {
             VkCommandBuffer copy_command;
