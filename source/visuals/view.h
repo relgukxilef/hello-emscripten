@@ -46,7 +46,7 @@ struct view {
 
     VkExtent2D surface_extent;
 
-    unsigned descriptor_set_count = 128; // per image
+    unsigned descriptor_set_count = 256; // per image
 
     unique_render_pass render_pass;
 

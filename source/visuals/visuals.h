@@ -24,7 +24,7 @@ struct alignas(256) parameter {
 };
 
 struct parameters {
-    parameter parameters[32];
+    parameter parameters[256];
 };
 
 struct meshes {
