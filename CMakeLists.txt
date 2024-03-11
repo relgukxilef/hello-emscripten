@@ -14,10 +14,3 @@ add_subdirectory(submodules/SPIRV-Cross EXCLUDE_FROM_ALL)
 add_subdirectory(submodules/VulkanGL EXCLUDE_FROM_ALL)
 
 add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
-
-add_subdirectory(submodules/zlib EXCLUDE_FROM_ALL)
-add_library(ZLIB::ZLIB ALIAS zlibstatic)
-
-set(PNG_BUILD_ZLIB ON)
-set(SKIP_INSTALL_ALL ON)
-add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)

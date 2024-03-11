@@ -29,7 +29,6 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
-    png_static
 )
 
 if (EMSCRIPTEN)
@@ -139,7 +138,12 @@ else()
     )
 
     target_link_libraries(
-        server PRIVATE ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread>
+        server PRIVATE 
+        ${Boost_LIBRARIES} 
+        Boost::lexical_cast
+        Boost::beast
+        glm 
+        $<$<BOOL:${UNIX}>:pthread>
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
@@ -152,7 +156,11 @@ else()
 
     add_dependencies(test hello-gl hello-vk server)
 
-    target_link_libraries(test PRIVATE ${Boost_LIBRARIES})
+    target_link_libraries(
+        test PRIVATE 
+        ${Boost_LIBRARIES}
+        Boost::process
+    )
 endif()
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
