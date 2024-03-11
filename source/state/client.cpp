@@ -3,13 +3,13 @@
 #include "../utility/file.h"
 #include "../network/network_message.h"
 
-client::client() {
+client::client(std::string_view server) {
     auto test_file = read_file("D:/Felix/Documents/Qt_Projects/hello-emscripten/test_files/AvatarSample_B.vrm");
     //auto test_file = read_file("D:/Felix/Downloads/Box.glb");
     test_model = model({test_file.data(), test_file.data() + test_file.size()});
 
     connection.reset(
-        new websocket(*this, event_loop, "wss://hellovr.at:443/")
+        new websocket(*this, event_loop, server)
     );
     next_network_update = std::chrono::steady_clock::now();
 }

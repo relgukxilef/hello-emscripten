@@ -14,7 +14,7 @@
 #include "model.h"
 
 struct client {
-    client();
+    client(std::string_view server);
     // TODO: maybe this function should not be in this struct
     void update(::input& input);
 

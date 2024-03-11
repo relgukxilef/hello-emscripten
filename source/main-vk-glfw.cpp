@@ -65,7 +65,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     return VK_FALSE;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     unique_glfw glfw;
 
     glfwSetErrorCallback(error_callback);
@@ -137,7 +137,7 @@ int main() {
         instance.get(), window.get(), nullptr, out_ptr(surface))
     );
 
-    hello h(instance.get(), surface.get());
+    hello h(argv, instance.get(), surface.get());
 
     ::input input{};
 

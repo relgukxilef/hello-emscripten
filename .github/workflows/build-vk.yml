@@ -22,7 +22,7 @@ jobs:
     steps:
     - name: Install Dependencies
       run: | 
-        sudo apt-get update && apt-get install -y libglfw3-dev libvulkan1 libboost-system-dev libssl-dev
+        sudo apt-get update && apt-get install -y libglfw3-dev libvulkan1 libboost-system-dev libboost-filesystem-dev libssl-dev
         wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
     
     - uses: actions/checkout@v3

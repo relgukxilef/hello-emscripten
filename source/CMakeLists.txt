@@ -143,6 +143,16 @@ else()
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
+
+
+    add_executable(
+        test
+        test-main.cpp
+    )
+
+    add_dependencies(test hello-gl hello-vk server)
+
+    target_link_libraries(test PRIVATE ${Boost_LIBRARIES})
 endif()
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
