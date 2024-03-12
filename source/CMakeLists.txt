@@ -29,6 +29,7 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
+    png_static
 )
 
 if (EMSCRIPTEN)
