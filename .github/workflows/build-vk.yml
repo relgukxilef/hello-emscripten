@@ -34,6 +34,12 @@ jobs:
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: cmake --debug-output -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
 
+    - name: test
+      run: ls ${{github.workspace}}/build/submodules
+
+    - name: test2
+      run: ls ${{github.workspace}}/build/submodules/zlib-ng
+
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target hello-vk
+      run: cmake --debug-output --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} --target hello-vk
