@@ -19,9 +19,8 @@ set(ZLIB_COMPAT ON)
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 
 set(ZLIB_ROOT submodules/zlib-ng)
-get_target_property(ZLIB_INCLUDE_DIRS zlibstatic INCLUDE_DIRECTORIES)
-get_target_property(ZLIB_LIBRARIES zlibstatic LINK_LIBRARIES)
-set(ZLIB_LIBRARIES ZLIB::ZLIB)
+get_target_property(ZLIB_INCLUDE_DIR zlibstatic INCLUDE_DIRECTORIES)
+get_target_property(ZLIB_LIBRARY zlibstatic LINK_LIBRARIES)
 
 set(SKIP_INSTALL_ALL ON)
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
