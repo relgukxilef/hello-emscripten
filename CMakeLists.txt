@@ -19,6 +19,8 @@ set(ZLIB_COMPAT ON)
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 add_library(ZLIB::ZLIB ALIAS zlibstatic)
 
-set(PNG_BUILD_ZLIB ON)
+set(ZLIB_ROOT submodules/zlib-ng)
 set(SKIP_INSTALL_ALL ON)
+# libpng expects ZLIB_INCLUDE_DIRS, but zlib-ng only sets ZLIB_INCLUDE_DIR
+set(ZLIB_INCLUDE_DIRS ${ZLIB_INCLUDE_DIR})
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
