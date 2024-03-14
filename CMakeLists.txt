@@ -19,7 +19,8 @@ set(ZLIB_COMPAT ON)
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 
 set(ZLIB_ROOT submodules/zlib-ng)
-set(ZLIB_INCLUDE_DIRS "${ZLIB_INCLUDE_DIR}")
+get_target_property(ZLIB_INCLUDE_DIRS zlibstatic INCLUDE_DIRECTORIES)
+get_target_property(ZLIB_LIBRARIES zlibstatic LINK_LIBRARIES)
 set(ZLIB_LIBRARIES ZLIB::ZLIB)
 
 set(SKIP_INSTALL_ALL ON)
