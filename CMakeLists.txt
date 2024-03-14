@@ -18,7 +18,7 @@ add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
 set(ZLIB_COMPAT ON)
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 
-find_package(ZLIB REQUIRED)
+find_package(Zlib REQUIRED)
 
 set(SKIP_INSTALL_ALL ON)
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
