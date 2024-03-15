@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <vector>
+#include <cinttypes>
 
 struct file_deleter {
     void operator()(FILE*f) const;
