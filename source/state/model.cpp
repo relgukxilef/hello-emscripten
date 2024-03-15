@@ -37,7 +37,7 @@ void write(std::ranges::subrange<uint8_t*> &b, T value) {
 }
 
 struct parse_exception : public std::exception {
-    const char* what() const override {
+    const char* what() const noexcept override {
         return "parse_exception\n";
     }
 };
@@ -371,7 +371,7 @@ struct handler {
         return true;
     }
 
-    state state = state::root;
+    ::state state = ::state::root;
     uint32_t depth = 0;
     boost::static_string<128> key;
     boost::static_string<128> value;
