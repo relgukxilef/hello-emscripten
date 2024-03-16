@@ -7,6 +7,12 @@ cmake_policy(SET CMP0077 NEW) # option() honors normal variables
 cmake_policy(SET CMP0074 NEW) # Enable find_package uses of <>_ROOT variables
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+if(NOT CMAKE_SIZEOF_VOID_P)
+    # Set a default value for CMAKE_SIZEOF_VOID_P
+    # It is not set when building with emscripten
+    set(CMAKE_SIZEOF_VOID_P 4)  # Example: Set to 4 for 32-bit pointers
+endif()
+
 add_subdirectory(source)
 
 add_subdirectory(submodules/glm)
