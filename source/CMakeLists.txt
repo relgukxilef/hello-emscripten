@@ -31,6 +31,7 @@ target_link_libraries(
     glm
     png_static
     Boost::json
+    Boost::static_string
 )
 
 if (EMSCRIPTEN)
@@ -87,7 +88,6 @@ else()
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
         Boost::beast
-        Boost::static_string
     )
 
     #target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
