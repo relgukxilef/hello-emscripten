@@ -90,8 +90,6 @@ else()
         Boost::beast
     )
 
-    #target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
-
     target_include_directories(hello PRIVATE ${Boost_INCLUDE_DIRS})
 
     if (Vulkan_FOUND)
