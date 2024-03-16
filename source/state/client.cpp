@@ -1,8 +1,13 @@
 #include "client.h"
 
+#include "../utility/file.h"
 #include "../network/network_message.h"
 
 client::client(std::string_view server) {
+    auto test_file = read_file("D:/Felix/Documents/Qt_Projects/hello-emscripten/test_files/AvatarSample_B.vrm");
+    //auto test_file = read_file("D:/Felix/Downloads/Box.glb");
+    test_model = model({test_file.data(), test_file.data() + test_file.size()});
+
     connection.reset(
         new websocket(*this, event_loop, server)
     );
@@ -55,7 +60,7 @@ void client::update(::input &input) {
         user_orientation * glm::vec3(input.motion.x, 0, input.motion.y);
 
     // physics
-    user_position.z = glm::max(0.0f, user_position.z);
+    //user_position.z = glm::max(0.0f, user_position.z);
 
     // user interface
     input.prefer_pointer_locked = true;
