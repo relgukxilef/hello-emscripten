@@ -30,6 +30,7 @@ target_link_libraries(
     Vulkan-Headers
     glm
     png_static
+    Boost::json
 )
 
 if (EMSCRIPTEN)
@@ -86,7 +87,6 @@ else()
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
         Boost::beast
-        Boost::json
         Boost::static_string
     )
 
