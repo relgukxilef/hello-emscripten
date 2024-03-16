@@ -13,6 +13,11 @@ if(NOT CMAKE_SIZEOF_VOID_P)
     set(CMAKE_SIZEOF_VOID_P 4)  # Example: Set to 4 for 32-bit pointers
 endif()
 
+if (EMSCRIPTEN)
+    # Needed for boost
+    add_compile_options(-fdeclspec)
+endif()
+
 add_subdirectory(source)
 
 add_subdirectory(submodules/glm)
