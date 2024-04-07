@@ -24,7 +24,8 @@ struct model {
     model() = default;
     model(std::ranges::subrange<uint8_t*> file);
 
-    // Standard mesh format:
+    // TODO Standard mesh format:
+    // (right now all data is stored in gltf's format)
     // short positions.xyz*, short normals.xyz*, short texture_coordinates.uv*,
     // short joints.xyzw*, byte weights.xyzw*
     // short indices*

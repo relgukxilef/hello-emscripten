@@ -71,13 +71,15 @@ struct visuals {
     unique_sampler default_sampler;
 
     uint32_t view_parameters_offset, user_position_offset;
-    uint32_t
-        model_position_offset, model_normal_offset,
-        model_texture_coordinate_offset, model_indices_offset,
-        model_images_offset;
+    struct visual_model {
+        uint32_t
+            position_offset, normal_offset,
+            texture_coordinate_offset, indices_offset,
+            images_offset;
+    };
+    std::vector<visual_model> models;
 
     unique_command_pool command_pool;
 
     std::unique_ptr<::view> view;
 };
-

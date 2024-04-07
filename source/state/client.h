@@ -37,7 +37,7 @@ struct client {
 
     std::string world_path;
 
-    model test_model;
+    model test_model, world_model;
 
     std::chrono::steady_clock::time_point next_network_update;
 

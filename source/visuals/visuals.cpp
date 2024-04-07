@@ -309,40 +309,16 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     memory_offset += sizeof(parameters);
     user_position_offset = memory_offset;
     memory_offset += sizeof(glm::vec4) * 16;
-    model_position_offset = memory_offset;
 
-    memory_offset = round_up(model_position_offset, 128);
+    memory_offset = round_up(memory_offset, 128);
 
-    {
-        uint8_t *memory;
-        check(vkMapMemory(
-            device.get(), host_visible_memory.get(), 0, memory_size, 0,
-            (void**)&memory
-        ));
+    uint8_t *memory;
+    check(vkMapMemory(
+        device.get(), host_visible_memory.get(), 0, memory_size, 0,
+        (void**)&memory
+    ));
 
-        uint8_t *i = memory + memory_offset;
-
-        i = std::ranges::copy(client.test_model.positions, i).out;
-        model_normal_offset = i - memory;
-        i = std::ranges::copy(client.test_model.normals, i).out;
-        model_texture_coordinate_offset = i - memory;
-        i = std::ranges::copy(client.test_model.texture_coordinates, i).out;
-        model_indices_offset = i - memory;
-        i = std::ranges::copy(client.test_model.indices, i).out;
-        model_images_offset = i - memory;
-        i = std::ranges::copy(client.test_model.pixels, i).out;
-
-        VkMappedMemoryRange ranges[] = {
-            VkMappedMemoryRange{
-                .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-                .memory = host_visible_memory.get(),
-                .offset = 0,
-                .size = static_cast<VkDeviceSize>(memory_size),
-            }
-        };
-        check(vkFlushMappedMemoryRanges(device.get(), 1, ranges));
-        vkUnmapMemory(device.get(), host_visible_memory.get());
-    }
+    uint8_t *i = memory + memory_offset;
 
     {
         VkSamplerCreateInfo create_info{
@@ -378,163 +354,189 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
 
     uint32_t image_begin = 0;
 
-    for (auto image : client.test_model.images) {
-        model_images.push_back({});
-        VkImageCreateInfo create_info{
-            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-            .imageType = VK_IMAGE_TYPE_2D,
-            .format = VK_FORMAT_R8G8B8A8_SRGB,
-            .extent = {image.width, image.height, 1},
-            .mipLevels = 1,
-            .arrayLayers = 1,
-            .samples = VK_SAMPLE_COUNT_1_BIT,
-            .tiling = VK_IMAGE_TILING_OPTIMAL,
-            .usage =
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-                VK_IMAGE_USAGE_SAMPLED_BIT,
-            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-        };
-        check(vkCreateImage(
-            device.get(), &create_info, nullptr,
-            out_ptr(model_images.back())
-        ));
+    for (auto &model : {client.test_model, client.world_model}) {
+        models.push_back({});
+        auto& visual_model = models.back();
+        visual_model.position_offset = i - memory;
+        i = std::ranges::copy(model.positions, i).out;
+        visual_model.normal_offset = i - memory;
+        i = std::ranges::copy(model.normals, i).out;
+        visual_model.texture_coordinate_offset = i - memory;
+        i = std::ranges::copy(model.texture_coordinates, i).out;
+        visual_model.indices_offset = i - memory;
+        i = std::ranges::copy(model.indices, i).out;
+        visual_model.images_offset = i - memory;
+        i = std::ranges::copy(model.pixels, i).out;
 
-        {
-            check(vkBindImageMemory(
-                device.get(), model_images.back().get(),
-                device_local_memory.get(), image_begin
-            ));
-
-            model_image_views.push_back({});
-            VkImageViewCreateInfo create_info{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                .image = model_images.back().get(),
-                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+        for (auto image : model.images) {
+            model_images.push_back({});
+            VkImageCreateInfo create_info{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
                 .format = VK_FORMAT_R8G8B8A8_SRGB,
-                .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
+                .extent = {image.width, image.height, 1},
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_1_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage =
+                    VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+                    VK_IMAGE_USAGE_SAMPLED_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             };
-
-            check(vkCreateImageView(
+            check(vkCreateImage(
                 device.get(), &create_info, nullptr,
-                out_ptr(model_image_views.back())
-            ));
-        }
-
-        image_begin = round_up(image_begin + image.size, 1024);
-
-        {
-            VkCommandBuffer copy_command;
-            VkCommandBufferAllocateInfo allocate_info {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                .commandPool = command_pool.get(),
-                .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                .commandBufferCount = 1,
-            };
-            check(vkAllocateCommandBuffers(
-                device.get(), &allocate_info, &copy_command
+                out_ptr(model_images.back())
             ));
 
-            VkCommandBufferBeginInfo begin_info = {
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            };
-            check(vkBeginCommandBuffer(copy_command, &begin_info));
+            {
+                check(vkBindImageMemory(
+                    device.get(), model_images.back().get(),
+                    device_local_memory.get(), image_begin
+                ));
 
-            VkImageMemoryBarrier barrier = {
-                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .srcAccessMask = 0,
-                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = model_images.back().get(),
-                .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-            };
-            vkCmdPipelineBarrier(
-                copy_command,
-                VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                0,
-                0, nullptr,
-                0, nullptr,
-                1, &barrier
-            );
+                model_image_views.push_back({});
+                VkImageViewCreateInfo create_info{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                    .image = model_images.back().get(),
+                    .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                    .format = VK_FORMAT_R8G8B8A8_SRGB,
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+                };
 
-            VkBufferImageCopy buffer_image_copy = {
-                .bufferOffset = model_images_offset + image.begin,
-                .bufferRowLength = 0,
-                .bufferImageHeight = 0,
-                .imageSubresource = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .mipLevel = 0,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-                .imageOffset = {0, 0, 0},
-                .imageExtent = {
-                    image.width, image.height, 1
-                },
-            };
-            vkCmdCopyBufferToImage(
-                copy_command, host_visible_buffer.get(),
-                model_images.back().get(),
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                1, &buffer_image_copy
-            );
+                check(vkCreateImageView(
+                    device.get(), &create_info, nullptr,
+                    out_ptr(model_image_views.back())
+                ));
+            }
 
-            barrier = {
-                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-                .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = model_images.back().get(),
-                .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1,
-                },
-            };
-            vkCmdPipelineBarrier(
-                copy_command,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                0,
-                0, nullptr,
-                0, nullptr,
-                1, &barrier
-            );
+            image_begin = round_up(image_begin + image.size, 1024);
 
-            check(vkEndCommandBuffer(copy_command));
+            {
+                VkCommandBuffer copy_command;
+                VkCommandBufferAllocateInfo allocate_info {
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                    .commandPool = command_pool.get(),
+                    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                    .commandBufferCount = 1,
+                };
+                check(vkAllocateCommandBuffers(
+                    device.get(), &allocate_info, &copy_command
+                ));
 
-            VkSubmitInfo submit_info = {
-                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                .commandBufferCount = 1,
-                .pCommandBuffers = &copy_command,
-            };
-            check(vkQueueSubmit(
-                graphics_queue, 1, &submit_info, VK_NULL_HANDLE
-            ));
-            check(vkQueueWaitIdle(graphics_queue));
+                VkCommandBufferBeginInfo begin_info = {
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+                };
+                check(vkBeginCommandBuffer(copy_command, &begin_info));
+
+                VkImageMemoryBarrier barrier = {
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .srcAccessMask = 0,
+                    .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = model_images.back().get(),
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+                };
+                vkCmdPipelineBarrier(
+                    copy_command,
+                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    0,
+                    0, nullptr,
+                    0, nullptr,
+                    1, &barrier
+                );
+
+                VkBufferImageCopy buffer_image_copy = {
+                    .bufferOffset = visual_model.images_offset + image.begin,
+                    .bufferRowLength = 0,
+                    .bufferImageHeight = 0,
+                    .imageSubresource = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .mipLevel = 0,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+                    .imageOffset = {0, 0, 0},
+                    .imageExtent = {
+                        image.width, image.height, 1
+                    },
+                };
+                vkCmdCopyBufferToImage(
+                    copy_command, host_visible_buffer.get(),
+                    model_images.back().get(),
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    1, &buffer_image_copy
+                );
+
+                barrier = {
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                    .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+                    .oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = model_images.back().get(),
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+                };
+                vkCmdPipelineBarrier(
+                    copy_command,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    0,
+                    0, nullptr,
+                    0, nullptr,
+                    1, &barrier
+                );
+
+                check(vkEndCommandBuffer(copy_command));
+
+                VkSubmitInfo submit_info = {
+                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                    .commandBufferCount = 1,
+                    .pCommandBuffers = &copy_command,
+                };
+                check(vkQueueSubmit(
+                    graphics_queue, 1, &submit_info, VK_NULL_HANDLE
+                ));
+                check(vkQueueWaitIdle(graphics_queue));
+            }
         }
     }
+
+    VkMappedMemoryRange ranges[] = {
+        VkMappedMemoryRange{
+            .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
+            .memory = host_visible_memory.get(),
+            .offset = 0,
+            .size = static_cast<VkDeviceSize>(memory_size),
+        }
+    };
+    check(vkFlushMappedMemoryRanges(device.get(), 1, ranges));
+    vkUnmapMemory(device.get(), host_visible_memory.get());
 
     view.reset(new ::view(client, *this, instance, surface));
 }

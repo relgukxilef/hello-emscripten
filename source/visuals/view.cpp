@@ -26,6 +26,31 @@ void record_command_buffer(
     );
 
     auto primitive = 0u;
+    for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
+        if (primitive >= view.descriptor_set_count)
+            break;
+        image_info[primitive] = {
+            .sampler = visuals.default_sampler.get(),
+            .imageView = visuals.model_image_views[
+                std::min<unsigned>(
+                    client.test_model.images.size() +
+                    client.world_model.primitives[j].image_index,
+                    visuals.model_image_views.size() - 1
+                )
+            ].get(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
+        write_descriptor_sets[primitive] = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = image.descriptor_sets[primitive],
+            .dstBinding = 1,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &image_info[primitive],
+        };
+        primitive++;
+    }
     for (auto i = 0u; i < client.users.position.size(); i++) {
         for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
             if (primitive >= view.descriptor_set_count)
@@ -126,30 +151,69 @@ void record_command_buffer(
         pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
     );
 
-    VkDeviceSize offsets[] = {
-        visuals.model_position_offset,
-        visuals.model_normal_offset,
-        visuals.model_texture_coordinate_offset,
-    };
-    vkCmdBindVertexBuffers(
-        image.draw_command_buffer, 0, std::size(vertex_buffers),
-        vertex_buffers, offsets
-    );
-    vkCmdBindIndexBuffer(
-        image.draw_command_buffer, visuals.host_visible_buffer.get(),
-        visuals.model_indices_offset, VK_INDEX_TYPE_UINT32
-    );
+    primitive = 0u;
 
     // draw world
-    /*vkCmdDrawIndexed(
-        image.draw_command_buffer, client.test_model.indices.size() / 4,
-        1, 0, 0, 0
-    );*/
+    {
+        auto& model = visuals.models[1];
 
-    // draw other users
-    // TODO: instead of iterating over users, iterate over primitives
-    // a single avatar can have multiple primitives
-    primitive = 0u;
+        VkDeviceSize offsets[] = {
+            model.position_offset,
+            model.normal_offset,
+            model.texture_coordinate_offset,
+        };
+        vkCmdBindVertexBuffers(
+            image.draw_command_buffer, 0, std::size(vertex_buffers),
+            vertex_buffers, offsets
+        );
+        vkCmdBindIndexBuffer(
+            image.draw_command_buffer, visuals.host_visible_buffer.get(),
+            model.indices_offset, VK_INDEX_TYPE_UINT32
+        );
+    }
+
+    for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
+        if (primitive >= view.descriptor_set_count)
+            break;
+        VkDescriptorSet descriptor_sets[] {
+            image.descriptor_sets[primitive],
+        };
+        vkCmdBindDescriptorSets(
+            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
+        );
+
+        vkCmdDrawIndexed(
+            image.draw_command_buffer,
+            client.world_model.primitives[j].face_size,
+            1,
+            client.world_model.primitives[j].face_begin,
+            client.world_model.primitives[j].vertex_begin,
+            0
+        );
+
+        primitive++;
+    }
+
+    // draw users
+    {
+        auto& model = visuals.models[0];
+
+        VkDeviceSize offsets[] = {
+            model.position_offset,
+            model.normal_offset,
+            model.texture_coordinate_offset,
+        };
+        vkCmdBindVertexBuffers(
+            image.draw_command_buffer, 0, std::size(vertex_buffers),
+            vertex_buffers, offsets
+        );
+        vkCmdBindIndexBuffer(
+            image.draw_command_buffer, visuals.host_visible_buffer.get(),
+            model.indices_offset, VK_INDEX_TYPE_UINT32
+        );
+    }
+
     for (auto i = 0u; i < client.users.position.size(); i++) {
         for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
             if (primitive >= view.descriptor_set_count)
@@ -916,6 +980,15 @@ VkResult view::draw(visuals &v, ::client& client) {
             projection * view;
 
         auto primitive = 0u;
+        for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
+            if (primitive >= std::size(parameters->parameters))
+                break;
+            auto model = glm::mat4(1.0);
+            parameters->parameters[primitive].model_view_projection_matrix =
+                projection * view * model;
+            parameters->parameters[primitive].model_matrix = model;
+            primitive++;
+        }
         for (auto i = 0u; i < client.users.position.size(); i++) {
             for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
                 if (primitive >= std::size(parameters->parameters))
