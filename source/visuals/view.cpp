@@ -983,7 +983,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
             if (primitive >= std::size(parameters->parameters))
                 break;
-            auto model = glm::mat4(1.0);
+            auto model = glm::mat4(glm::mat3(-1, 0, 0, 0, 0, 1, 0, 1, 0));
             parameters->parameters[primitive].model_view_projection_matrix =
                 projection * view * model;
             parameters->parameters[primitive].model_matrix = model;

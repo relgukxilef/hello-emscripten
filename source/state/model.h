@@ -4,16 +4,20 @@
 #include <ranges>
 #include <vector>
 
+#include <glm/glm.hpp>
+
 /**
  * @brief The model class stores a gltf file with all vertex data converted to
  * standard structure.
  * TOOD: allow partial and streamed parsing and conversion.
  */
 struct model {
-    struct primitive {
+    struct node_primitive {
+        // represents a pair of a node and a primitive in gltf
         uint32_t vertex_begin;
         uint32_t face_begin, face_size;
         uint32_t image_index;
+        glm::mat4 world_matrix = glm::mat4(1.0);
     };
 
     struct image {
@@ -41,6 +45,6 @@ struct model {
     std::vector<uint8_t> texture_coordinates;
     std::vector<uint8_t> indices;
     std::vector<uint8_t> pixels;
-    std::vector<primitive> primitives;
+    std::vector<node_primitive> primitives;
     std::vector<image> images;
 };
