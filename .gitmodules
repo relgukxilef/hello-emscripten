@@ -14,3 +14,13 @@
 	path = submodules/glm
 	url = https://github.com/g-truc/glm.git
 	shallow = true
+[submodule "submodules/boost"]
+	path = submodules/boost
+	url = https://github.com/boostorg/boost.git
+	shallow = true
+[submodule "submodules/libpng"]
+	path = submodules/libpng
+	url = https://github.com/glennrp/libpng.git
+[submodule "submodules/zlib-ng"]
+	path = submodules/zlib-ng
+	url = https://github.com/zlib-ng/zlib-ng.git

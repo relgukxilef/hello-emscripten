@@ -10,10 +10,80 @@
 #include "visuals.h"
 
 #include "../utility/out_ptr.h"
+#include "../utility/math.h"
 
 void record_command_buffer(
-    client& client, view& view, image& image, VkPipelineLayout pipeline_layout
+    client& client, visuals& visuals, view& view, image& image,
+    VkPipelineLayout pipeline_layout
 ) {
+    // The old command buffer is reset before this, so writing descriptors is ok
+    // update descriptors
+    auto image_info =
+        std::make_unique<VkDescriptorImageInfo[]>(view.descriptor_set_count);
+
+    auto write_descriptor_sets = std::make_unique<VkWriteDescriptorSet[]>(
+        view.descriptor_set_count
+    );
+
+    auto primitive = 0u;
+    for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
+        if (primitive >= view.descriptor_set_count)
+            break;
+        image_info[primitive] = {
+            .sampler = visuals.default_sampler.get(),
+            .imageView = visuals.model_image_views[
+                std::min<unsigned>(
+                    client.test_model.images.size() +
+                    client.world_model.primitives[j].image_index,
+                    visuals.model_image_views.size() - 1
+                )
+            ].get(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
+        write_descriptor_sets[primitive] = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = image.descriptor_sets[primitive],
+            .dstBinding = 1,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &image_info[primitive],
+        };
+        primitive++;
+    }
+    for (auto i = 0u; i < client.users.position.size(); i++) {
+        for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+            if (primitive >= view.descriptor_set_count)
+                break;
+            image_info[primitive] = {
+                .sampler = visuals.default_sampler.get(),
+                .imageView = visuals.model_image_views[
+                    std::min<unsigned>(
+                        client.test_model.primitives[j].image_index,
+                        visuals.model_image_views.size() - 1
+                    )
+                ].get(),
+                .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            };
+            write_descriptor_sets[primitive] = {
+                .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                .dstSet = image.descriptor_sets[primitive],
+                .dstBinding = 1,
+                .dstArrayElement = 0,
+                .descriptorCount = 1,
+                .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .pImageInfo = &image_info[primitive],
+            };
+            primitive++;
+        }
+    }
+
+    vkUpdateDescriptorSets(
+        visuals.device.get(), primitive,
+        write_descriptor_sets.get(), 0, nullptr
+    );
+
+
     VkSurfaceCapabilitiesKHR capabilities = view.capabilities;
     unsigned
         width = capabilities.currentExtent.width,
@@ -25,7 +95,9 @@ void record_command_buffer(
     check(vkBeginCommandBuffer(image.draw_command_buffer, &begin_info));
 
     VkClearValue clearValue[]{
-        {{{0.929f, 0.788f, 0.318f, 1.0f}}}, // color
+        {.color{{0.929f, 0.788f, 0.318f, 1.0f}}},
+        {.depthStencil{1.0f, 0}},
+        {.color{{0.929f, 0.788f, 0.318f, 1.0f}}},
     };
     VkRenderPassBeginInfo render_pass_begin_info{
         .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -69,27 +141,102 @@ void record_command_buffer(
         image.descriptor_sets[0],
     };
 
+    VkBuffer vertex_buffers[] = {
+        visuals.host_visible_buffer.get(), visuals.host_visible_buffer.get(),
+        visuals.host_visible_buffer.get(),
+    };
+
     vkCmdBindDescriptorSets(
         image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
         pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
     );
 
+    primitive = 0u;
+
     // draw world
-    vkCmdDraw(image.draw_command_buffer, 4, 1, 0, 0);
+    {
+        auto& model = visuals.models[1];
 
-    // draw other users
-    for (int i = 0; i < client.users.position.size(); i++) {
-        VkDescriptorSet descriptor_sets[] {
-            image.descriptor_sets[1 + i],
+        VkDeviceSize offsets[] = {
+            model.position_offset,
+            model.normal_offset,
+            model.texture_coordinate_offset,
         };
+        vkCmdBindVertexBuffers(
+            image.draw_command_buffer, 0, std::size(vertex_buffers),
+            vertex_buffers, offsets
+        );
+        vkCmdBindIndexBuffer(
+            image.draw_command_buffer, visuals.host_visible_buffer.get(),
+            model.indices_offset, VK_INDEX_TYPE_UINT32
+        );
+    }
 
+    for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
+        if (primitive >= view.descriptor_set_count)
+            break;
+        VkDescriptorSet descriptor_sets[] {
+            image.descriptor_sets[primitive],
+        };
         vkCmdBindDescriptorSets(
             image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
             pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
         );
-        vkCmdDraw(
-            image.draw_command_buffer, 14, 1, 4, 0
+
+        vkCmdDrawIndexed(
+            image.draw_command_buffer,
+            client.world_model.primitives[j].face_size,
+            1,
+            client.world_model.primitives[j].face_begin,
+            client.world_model.primitives[j].vertex_begin,
+            0
         );
+
+        primitive++;
+    }
+
+    // draw users
+    {
+        auto& model = visuals.models[0];
+
+        VkDeviceSize offsets[] = {
+            model.position_offset,
+            model.normal_offset,
+            model.texture_coordinate_offset,
+        };
+        vkCmdBindVertexBuffers(
+            image.draw_command_buffer, 0, std::size(vertex_buffers),
+            vertex_buffers, offsets
+        );
+        vkCmdBindIndexBuffer(
+            image.draw_command_buffer, visuals.host_visible_buffer.get(),
+            model.indices_offset, VK_INDEX_TYPE_UINT32
+        );
+    }
+
+    for (auto i = 0u; i < client.users.position.size(); i++) {
+        for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+            if (primitive >= view.descriptor_set_count)
+                break;
+            VkDescriptorSet descriptor_sets[] {
+                image.descriptor_sets[primitive],
+            };
+            vkCmdBindDescriptorSets(
+                image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
+            );
+
+            vkCmdDrawIndexed(
+                image.draw_command_buffer,
+                client.test_model.primitives[j].face_size,
+                1,
+                client.test_model.primitives[j].face_begin,
+                client.test_model.primitives[j].vertex_begin,
+                0
+            );
+
+            primitive++;
+        }
     }
 
     vkCmdEndRenderPass(image.draw_command_buffer);
@@ -134,17 +281,6 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ) {
             surface_format = format;
         }
-    }
-
-    {
-        VkCommandPoolCreateInfo create_info{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = v.graphics_queue_family,
-        };
-        check(vkCreateCommandPool(
-            v.device.get(), &create_info, nullptr, out_ptr(command_pool)
-        ));
     }
 
     // view-specific resources
@@ -214,6 +350,10 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                 .descriptorCount = image_count * descriptor_set_count,
             },
+            {
+                .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .descriptorCount = image_count * descriptor_set_count,
+            },
         };
         VkDescriptorPoolCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -231,6 +371,26 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         auto attachments = {
             VkAttachmentDescription{
                 .format = surface_format.format,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            },
+            VkAttachmentDescription{
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+                .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            },
+            VkAttachmentDescription{
+                .format = surface_format.format,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -240,28 +400,44 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             },
         };
-        auto attachment_references = {
+        auto color_attachment_references = {
             VkAttachmentReference{
                 .attachment = 0,
                 .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
             },
         };
+        VkAttachmentReference depth_attachment_reference{
+            .attachment = 1,
+            .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
+        VkAttachmentReference resolve_attachment_reference{
+            .attachment = 2,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        };
         auto subpasses = {
             VkSubpassDescription{
                 .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
                 .colorAttachmentCount =
-                    static_cast<uint32_t>(attachment_references.size()),
-                .pColorAttachments = attachment_references.begin(),
+                    static_cast<uint32_t>(color_attachment_references.size()),
+                .pColorAttachments = color_attachment_references.begin(),
+                .pResolveAttachments = &resolve_attachment_reference,
+                .pDepthStencilAttachment = &depth_attachment_reference,
             },
         };
         auto subpass_dependencies = {
             VkSubpassDependency{
                 .srcSubpass = VK_SUBPASS_EXTERNAL,
                 .dstSubpass = 0,
-                .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .srcStageMask =
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+                .dstStageMask =
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+                    VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
                 .srcAccessMask = 0,
-                .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .dstAccessMask =
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT |
+                    VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
             },
         };
         VkRenderPassCreateInfo create_info = {
@@ -294,17 +470,56 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .pName = "main",
             }
         };
+        VkVertexInputBindingDescription vertex_input_binding_description[]{
+            {
+                .binding = 0,
+                .stride = 4 * 3,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
+            {
+                .binding = 1,
+                .stride = 4 * 3,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
+            {
+                .binding = 2,
+                .stride = 4 * 2,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
+        };
+        VkVertexInputAttributeDescription vertex_input_attribute_description[]{
+            VkVertexInputAttributeDescription{
+                .location = 0,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = 0,
+            },
+            VkVertexInputAttributeDescription{
+                .location = 1,
+                .binding = 1,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = 0,
+            },
+            VkVertexInputAttributeDescription{
+                .location = 2,
+                .binding = 2,
+                .format = VK_FORMAT_R32G32_SFLOAT,
+                .offset = 0,
+            },
+        };
         VkPipelineVertexInputStateCreateInfo input_state_create_info{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount = 0,
-            .pVertexBindingDescriptions = nullptr,
-            .vertexAttributeDescriptionCount = 0,
-            .pVertexAttributeDescriptions = nullptr,
+            .vertexBindingDescriptionCount =
+                std::size(vertex_input_binding_description),
+            .pVertexBindingDescriptions = vertex_input_binding_description,
+            .vertexAttributeDescriptionCount =
+                std::size(vertex_input_attribute_description),
+            .pVertexAttributeDescriptions = vertex_input_attribute_description,
         };
         VkPipelineInputAssemblyStateCreateInfo assembly_state_create_info{
             .sType =
                 VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
             .primitiveRestartEnable = VK_FALSE,
         };
         VkPipelineViewportStateCreateInfo viewport_state_create_info{
@@ -327,8 +542,10 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         };
         VkPipelineMultisampleStateCreateInfo multisample_state_create_info{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
+            .rasterizationSamples = VK_SAMPLE_COUNT_2_BIT,
             .sampleShadingEnable = VK_FALSE,
+            .alphaToCoverageEnable = VK_TRUE,
+            .alphaToOneEnable = VK_TRUE,
         };
         VkPipelineColorBlendAttachmentState color_blend_attachment_state{
             .blendEnable = VK_FALSE,
@@ -412,12 +629,18 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
         // TODO: double buffer
         auto write_descriptor_sets = std::make_unique<VkWriteDescriptorSet[]>(
-            image_count * descriptor_set_count
+            image_count * descriptor_set_count * 2
         );
 
+        // TODO: bind other images
         auto buffer_info = std::make_unique<VkDescriptorBufferInfo[]>(
             descriptor_set_count
         );
+        VkDescriptorImageInfo image_info{
+            .sampler = v.default_sampler.get(),
+            .imageView = v.model_image_views[0].get(),
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        };
 
         for (auto j = 0u; j < descriptor_set_count; j++) {
             buffer_info[j] = {
@@ -429,7 +652,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
         for (auto i = 0u; i < image_count * descriptor_set_count;) {
             for (auto j = 0u; j < descriptor_set_count; j++, i++) {
-                write_descriptor_sets[i] = {
+                write_descriptor_sets[i * 2] = {
                     .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                     .dstSet = descriptor_sets[i],
                     .dstBinding = 0,
@@ -438,11 +661,20 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     .pBufferInfo = buffer_info.get() + j,
                 };
+                write_descriptor_sets[i * 2 + 1] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = descriptor_sets[i],
+                    .dstBinding = 1,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .pImageInfo = &image_info,
+                };
             }
         }
 
         vkUpdateDescriptorSets(
-            v.device.get(), image_count * descriptor_set_count,
+            v.device.get(), image_count * descriptor_set_count * 2,
             write_descriptor_sets.get(), 0, nullptr
         );
 
@@ -475,6 +707,167 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ));
 
         {
+            VkImageCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = surface_format.format,
+                .extent = {
+                    .width = surface_extent.width,
+                    .height = surface_extent.height,
+                    .depth = 1
+                },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage =
+                    VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
+                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            check(vkCreateImage(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.color_image)
+            ));
+
+            VkMemoryRequirements memory_requirements;
+            vkGetImageMemoryRequirements(
+                v.device.get(), image.color_image.get(), &memory_requirements
+            );
+
+            uint32_t color_memory_type_index = 0;
+            for (uint32_t i = 0; i < v.properties.memoryTypeCount; i++) {
+                if (
+                    (
+                        v.properties.memoryTypes[i].propertyFlags &
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                        ) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+                    (1 << i) & memory_requirements.memoryTypeBits
+                ) {
+                    color_memory_type_index = i;
+                    break;
+                }
+            }
+
+            VkMemoryAllocateInfo allocate_info = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = memory_requirements.size,
+                .memoryTypeIndex = color_memory_type_index,
+            };
+
+            check(vkAllocateMemory(
+                v.device.get(), &allocate_info, nullptr,
+                out_ptr(image.color_memory)
+            ));
+
+            check(vkBindImageMemory(
+                v.device.get(), image.color_image.get(),
+                image.color_memory.get(), 0
+            ));
+        }
+
+        {
+            VkImageViewCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = image.color_image.get(),
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = surface_format.format,
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+            check(vkCreateImageView(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.color_view)
+            ));
+        }
+
+        {
+            VkImageCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+                .imageType = VK_IMAGE_TYPE_2D,
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .extent = {
+                    .width = surface_extent.width,
+                    .height = surface_extent.height,
+                    .depth = 1
+                },
+                .mipLevels = 1,
+                .arrayLayers = 1,
+                .samples = VK_SAMPLE_COUNT_2_BIT,
+                .tiling = VK_IMAGE_TILING_OPTIMAL,
+                .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+                .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            };
+            check(vkCreateImage(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.depth_image)
+            ));
+
+            VkMemoryRequirements memory_requirements;
+            vkGetImageMemoryRequirements(
+                v.device.get(), image.depth_image.get(), &memory_requirements
+            );
+
+            uint32_t depth_memory_type_index = 0;
+            for (uint32_t i = 0; i < v.properties.memoryTypeCount; i++) {
+                if (
+                    (
+                        v.properties.memoryTypes[i].propertyFlags &
+                        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                    ) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT &&
+                    (1 << i) & memory_requirements.memoryTypeBits
+                ) {
+                    depth_memory_type_index = i;
+                    break;
+                }
+            }
+
+            VkMemoryAllocateInfo allocate_info = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                .allocationSize = memory_requirements.size,
+                .memoryTypeIndex = depth_memory_type_index,
+            };
+
+            check(vkAllocateMemory(
+                v.device.get(), &allocate_info, nullptr,
+                out_ptr(image.depth_memory)
+            ));
+
+            check(vkBindImageMemory(
+                v.device.get(), image.depth_image.get(),
+                image.depth_memory.get(), 0
+            ));
+        }
+
+        {
+            VkImageViewCreateInfo create_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = image.depth_image.get(),
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = VK_FORMAT_D24_UNORM_S8_UINT,
+                .subresourceRange = {
+                    .aspectMask =
+                        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+            };
+            check(vkCreateImageView(
+                v.device.get(), &create_info, nullptr,
+                out_ptr(image.depth_view)
+            ));
+        }
+
+        {
             VkImageViewCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .image = swapchain_images[i],
@@ -496,6 +889,8 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
         {
             auto attachments = {
+                image.color_view.get(),
+                image.depth_view.get(),
                 image.image_view.get(),
             };
             VkFramebufferCreateInfo create_info = {
@@ -515,7 +910,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
         VkCommandBufferAllocateInfo command_buffer_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool = command_pool.get(),
+            .commandPool = v.command_pool.get(),
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = 1,
         };
@@ -524,7 +919,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         ));
 
         record_command_buffer(
-            c, *this, image,
+            c, v, *this, image,
             v.pipeline_layout.get()
         );
     }
@@ -558,7 +953,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         if (client.update_number != image.update_number) {
             check(vkResetCommandBuffer(image.draw_command_buffer, 0));
             record_command_buffer(
-                client, *v.view, image, v.pipeline_layout.get()
+                client, v, *v.view, image, v.pipeline_layout.get()
             );
             image.update_number = client.update_number;
         }
@@ -575,7 +970,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         ::parameters* parameters;
 
         // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
-        uint32_t size = ((sizeof(::parameters) - 1) / 128 + 1) * 128;
+        uint32_t size = round_up(sizeof(::parameters), 128);
 
         check(vkMapMemory(
             v.device.get(), v.host_visible_memory.get(), 0, size, 0,
@@ -584,15 +979,35 @@ VkResult view::draw(visuals &v, ::client& client) {
         parameters->parameters[0].model_view_projection_matrix =
             projection * view;
 
+        auto primitive = 0u;
+        for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
+            if (primitive >= std::size(parameters->parameters))
+                break;
+            auto model = glm::mat4(glm::mat3(-1, 0, 0, 0, 0, 1, 0, 1, 0));
+            parameters->parameters[primitive].model_view_projection_matrix =
+                projection * view * model;
+            parameters->parameters[primitive].model_matrix = model;
+            primitive++;
+        }
         for (auto i = 0u; i < client.users.position.size(); i++) {
-            parameters->parameters[1 + i].model_view_projection_matrix =
-                projection * view *
-                glm::translate(
-                    glm::mat4(1.0),
-                    glm::vec3(client.users.position[i])
-                ) *
-                glm::scale(glm::mat4(1.0), {0.1, 0.1, 0.1}) *
-                glm::mat4_cast(client.users.orientation[i]);
+            for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+                if (primitive >= std::size(parameters->parameters))
+                    break;
+                auto model = glm::translate(
+                        glm::mat4(1.0),
+                        glm::vec3(client.users.position[i])
+                    ) *
+                    glm::mat4_cast(client.users.orientation[i]) *
+                    glm::scale(glm::mat4(1.0), {-1, -1, 1}) *
+                    glm::translate(
+                        glm::mat4(1.0),
+                        glm::vec3(0, -1.37, 0.08)
+                    );
+                parameters->parameters[primitive].model_view_projection_matrix =
+                    projection * view * model;
+                parameters->parameters[primitive].model_matrix = model;
+                primitive++;
+            }
         }
 
         VkMappedMemoryRange ranges[] = {
@@ -607,6 +1022,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         vkUnmapMemory(v.device.get(), v.host_visible_memory.get());
     }
 
+
     VkSemaphore wait_semaphores[] =
         {v.swapchain_image_ready_semaphore.get()};
     VkSemaphore signal_semaphores[] =
@@ -614,7 +1030,7 @@ VkResult view::draw(visuals &v, ::client& client) {
     VkCommandBuffer buffers[] = {images[image_index].draw_command_buffer};
     VkPipelineStageFlags wait_stage[] =
         {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT};
-    VkSubmitInfo submitInfo = {
+    VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
         .waitSemaphoreCount = 1,
         .pWaitSemaphores = wait_semaphores,
@@ -625,7 +1041,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         .pSignalSemaphores = signal_semaphores,
     };
     check(vkQueueSubmit(
-        v.graphics_queue, 1, &submitInfo,
+        v.graphics_queue, 1, &submit_info,
         images[image_index].draw_finished_fence.get()
     ));
 

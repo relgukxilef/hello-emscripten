@@ -1,8 +1,14 @@
 #include "client.h"
 
+#include "../utility/file.h"
 #include "../network/network_message.h"
 
 client::client(std::string_view server) {
+    auto test_file = read_file("../../test_files/AvatarSample_B.vrm");
+    test_model = model({test_file.data(), test_file.data() + test_file.size()});
+    auto world_file = read_file("../../test_files/white_modern_living_room.glb");
+    world_model = model({world_file.data(), world_file.data() + world_file.size()});
+
     connection.reset(
         new websocket(*this, event_loop, server)
     );
@@ -55,7 +61,7 @@ void client::update(::input &input) {
         user_orientation * glm::vec3(input.motion.x, 0, input.motion.y);
 
     // physics
-    user_position.z = glm::max(0.0f, user_position.z);
+    //user_position.z = glm::max(0.0f, user_position.z);
 
     // user interface
     input.prefer_pointer_locked = true;

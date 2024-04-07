@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        type: [Release, Debug]
+        platform:
+          - name: Emscripten
+            target: hello-gl
+            configure: -DEMSCRIPTEN=ON
+            env: 
+              CXX: em++
+              CC: emcc
+          - name: OpenGL
+            target: hello-gl
+            dependencies: libglfw3-dev libgl-dev libssl-dev
+          - name: Vulkan
+            target: hello-vk
+            dependencies: libglfw3-dev libvulkan1 libssl-dev
+
+    runs-on: ${{matrix.os}}
+
+    container:
+      image: emscripten/emsdk
+
+    env:
+      CXX: ${{matrix.platform.env.CXX}}
+      CC: ${{matrix.platform.env.CC}}
+
+    steps:
+    - name: Install Dependencies
+      run: sudo apt-get update && apt-get install -y ${{matrix.platform.dependencies}}
+
+    - name: Install shaderc
+      run: wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
+
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build --config ${{matrix.type}} --target ${{matrix.platform.target}}
