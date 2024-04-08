@@ -9,8 +9,8 @@
 #include "../utility/opus_resource.h"
 #include "../utility/openal_resource.h"
 
-constexpr std::size_t buffer_count = 8;
-constexpr std::size_t buffer_size = 960;
+constexpr std::size_t buffer_count = 4;
+constexpr std::size_t buffer_size = 960 * 4;
 
 struct audio {
     audio();

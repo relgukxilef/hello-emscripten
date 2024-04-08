@@ -26,7 +26,7 @@ audio::audio() {
     device_name = alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
     printf("Audio in: %s\n", device_name);
     capture_device = alcCaptureOpenDevice(
-        device_name, 48000, AL_FORMAT_MONO16, 4 * buffer_size
+        device_name, 48000, AL_FORMAT_MONO16, buffer_count * buffer_size
     );
     check(capture_device);
 
