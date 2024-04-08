@@ -16,6 +16,10 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    state/file_cache.h state/file_cache.cpp
+    state/model.h state/model.cpp
+    utility/file.h utility/file.cpp
+    utility/math.h
     audio/audio.h audio/audio.cpp
     utility/opus_resource.h utility/opus_resource.cpp
     utility/openal_resource.h utility/openal_resource.cpp
@@ -30,6 +34,9 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
+    png_static
+    Boost::json
+    Boost::static_string
     opus
 )
 
@@ -72,11 +79,10 @@ if (EMSCRIPTEN)
 
 else()
     find_package(glfw3 3.3)
-    find_package(Vulkan)
+    find_package(Vulkan 1.1)
     find_package(OpenGL)
     
     set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.74.0 COMPONENTS system filesystem REQUIRED)
     find_package(OpenSSL REQUIRED)
 
     target_sources(
@@ -88,6 +94,7 @@ else()
         hello PRIVATE
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
+        Boost::beast
     )
     target_link_libraries(
         hello PUBLIC
@@ -143,7 +150,12 @@ else()
     )
 
     target_link_libraries(
-        server PRIVATE ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread>
+        server PRIVATE 
+        ${Boost_LIBRARIES} 
+        Boost::lexical_cast
+        Boost::beast
+        glm 
+        $<$<BOOL:${UNIX}>:pthread>
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
@@ -156,7 +168,11 @@ else()
 
     add_dependencies(test hello-gl hello-vk server)
 
-    target_link_libraries(test PRIVATE ${Boost_LIBRARIES})
+    target_link_libraries(
+        test PRIVATE 
+        ${Boost_LIBRARIES}
+        Boost::process
+    )
 endif()
 
 if(OpenGL_FOUND OR EMSCRIPTEN)

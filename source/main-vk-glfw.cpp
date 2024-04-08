@@ -56,9 +56,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
         std::fprintf(
             stderr, "Validation layer error: %s\n", callback_data->pMessage
         );
-        // ignore error caused by Nsight
-        if (strcmp(callback_data->pMessageIdName, "Loader Message") != 0)
-            assert(false);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
         std::fprintf(
             stderr, "Validation layer warning: %s\n", callback_data->pMessage
@@ -113,9 +110,15 @@ int main(int argc, char *argv[]) {
     };
 
     unique_instance instance;
+    VkApplicationInfo application_info{
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .applicationVersion = 0,
+        .apiVersion = VK_MAKE_VERSION(1, 1, 0),
+    };
     VkInstanceCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = &debug_utils_messenger_create_info,
+        .pApplicationInfo = &application_info,
         .enabledLayerCount = std::size(enabled_layers),
         .ppEnabledLayerNames = enabled_layers,
         .enabledExtensionCount = static_cast<uint32_t>(extension_count),

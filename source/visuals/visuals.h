@@ -20,11 +20,11 @@ struct a2b10g10r10 {
 // TODO: use minUniformBufferOffsetAlignment
 struct alignas(256) parameter {
     glm::mat4 model_view_projection_matrix;
-    glm::vec4 position;
+    glm::mat4 model_matrix;
 };
 
 struct parameters {
-    parameter parameters[32];
+    parameter parameters[256];
 };
 
 struct meshes {
@@ -37,11 +37,13 @@ struct visuals {
 
     void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
-    std::uint32_t memory_size = 4 * 1024 * 1024;
+    std::uint32_t memory_size = 1u * 1024 * 1024 * 1024;
 
     unique_debug_utils_messenger debug_utils_messenger;
 
     VkPhysicalDevice physical_device;
+
+    VkPhysicalDeviceMemoryProperties properties;
 
     uint32_t graphics_queue_family = 0;
     uint32_t present_queue_family = 0;
@@ -58,14 +60,26 @@ struct visuals {
 
     unique_pipeline_layout pipeline_layout;
 
-    std::uint32_t host_visible_memory_type_index;
+    uint32_t host_visible_memory_type_index, device_local_memory_type_index;
 
     unique_device_memory host_visible_memory, device_local_memory;
 
     unique_buffer host_visible_buffer, device_local_buffer;
 
-    std::uint32_t view_parameters_offset, user_position_offset;
+    std::vector<unique_image> model_images;
+    std::vector<unique_image_view> model_image_views;
+    unique_sampler default_sampler;
+
+    uint32_t view_parameters_offset, user_position_offset;
+    struct visual_model {
+        uint32_t
+            position_offset, normal_offset,
+            texture_coordinate_offset, indices_offset,
+            images_offset;
+    };
+    std::vector<visual_model> models;
+
+    unique_command_pool command_pool;
 
     std::unique_ptr<::view> view;
 };
-

@@ -11,6 +11,7 @@
 #include "input.h"
 #include "../network/websocket.h"
 #include "../network/network_message.h"
+#include "model.h"
 
 struct client {
     client(std::string_view server);
@@ -34,7 +35,13 @@ struct client {
     struct {
         std::vector<glm::vec3> position;
         std::vector<glm::quat> orientation;
+        std::vector<unsigned> avatar;
     } users;
+
+    std::string world_path;
+
+    model test_model, world_model;
+    
     std::vector<std::uint8_t> encoded_audio_out;
     unsigned encoded_audio_out_size = 0;
 
