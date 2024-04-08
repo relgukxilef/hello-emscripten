@@ -25,6 +25,7 @@ add_library(
     utility/openal_resource.h utility/openal_resource.cpp
     utility/serialization.h utility/serialization.cpp
     utility/unique_span.h
+    utility/trace.h utility/trace.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)

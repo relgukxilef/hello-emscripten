@@ -11,6 +11,7 @@
 #include "main-glfw.h"
 #include "hello.h"
 #include "utility/resource.h"
+#include "utility/trace.h"
 
 struct glfw_error : public std::exception {
     glfw_error() noexcept {};
@@ -47,6 +48,8 @@ void error_callback(int error, const char* description) {
 }
 
 int main(int argc, char *argv[]) {
+    start_trace("trace.json", 0);
+
     unique_glfw glfw;
 
     glfwSetErrorCallback(error_callback);
