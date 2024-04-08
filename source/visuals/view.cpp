@@ -943,16 +943,20 @@ VkResult view::draw(visuals &v, ::client& client) {
     auto& image = images[image_index];
 
     VkFence fences[] = {image.draw_finished_fence.get()};
-
-    check(vkWaitForFences(
-        v.device.get(), 1, fences,
-        VK_TRUE, ~0ul
-    ));
+    
+    {
+        scope_trace trace;
+        check(vkWaitForFences(
+            v.device.get(), 1, fences,
+            VK_TRUE, ~0ul
+        ));
+    }
     check(vkResetFences(
         v.device.get(), 1, fences
     ));
 
     {
+        scope_trace trace;
         if (client.update_number != image.update_number) {
             check(vkResetCommandBuffer(image.draw_command_buffer, 0));
             record_command_buffer(

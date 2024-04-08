@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "../utility/trace.h"
 
 #include <cmath>
 
@@ -12,6 +13,7 @@
 #include <opus_defines.h>
 
 audio::audio() {
+    scope_trace trace;
     int error;
     encoder = opus_encoder_create(48000, 1, OPUS_APPLICATION_VOIP, &error);
     opus_check(error);
@@ -74,6 +76,7 @@ audio::audio() {
 }
 
 void audio::update(::client& client) {
+    scope_trace trace;
     ALshort capture_data[buffer_size];
     std::fill(std::begin(capture_data), std::end(capture_data), 0.0f);
     ALCenum error;
@@ -89,15 +92,21 @@ void audio::update(::client& client) {
 
         openal_check(error);
 
-        client.encoded_audio_in_size = opus_check(opus_encode(
-            encoder.get(), capture_data, std::size(capture_data),
-            client.encoded_audio_in.data(), client.encoded_audio_in.size()
-        ));
-        opus_check(opus_decode(
-            decoder.get(), client.encoded_audio_out.data(),
-            client.encoded_audio_out_size,
-            capture_data, std::size(capture_data), 0
-        ));
+        {
+            scope_trace trace;
+            client.encoded_audio_in_size = opus_check(opus_encode(
+                encoder.get(), capture_data, std::size(capture_data),
+                client.encoded_audio_in.data(), client.encoded_audio_in.size()
+            ));
+        }
+        {
+            scope_trace trace;
+            opus_check(opus_decode(
+                decoder.get(), client.encoded_audio_out.data(),
+                client.encoded_audio_out_size,
+                capture_data, std::size(capture_data), 0
+            ));
+        }
 
         ALuint unqueued_buffer = 0;
         alSourceUnqueueBuffers(sources.get()[0], 1, &unqueued_buffer);
