@@ -4,7 +4,7 @@
 
 unsigned process_id;
 FILE *trace_file;
-std::size_t last_event = 0;
+std::uint64_t last_event = 0;
 
 void start_trace(const char *filename, unsigned int process_id) {
     trace_file = fopen(filename, "wb");
@@ -34,7 +34,7 @@ scope_trace::~scope_trace() {
         return;
     fprintf(
         trace_file,
-        "{\"name\":\"%s:%llu\",\"ph\":\"X\",\"pid\":%u,\"tid\":%llu,"
+        "{\"name\":\"%s:%zu\",\"ph\":\"X\",\"pid\":%u,\"tid\":%zu,"
         "\"ts\":%llu,\"dur\":%llu},",
         name,
         line,

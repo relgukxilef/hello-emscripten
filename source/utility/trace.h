@@ -12,7 +12,7 @@ struct scope_trace {
     ~scope_trace();
 
     std::size_t start_thread_id_hash;
-    std::size_t start_time;
+    std::uint64_t start_time;
     std::size_t line;
     const char *name;
 };
