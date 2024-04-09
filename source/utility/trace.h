@@ -1,5 +1,6 @@
 #pragma once
 #include <cstddef>
+#include <cinttypes>
 #include <source_location>
 
 void start_trace(const char* filename, unsigned process_id);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <span>
+#include <cinttypes>
 
 #include "../utility/unique_span.h"
 

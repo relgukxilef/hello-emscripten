@@ -2,6 +2,7 @@
 
 #include <span>
 #include <ranges>
+#include <cinttypes>
 
 struct cache_file_lock {
     ~cache_file_lock();
@@ -37,5 +38,5 @@ struct file_cache {
         cache_file_lock &file, unsigned index, bool &existed
     );
 
-    std::ranges::subrange<uint8_t*> get_content(cache_range_lock &range);
+    std::ranges::subrange<std::uint8_t*> get_content(cache_range_lock &range);
 };
