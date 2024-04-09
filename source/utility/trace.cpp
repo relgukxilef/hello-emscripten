@@ -4,7 +4,7 @@
 
 unsigned process_id;
 FILE *trace_file;
-size_t last_event = 0;
+std::size_t last_event = 0;
 
 void start_trace(const char *filename, unsigned int process_id) {
     trace_file = fopen(filename, "wb");
@@ -18,7 +18,7 @@ std::uint64_t precise_time() {
     return std::chrono::duration_cast<std::chrono::microseconds>(epoch).count();
 }
 
-scope_trace::scope_trace(const char* name, size_t line) {
+scope_trace::scope_trace(const char* name, std::size_t line) {
     if (!trace_file)
         return;
     this->name = name;
