@@ -31,7 +31,7 @@ add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
 
 set(ZLIB_COMPAT ON)
 set(ZLIB_ROOT "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng")
-set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlibstatic")
+set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 add_library(ZLIB::ZLIB ALIAS zlib)
 
