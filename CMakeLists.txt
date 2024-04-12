@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.13)
-set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
 
 project(hello-emscripten LANGUAGES CXX C ASM)
 
@@ -11,7 +10,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 if(NOT CMAKE_SIZEOF_VOID_P)
     # Set a default value for CMAKE_SIZEOF_VOID_P
     # It is not set when building with emscripten
-    set(CMAKE_SIZEOF_VOID_P 4)  # Example: Set to 4 for 32-bit pointers
+    set(CMAKE_SIZEOF_VOID_P 4)
 endif()
 
 if (EMSCRIPTEN)
@@ -42,6 +41,7 @@ add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
 set(OPUS_STACK_PROTECTOR OFF)
 add_subdirectory(submodules/opus EXCLUDE_FROM_ALL)
 
+set(ALSOFT_UTILS OFF)
 add_subdirectory(submodules/openal-soft EXCLUDE_FROM_ALL)
 
 if (NOT EMSCRIPTEN)
