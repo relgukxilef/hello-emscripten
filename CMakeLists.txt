@@ -41,3 +41,5 @@ set(OPUS_STACK_PROTECTOR OFF)
 add_subdirectory(submodules/opus EXCLUDE_FROM_ALL)
 
 add_subdirectory(submodules/openal-soft EXCLUDE_FROM_ALL)
+
+add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)

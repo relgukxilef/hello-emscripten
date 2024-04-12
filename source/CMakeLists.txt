@@ -79,7 +79,6 @@ if (EMSCRIPTEN)
     )
 
 else()
-    find_package(glfw3 3.3)
     find_package(Vulkan 1.1)
     find_package(OpenGL)
     
@@ -96,6 +95,8 @@ else()
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
         Boost::beast
+        $<$<BOOL:${WIN32}>:wsock32>
+        $<$<BOOL:${WIN32}>:ws2_32>
     )
     target_link_libraries(
         hello PUBLIC
@@ -157,6 +158,8 @@ else()
         Boost::beast
         glm 
         $<$<BOOL:${UNIX}>:pthread>
+        $<$<BOOL:${WIN32}>:wsock32>
+        $<$<BOOL:${WIN32}>:ws2_32>
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
@@ -194,9 +197,3 @@ target_compile_features(hello PUBLIC cxx_std_20)
 if (MSVC)
     add_definitions(/bigobj)
 endif ()
-
-#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-
-add_compile_options(-fsanitize=address)
-add_link_options(-fsanitize=address)

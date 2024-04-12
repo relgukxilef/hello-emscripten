@@ -34,3 +34,7 @@
 	path = submodules/openal-soft
 	url = https://github.com/kcat/openal-soft.git
 	shallow = true
+[submodule "submodules/glfw"]
+	path = submodules/glfw
+	url = https://github.com/glfw/glfw.git
+	shallow = true
