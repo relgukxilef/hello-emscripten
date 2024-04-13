@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.13)
 project(hello-emscripten LANGUAGES CXX C ASM)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-cmake_policy(SET CMP0077 NEW) # option() honors normal variables
+set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option() honors normal variables
 cmake_policy(SET CMP0074 NEW) # Enable find_package uses of <>_ROOT variables
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
