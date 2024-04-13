@@ -8,7 +8,6 @@ int main(int argc, char *argv[]) {
     );
 
     client.wait();
-    server.wait();
 
     return 0;
 }
