@@ -7,7 +7,6 @@
 
 #include <boost/json.hpp>
 #include <boost/static_string.hpp>
-#include <scripts/pnglibconf.h.prebuilt>
 #include <png.h>
 
 #include "../utility/math.h"

@@ -36,6 +36,10 @@ add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 add_library(ZLIB::ZLIB ALIAS zlibstatic)
 
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
+target_include_directories(
+    png_static PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng>
+)
 
 set(OPUS_STACK_PROTECTOR OFF)
 add_subdirectory(submodules/opus EXCLUDE_FROM_ALL)
