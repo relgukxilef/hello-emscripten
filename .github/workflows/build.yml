@@ -21,10 +21,10 @@ jobs:
               CC: emcc
           - name: OpenGL
             target: hello-gl
-            dependencies: libglfw3-dev libgl-dev libssl-dev
+            dependencies: libglfw3-dev libgl-dev libssl-dev libwayland-dev libxkbcommon-dev xorg-dev
           - name: Vulkan
             target: hello-vk
-            dependencies: libglfw3-dev libvulkan1 libssl-dev
+            dependencies: libglfw3-dev libvulkan1 libssl-dev libwayland-dev libxkbcommon-dev xorg-dev
 
     runs-on: ${{matrix.os}}
 
