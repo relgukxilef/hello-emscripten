@@ -431,6 +431,7 @@ std::vector<uint8_t> read_png(
     std::ranges::subrange<uint8_t*> file,
     unsigned &width, unsigned &height
 ) {
+#ifndef EMSCRIPTEN
     // TODO: create RAII wrapper
     png_structp png = png_create_read_struct(
         PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr
@@ -494,7 +495,7 @@ std::vector<uint8_t> read_png(
     }
 
     png_destroy_read_struct(&png, &info, nullptr);
-
+#endif
     return {};
 }
 

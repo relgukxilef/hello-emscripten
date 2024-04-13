@@ -4,6 +4,7 @@
 #include <memory>
 #include <chrono>
 #include <atomic>
+#include <string>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
