@@ -44,3 +44,9 @@ add_subdirectory(submodules/opus EXCLUDE_FROM_ALL)
 
 set(ALSOFT_UTILS OFF)
 add_subdirectory(submodules/openal-soft EXCLUDE_FROM_ALL)
+
+if (NOT EMSCRIPTEN)
+    set(BUILD_SHARED_LIBS OFF)
+    set(GLFW_BUILD_DOCS OFF)
+    add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
+endif()
