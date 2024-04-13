@@ -32,8 +32,6 @@ add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
 set(ZLIB_COMPAT ON)
 set(ZLIB_ROOT "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng")
 set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlibstatic")
-unset(BUILD_SHARED_LIBS)
-unset(BUILD_SHARED_LIBS CACHE)
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 add_library(ZLIB::ZLIB ALIAS zlibstatic)
 
@@ -44,9 +42,3 @@ add_subdirectory(submodules/opus EXCLUDE_FROM_ALL)
 
 set(ALSOFT_UTILS OFF)
 add_subdirectory(submodules/openal-soft EXCLUDE_FROM_ALL)
-
-if (NOT EMSCRIPTEN)
-    set(BUILD_SHARED_LIBS OFF)
-    set(GLFW_BUILD_DOCS OFF)
-    add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
-endif()
