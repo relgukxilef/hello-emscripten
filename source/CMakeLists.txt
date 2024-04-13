@@ -79,6 +79,7 @@ if (EMSCRIPTEN)
     )
 
 else()
+    find_package(glfw3 3.3)
     find_package(Vulkan 1.1)
     find_package(OpenGL)
     
