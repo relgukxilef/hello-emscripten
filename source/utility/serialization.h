@@ -2,6 +2,7 @@
 
 #include <span>
 #include <cinttypes>
+#include <stdexcept>
 
 #include "../utility/unique_span.h"
 
@@ -19,6 +20,8 @@ struct capacity_tag_t {
 
 template<std::integral T>
 void apply(T &value, write_tag_t write) {
+    if (write.b.size() < sizeof(T))
+        throw std::overflow_error("message truncated");
     T v = value;
     for (size_t i = 0; i < sizeof(T); i++)
         // network byte order is big-endian
@@ -28,6 +31,8 @@ void apply(T &value, write_tag_t write) {
 
 template<std::integral T>
 void apply(T &value, read_tag_t read) {
+    if (read.b.size() < sizeof(T))
+        throw std::overflow_error("message truncated");
     T v = 0;
     std::array<std::uint8_t, sizeof(T)> bytes;
     for (size_t i = 0; i < sizeof(T); i++)
@@ -52,7 +57,8 @@ void apply(size_t size, unique_span<T> &b, F f) {
 
 template<class T>
 void apply(size_t, unique_span<T> &values, capacity_tag_t capacity) {
-    capacity.size += values.capacity * sizeof(T);
+    for (size_t i = 0; i < values.capacity; i++)
+        apply(values.values[i], capacity);
 }
 
 template<std::integral T, unsigned mantissa_bits, std::floating_point F>
@@ -75,7 +81,7 @@ void apply_fixed_point(size_t size, unique_span<F> &span, read_tag_t read) {
 template<std::integral T, unsigned mantissa_bits, std::floating_point F>
 void apply_fixed_point(
     size_t, unique_span<F> &values, capacity_tag_t capacity
-    ) {
+) {
     capacity.size += values.capacity * sizeof(T);
 }
 

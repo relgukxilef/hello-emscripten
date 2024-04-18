@@ -34,18 +34,19 @@ struct client {
     unsigned time;
     unsigned update_number = 0;
     struct {
+        // TODO: maybe only use the message class
         std::vector<glm::vec3> position;
         std::vector<glm::quat> orientation;
         std::vector<unsigned> avatar;
+        
+        std::vector<unsigned> encoded_audio_out_size;
+        std::vector<std::vector<std::uint8_t>> encoded_audio_out;
     } users;
 
     std::string world_path;
 
     model test_model, world_model;
     
-    std::vector<std::uint8_t> encoded_audio_out;
-    unsigned encoded_audio_out_size = 0;
-
     std::chrono::steady_clock::time_point next_network_update;
 
     // out-going

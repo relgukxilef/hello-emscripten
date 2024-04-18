@@ -13,7 +13,7 @@
 hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
     audio(new ::audio())
 {
-    std::string_view server = "wss://hellovr.at:443/";
+    std::string_view server = "ws://localhost:28750/";
     for (auto argument = arguments; *argument != nullptr; argument++) {
         if (strcmp(*argument, "--server") == 0) {
             argument++;

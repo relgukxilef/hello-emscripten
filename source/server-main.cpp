@@ -16,6 +16,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include "network/network_message.h"
+#include "utility/serialization.h"
 
 enum { port = 28750 };
 std::chrono::milliseconds tick_time{50};
@@ -39,6 +40,7 @@ struct session : public boost::intrusive_ref_counter<session> {
     boost::beast::flat_buffer buffer;
     glm::vec3 position;
     glm::quat orientation;
+    std::vector<std::uint8_t> voice;
     message m;
     // TODO: may need a queue for messages because async_write cannot be called
     // before the last async_write completed
@@ -81,7 +83,7 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
             co_return;
         }
 
-        if (session->buffer.size() > 0) {
+        if (size > 0) {
             read(session->m, to_span(session->buffer));
             if (session->m.users.size != 1)
                 co_return;
@@ -89,14 +91,18 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
                 auto &p = session->m.users.position;
                 auto &o = session->m.users.orientation;
                 session->position =
-                    glm::vec3{p.x.values[0], p.y.values[0], p.z.values[0]};
+                    glm::vec3{p[0], p[1], p[2]};
                 session->orientation = glm::normalize(glm::quat{
-                    o.w.values[0],
-                    o.x.values[0],
-                    o.y.values[0],
-                    o.z.values[0]
+                    o[3],
+                    o[0],
+                    o[1],
+                    o[2]
                 });
             }
+            // TODO: What if the last frame hasn't been sent yet?
+            if (!session->voice.empty()) { }
+            session->voice.resize(session->m.users.voice[0].first);
+            copy(session->m.users.voice[0].second, session->voice);
         }
 
         session->buffer.consume(session->buffer.size());
@@ -211,23 +217,22 @@ void tick(boost::system::error_code error = {}) {
         server->m.users.size = size;
         auto &p = server->m.users.position;
         for (auto s : boost::adaptors::index(server->tick_positions)) {
-            p.x.values[s.index()] = s.value().x;
-            p.y.values[s.index()] = s.value().y;
-            p.z.values[s.index()] = s.value().z;
+            p[s.index() * 3 + 0] = s.value().x;
+            p[s.index() * 3 + 1] = s.value().y;
+            p[s.index() * 3 + 2] = s.value().z;
         }
         auto &o = server->m.users.orientation;
         for (auto s : boost::adaptors::index(server->tick_orientations)) {
-            o.x.values[s.index()] = s.value().x;
-            o.y.values[s.index()] = s.value().y;
-            o.z.values[s.index()] = s.value().z;
-            o.w.values[s.index()] = s.value().w;
+            o[s.index() * 4 + 0] = s.value().x;
+            o[s.index() * 4 + 1] = s.value().y;
+            o[s.index() * 4 + 2] = s.value().z;
+            o[s.index() * 4 + 3] = s.value().w;
         }
 
-        if (size > 0) {
-            server->m.audio_size = server->sessions[0]->m.audio_size;
-            std::ranges::copy(
-                server->sessions[0]->m.audio, server->m.audio.begin()
-            );
+        for (auto i = 0; i < size; i++) {
+            server->m.users.voice[i].first = server->sessions[i]->voice.size();
+            copy(server->sessions[i]->voice, server->m.users.voice[i].second);
+            server->sessions[i]->voice.resize(0);
         }
 
         write(server->m, server->buffer);

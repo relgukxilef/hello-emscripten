@@ -4,9 +4,6 @@
 #include <memory>
 #include <span>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
-
 #include "../utility/unique_span.h"
 
 struct uuid {
@@ -36,18 +33,10 @@ struct message {
 
     struct {
         std::uint16_t size = 0;
-        struct {
-            unique_span<float> x, y, z;
-        } position;
-        struct {
-            unique_span<float> x, y, z, w;
-        } orientation;
-        unique_span<std::uint16_t> audio_size;
-        unique_span<std::uint8_t> audio;
+        unique_span<float> position;
+        unique_span<float> orientation;
+        unique_span<std::pair<uint16_t, unique_span<std::uint8_t>>> voice;
     } users;
-
-    std::uint16_t audio_size = 0;
-    unique_span<std::uint8_t> audio;
 };
 
 void write(initial_message &m, std::span<std::uint8_t> b);

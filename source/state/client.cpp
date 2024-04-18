@@ -20,11 +20,19 @@ client::client(std::string_view server) {
     next_network_update = std::chrono::steady_clock::now();
     in_message = message(message_user_capacity, message_audio_capacity);
     message_in_readable = false;
+    // TODO: Either use vector::reserve or use a different type.
+    // std::vector is almost the right type. But it is awkward to use with C API
     in_buffer.resize(capacity(in_message));
     out_message = message(message_user_capacity, message_audio_capacity);
     out_buffer.resize(capacity(out_message));
     encoded_audio_in.resize(message_audio_capacity);
-    encoded_audio_out.resize(message_audio_capacity);
+    users.encoded_audio_out_size.resize(message_user_capacity);
+    users.encoded_audio_out.resize(
+        message_user_capacity
+    );
+    for (auto &audio : users.encoded_audio_out) {
+        audio.resize(message_audio_capacity);
+    }
 }
 
 void client::update(::input &input) {
@@ -85,18 +93,19 @@ void client::update(::input &input) {
             out_message.users.size = 1;
 
             auto &p = out_message.users.position;
-            p.x.values[0] = user_position.x;
-            p.y.values[0] = user_position.y;
-            p.z.values[0] = user_position.z;
+            p[0] = user_position.x;
+            p[1] = user_position.y;
+            p[2] = user_position.z;
 
             auto &o = out_message.users.orientation;
-            o.x.values[0] = user_orientation.x;
-            o.y.values[0] = user_orientation.y;
-            o.z.values[0] = user_orientation.z;
-            o.w.values[0] = user_orientation.w;
+            o[0] = user_orientation.x;
+            o[1] = user_orientation.y;
+            o[2] = user_orientation.z;
+            o[3] = user_orientation.w;
 
-            out_message.audio_size = encoded_audio_in_size;
-            copy(encoded_audio_in, out_message.audio);
+            out_message.users.voice[0].first = encoded_audio_in_size;
+            copy(encoded_audio_in, out_message.users.voice[0].second);
+            encoded_audio_in_size = 0;
 
             write(out_message, out_buffer);
 
@@ -119,19 +128,23 @@ void client::update(::input &input) {
 
         for (size_t index = 0; index < user_count; index++) {
             auto &p = in_message.users.position;
-            users.position[index].x = p.x.values[index];
-            users.position[index].y = p.y.values[index];
-            users.position[index].z = p.z.values[index];
+            users.position[index].x = p[index * 3 + 0];
+            users.position[index].y = p[index * 3 + 1];
+            users.position[index].z = p[index * 3 + 2];
 
             auto &o = in_message.users.orientation;
-            users.orientation[index].x = o.x.values[index];
-            users.orientation[index].y = o.y.values[index];
-            users.orientation[index].z = o.z.values[index];
-            users.orientation[index].w = o.w.values[index];
-        }
+            users.orientation[index].x = o[index * 4 + 0];
+            users.orientation[index].y = o[index * 4 + 1];
+            users.orientation[index].z = o[index * 4 + 2];
+            users.orientation[index].w = o[index * 4 + 3];
 
-        encoded_audio_out_size = in_message.audio_size;
-        copy(in_message.audio, encoded_audio_out);
+            users.encoded_audio_out_size[index] = 
+                in_message.users.voice[index].first;
+            copy(
+                in_message.users.voice[index].second, 
+                users.encoded_audio_out[index]
+            );
+        }
 
         message_in_readable = false;
     }

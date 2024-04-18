@@ -2,6 +2,7 @@
 #include "../utility/trace.h"
 
 #include <cmath>
+#include <ctime>
 
 #include <AL/alc.h>
 
@@ -17,8 +18,10 @@ audio::audio() {
     int error;
     encoder = opus_encoder_create(48000, 1, OPUS_APPLICATION_VOIP, &error);
     opus_check(error);
-    decoder = opus_decoder_create(48000, 1, &error);
-    opus_check(error);
+    for (auto &decoder : decoders) {
+        decoder = opus_decoder_create(48000, 1, &error);
+        opus_check(error);
+    }
 
     const char *device_name = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
     printf("Audio out: %s\n", device_name);
@@ -59,77 +62,113 @@ audio::audio() {
     alGenSources(size(sources.get()), sources->data());
     openal_check();
 
-    alSourcef(sources.get()[0], AL_PITCH, 1);
-    alSourcef(sources.get()[0], AL_GAIN, 1.0f);
-    alSource3f(sources.get()[0], AL_POSITION, 0, 0, 0);
-    alSource3f(sources.get()[0], AL_VELOCITY, 0, 0, 0);
-    alSourcei(sources.get()[0], AL_LOOPING, AL_FALSE);
-    openal_check();
+    auto *buffer = buffers.get().data();
+    for (auto source : sources.get()) {
+        alSourcef(source, AL_PITCH, 1);
+        alSourcef(source, AL_GAIN, 1.0f);
+        alSource3f(source, AL_POSITION, 0, 0, 0);
+        alSource3f(source, AL_VELOCITY, 0, 0, 0);
+        alSourcei(source, AL_LOOPING, AL_FALSE);
+        alSourceQueueBuffers(source, buffer_count, buffer);
+        alSourcePlay(source);
+        buffer += buffer_count;
+    }
 
-    alSourceQueueBuffers(
-        sources.get()[0], std::size(buffers.get()), buffers->data()
-    );
-    openal_check();
-
-    alSourcePlay(sources.get()[0]);
     openal_check();
 }
 
 void audio::update(::client& client) {
     scope_trace trace;
     ALshort capture_data[buffer_size];
-    std::fill(std::begin(capture_data), std::end(capture_data), 0.0f);
-    ALCenum error;
+    ALCenum error = ALC_NO_ERROR;
 
-    while (true) {
-        alcCaptureSamples(
-            capture_device.get(), (ALCvoid *)capture_data, 
-            std::size(capture_data)
-        );
-        error = alcGetError(capture_device.get());
-        if (error == ALC_INVALID_VALUE)
-            break; // nothing to capture
+    bool audio_available = false;
 
-        openal_check(error);
+    static unsigned sample_count = 0;
+    static unsigned frequency = 220 + std::time(nullptr) % 220;
 
-        {
-            scope_trace trace;
-            client.encoded_audio_in_size = opus_check(opus_encode(
-                encoder.get(), capture_data, std::size(capture_data),
-                client.encoded_audio_in.data(), client.encoded_audio_in.size()
-            ));
+    if (client.encoded_audio_in_size == 0) {
+        while (true) {
+            alcCaptureSamples(
+                capture_device.get(), (ALCvoid *)capture_data, 
+                std::size(capture_data)
+            );
+            error = alcGetError(capture_device.get());
+
+            if (error == ALC_INVALID_VALUE)
+                break;
+
+            openal_check(error);
+
+            audio_available = true;
+
+            // For now only read one buffer per frame
+            break;
         }
-        {
-            scope_trace trace;
-            opus_check(opus_decode(
-                decoder.get(), client.encoded_audio_out.data(),
-                client.encoded_audio_out_size,
-                capture_data, std::size(capture_data), 0
-            ));
+    }
+
+    if (audio_available) {
+        sample_count += std::size(capture_data);
+        for (unsigned i = 0; i < std::size(capture_data); ++i) {
+            // write sine with random frequency into buffer for testing
+            float sine = 
+                std::sinf((sample_count + i) * 2 * frequency * 3.1415f / 48000);
+            capture_data[i] = static_cast<int16_t>(sine * 0.1f * 32768);
         }
 
+        scope_trace trace;
+
+        // TODO: should it be allowed to send multiple packets?
+        // packets are not delimited, packet sizes would need to be included
+        client.encoded_audio_in_size = opus_check(opus_encode(
+            encoder.get(), capture_data, std::size(capture_data),
+            client.encoded_audio_in.data(), client.encoded_audio_in.size()
+        ));
+    }
+
+    printf("frame size: %i; ", client.encoded_audio_in_size);
+
+    for (int i = 0; i < client.users.position.size(); i++) {
+        scope_trace trace;
+
+        if (i >= sources_count)
+            break;
+
+        printf("%i, ", client.users.encoded_audio_out_size[i]);
+
+        if (client.users.encoded_audio_out_size[i] == 0)
+            continue;
+
+        // TODO: number of samples in packet could differ from buffer_size
+        opus_check(opus_decode(
+            decoders[i].get(), client.users.encoded_audio_out[i].data(), 
+            client.users.encoded_audio_out_size[i],
+            capture_data, std::size(capture_data), 0
+        ));
+        client.users.encoded_audio_out_size[i] = 0;
         ALuint unqueued_buffer = 0;
-        alSourceUnqueueBuffers(sources.get()[0], 1, &unqueued_buffer);
+        alSourceUnqueueBuffers(sources.get()[i], 1, &unqueued_buffer);
         error = alGetError();
-        if (error == AL_INVALID_VALUE)
-            break; // not ready to play new samples, drop them
+        if (error != AL_INVALID_VALUE) {
+            // drop samples if not ready to play them
+            openal_check(error);
 
-        openal_check(error);
+            alBufferData(
+                unqueued_buffer, AL_FORMAT_MONO16, std::begin(capture_data),
+                std::size(capture_data) * sizeof(ALshort), 48000
+            );
+            openal_check();
 
-        alBufferData(
-            unqueued_buffer, AL_FORMAT_MONO16, std::begin(capture_data),
-            std::size(capture_data) * sizeof(ALshort), 48000
-        );
-        openal_check();
-
-        alSourceQueueBuffers(sources.get()[0], 1, &unqueued_buffer);
-        openal_check();
+            alSourceQueueBuffers(sources.get()[i], 1, &unqueued_buffer);
+            openal_check();
+        }
+        
+        ALint state = 0;
+        alGetSourcei(sources.get()[i], AL_SOURCE_STATE, &state);
+        if (state != AL_PLAYING) {
+            alSourcePlay(sources.get()[i]);
+            openal_check();
+        }
     }
-
-    ALint state=0;
-    alGetSourcei(sources.get()[0], AL_SOURCE_STATE, &state);
-    if (state != AL_PLAYING) {
-        alSourcePlay(sources.get()[0]);
-        openal_check();
-    }
+    printf("\n");
 }

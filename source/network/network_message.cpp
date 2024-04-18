@@ -10,6 +10,12 @@ void apply(uuid &m, F f) {
     apply(m.values[1], f);
 }
 
+template<class A, class B, class F>
+void apply(std::pair<A, B> &p, F f) {
+    apply(p.first, f);
+    apply(p.first, p.second, f);
+}
+
 template<class F>
 void apply(initial_message &m, F f) {
     apply(m.size, f);
@@ -19,15 +25,11 @@ void apply(initial_message &m, F f) {
 template<class F>
 void apply(message &m, F f) {
     apply(m.users.size, f);
-    auto &p = m.users.position;
-    for (auto *v : {&p.x, &p.y, &p.z})
-        apply_fixed_point<int16_t, 8, float>(m.users.size, *v, f);
-    auto &o = m.users.orientation;
-    for (auto *v : {&o.x, &o.y, &o.z, &o.w})
-        apply_fixed_point<int16_t, 15, float>(m.users.size, *v, f);
-
-    apply(m.audio_size, f);
-    apply(m.audio_size, m.audio, f);
+    apply_fixed_point<int16_t, 8, float>(m.users.size * 3, m.users.position, f);
+    apply_fixed_point<int16_t, 15, float>(
+        m.users.size * 4, m.users.orientation, f
+    );
+    apply(m.users.size, m.users.voice, f);
 }
 
 initial_message::initial_message(unsigned int extension_capacity) {
@@ -35,17 +37,12 @@ initial_message::initial_message(unsigned int extension_capacity) {
 }
 
 message::message(unsigned user_capacity, unsigned audio_capacity) {
-    auto &p = users.position;
-    for (auto v : {&p.x, &p.y, &p.z}) {
-        *v = {user_capacity};
+    users.position = {user_capacity * 3};
+    users.orientation = {user_capacity * 4};
+    users.voice = {user_capacity};
+    for (auto &a : users.voice) {
+        a.second = {audio_capacity};
     }
-    auto &o = users.orientation;
-    for (auto v : {&o.x, &o.y, &o.z, &o.w}) {
-        *v = {user_capacity};
-    }
-    users.audio_size = {user_capacity};
-    users.audio = {user_capacity * audio_capacity};
-    audio = {audio_capacity};
 }
 
 void write(initial_message &m, std::span<std::uint8_t> b) {
