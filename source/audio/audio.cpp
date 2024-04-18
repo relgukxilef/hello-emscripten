@@ -112,7 +112,7 @@ void audio::update(::client& client) {
         for (unsigned i = 0; i < std::size(capture_data); ++i) {
             // write sine with random frequency into buffer for testing
             float sine = 
-                std::sinf((sample_count + i) * 2 * frequency * 3.1415f / 48000);
+                sinf((sample_count + i) * 2 * frequency * 3.1415f / 48000);
             capture_data[i] = static_cast<int16_t>(sine * 0.1f * 32768);
         }
 
