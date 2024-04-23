@@ -25,17 +25,26 @@ struct unique_resource {
     auto operator*() {
         return *value;
     }
-    T operator->() {
-        return value;
+    T* operator->() {
+        return &value;
     }
     operator bool() const {
         return value != Null;
     }
 
-    const T& get() {
+    const T& get() const {
+        return value;
+    };
+
+    T& get() {
         return value;
     };
 
 private:
     T value;
 };
+
+template<typename T, auto Deleter>
+void handle_delete(T** t) {
+    Deleter(*t);
+}

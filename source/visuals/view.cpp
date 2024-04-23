@@ -11,11 +11,13 @@
 
 #include "../utility/out_ptr.h"
 #include "../utility/math.h"
+#include "../utility/trace.h"
 
 void record_command_buffer(
     client& client, visuals& visuals, view& view, image& image,
     VkPipelineLayout pipeline_layout
 ) {
+    scope_trace trace;
     // The old command buffer is reset before this, so writing descriptors is ok
     // update descriptors
     auto image_info =
@@ -926,6 +928,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 }
 
 VkResult view::draw(visuals &v, ::client& client) {
+    scope_trace trace;
     uint32_t image_index;
     VkResult result = vkAcquireNextImageKHR(
         v.device.get(), swapchain.get(), ~0ul,
@@ -940,16 +943,20 @@ VkResult view::draw(visuals &v, ::client& client) {
     auto& image = images[image_index];
 
     VkFence fences[] = {image.draw_finished_fence.get()};
-
-    check(vkWaitForFences(
-        v.device.get(), 1, fences,
-        VK_TRUE, ~0ul
-    ));
+    
+    {
+        scope_trace trace;
+        check(vkWaitForFences(
+            v.device.get(), 1, fences,
+            VK_TRUE, ~0ul
+        ));
+    }
     check(vkResetFences(
         v.device.get(), 1, fences
     ));
 
     {
+        scope_trace trace;
         if (client.update_number != image.update_number) {
             check(vkResetCommandBuffer(image.draw_command_buffer, 0));
             record_command_buffer(

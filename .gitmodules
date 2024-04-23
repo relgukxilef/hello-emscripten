@@ -21,6 +21,20 @@
 [submodule "submodules/libpng"]
 	path = submodules/libpng
 	url = https://github.com/glennrp/libpng.git
+	shallow = true
 [submodule "submodules/zlib-ng"]
 	path = submodules/zlib-ng
 	url = https://github.com/zlib-ng/zlib-ng.git
+	shallow = true
+[submodule "submodules/opus"]
+	path = submodules/opus
+	url = https://gitlab.xiph.org/xiph/opus.git
+	shallow = true
+[submodule "submodules/openal-soft"]
+	path = submodules/openal-soft
+	url = https://github.com/kcat/openal-soft.git
+	shallow = true
+[submodule "submodules/glfw"]
+	path = submodules/glfw
+	url = https://github.com/glfw/glfw.git
+	shallow = true

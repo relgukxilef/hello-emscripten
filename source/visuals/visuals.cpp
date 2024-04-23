@@ -9,6 +9,7 @@
 #include "../utility/out_ptr.h"
 #include "../utility/file.h"
 #include "../utility/math.h"
+#include "../utility/trace.h"
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -544,6 +545,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
 void visuals::draw(
     ::client& client, VkInstance instance, VkSurfaceKHR surface
 ) {
+    scope_trace trace;
     if (view) {
         if (view->draw(*this, client) != VK_SUCCESS) {
             view.reset(); // delete first

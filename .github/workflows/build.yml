@@ -19,12 +19,10 @@ jobs:
             env: 
               CXX: em++
               CC: emcc
-          - name: OpenGL
-            target: hello-gl
+          - name: Desktop
+            target: test
             dependencies: libglfw3-dev libgl-dev libssl-dev
-          - name: Vulkan
-            target: hello-vk
-            dependencies: libglfw3-dev libvulkan1 libssl-dev
+            configure: -DGLFW_BUILD_WAYLAND=OFF -DGLFW_BUILD_X11=OFF
 
     runs-on: ${{matrix.os}}
 

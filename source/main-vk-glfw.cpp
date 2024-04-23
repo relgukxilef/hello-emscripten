@@ -1,3 +1,4 @@
+#include "utility/trace.h"
 #include <cstdio>
 #include <stdexcept>
 #include <cstring>
@@ -66,6 +67,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 }
 
 int main(int argc, char *argv[]) {
+    start_trace("trace.json", 0);
     unique_glfw glfw;
 
     glfwSetErrorCallback(error_callback);

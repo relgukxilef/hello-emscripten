@@ -20,6 +20,12 @@ add_library(
     state/model.h state/model.cpp
     utility/file.h utility/file.cpp
     utility/math.h
+    audio/audio.h audio/audio.cpp
+    utility/opus_resource.h utility/opus_resource.cpp
+    utility/openal_resource.h utility/openal_resource.cpp
+    utility/serialization.h utility/serialization.cpp
+    utility/unique_span.h
+    utility/trace.h utility/trace.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -32,6 +38,7 @@ target_link_libraries(
     png_static
     Boost::json
     Boost::static_string
+    opus
 )
 
 if (EMSCRIPTEN)
@@ -62,6 +69,7 @@ if (EMSCRIPTEN)
         -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
         -lwebsocket.js
+        -lopenal
     )
 
     target_link_options(
@@ -71,7 +79,6 @@ if (EMSCRIPTEN)
     )
 
 else()
-    find_package(glfw3 3.3)
     find_package(Vulkan 1.1)
     find_package(OpenGL)
     
@@ -88,7 +95,15 @@ else()
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
         Boost::beast
+        $<$<BOOL:${WIN32}>:wsock32>
+        $<$<BOOL:${WIN32}>:ws2_32>
     )
+    target_link_libraries(
+        hello PUBLIC
+        OpenAL::OpenAL
+    )
+
+    target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
 
     target_include_directories(hello PRIVATE ${Boost_INCLUDE_DIRS})
 
@@ -143,6 +158,8 @@ else()
         Boost::beast
         glm 
         $<$<BOOL:${UNIX}>:pthread>
+        $<$<BOOL:${WIN32}>:wsock32>
+        $<$<BOOL:${WIN32}>:ws2_32>
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
@@ -179,7 +196,6 @@ target_compile_features(hello PUBLIC cxx_std_20)
 
 if (MSVC)
     add_definitions(/bigobj)
+    add_compile_options(/fsanitize=address)
+    add_link_options(/fsanitize=address)
 endif ()
-
-#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
