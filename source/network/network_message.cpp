@@ -36,13 +36,37 @@ initial_message::initial_message(unsigned int extension_capacity) {
     extensions = {extension_capacity};
 }
 
-message::message(unsigned user_capacity, unsigned audio_capacity) {
-    users.position = {user_capacity * 3};
-    users.orientation = {user_capacity * 4};
-    users.voice = {user_capacity};
+void message::reset(unsigned user_capacity, unsigned audio_capacity) {
+    users.position.reset(user_capacity * 3);
+    users.orientation.reset(user_capacity * 4);
+    users.voice.reset(user_capacity);
     for (auto &a : users.voice) {
-        a.second = {audio_capacity};
+        a.second.reset(audio_capacity);
     }
+    this->user_capacity = user_capacity;
+    this->audio_capacity = audio_capacity;
+}
+
+void message::clear() {
+    users.size = 0;
+}
+
+template<class T>
+void append(
+    unique_span<T> &d, const unique_span<T> &s, 
+    size_t offset
+) {
+    copy(
+        std::ranges::subrange(s.begin(), s.end()),
+        std::ranges::subrange(d.begin() + offset, d.end())
+    );
+}
+
+void message::append(const message &other) {
+    ::append(users.position, other.users.position, users.size * 3);
+    ::append(users.orientation, other.users.orientation, users.size * 4);
+    ::append(users.voice, other.users.voice, users.size);
+    users.size += other.users.size;
 }
 
 void write(initial_message &m, std::span<std::uint8_t> b) {

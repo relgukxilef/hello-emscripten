@@ -18,6 +18,7 @@ namespace extensions {
     const uuid chat {0x2804563ac10e4fe6, 0x8d7f058b0566546f};
     const uuid avatar {0x99155c895990459c, 0xa0798a1d9b68fe1b};
     const uuid video {0x6e3ac3cdb6a8459c, 0xa2503fc0914477b9};
+    const uuid user {0xc7684c34f50e4529, 0xbaf96e45f0c82f2c};
 };
 
 struct initial_message {
@@ -29,7 +30,10 @@ struct initial_message {
 
 struct message {
     message() = default;
-    message(unsigned user_capacity, unsigned audio_capacity);
+
+    void reset(unsigned user_capacity, unsigned audio_capacity);
+    void clear();
+    void append(const message &other);
 
     struct {
         std::uint16_t size = 0;
@@ -37,6 +41,8 @@ struct message {
         unique_span<float> orientation;
         unique_span<std::pair<uint16_t, unique_span<std::uint8_t>>> voice;
     } users;
+
+    unsigned user_capacity, audio_capacity;
 };
 
 void write(initial_message &m, std::span<std::uint8_t> b);

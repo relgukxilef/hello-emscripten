@@ -196,4 +196,6 @@ target_compile_features(hello PUBLIC cxx_std_20)
 
 if (MSVC)
     add_definitions(/bigobj)
+    add_compile_options(/fsanitize=address)
+    add_link_options(/fsanitize=address)
 endif ()

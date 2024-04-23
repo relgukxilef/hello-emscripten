@@ -33,14 +33,13 @@ std::span<std::uint8_t> to_span(boost::beast::flat_buffer &buffer) {
 struct session : public boost::intrusive_ref_counter<session> {
     // Need either ref counting or counting the number of outstanding operations
     session(boost::asio::ip::tcp::socket&& socket) :
-        stream(std::move(socket)), m(1, message_audio_capacity)
-    {}
+        stream(std::move(socket))
+    {
+        m.reset(1, message_audio_capacity);
+    }
     boost::beast::http::request<boost::beast::http::string_body> request;
     boost::beast::websocket::stream<boost::asio::ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
-    glm::vec3 position;
-    glm::quat orientation;
-    std::vector<std::uint8_t> voice;
     message m;
     // TODO: may need a queue for messages because async_write cannot be called
     // before the last async_write completed
@@ -48,18 +47,17 @@ struct session : public boost::intrusive_ref_counter<session> {
 
 struct server_t {
     server_t(boost::asio::io_context& context) :
-        tick_timer(context, std::chrono::steady_clock::now()),
-        m(message_user_capacity, message_audio_capacity),
-        buffer(capacity(m), 0)
-    {}
+        tick_timer(context, std::chrono::steady_clock::now())
+    {
+        m.reset(message_user_capacity, message_audio_capacity);
+        buffer.resize(capacity(m));
+    }
     // Need one state that can be written when messages arrive
     // and one that can be read to send out messages
     // TODO: how to reallocate positions when users join?
     // on message: write to session positions
     // on tick: copy from session positions to world positions
     std::atomic_int writes_pending = 0;
-    std::vector<glm::vec3> tick_positions;
-    std::vector<glm::quat> tick_orientations;
     std::vector<boost::intrusive_ptr<session>> sessions;
     boost::asio::steady_timer tick_timer;
     message m;
@@ -87,22 +85,7 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
             read(session->m, to_span(session->buffer));
             if (session->m.users.size != 1)
                 co_return;
-            if (session->m.users.size == 1) {
-                auto &p = session->m.users.position;
-                auto &o = session->m.users.orientation;
-                session->position =
-                    glm::vec3{p[0], p[1], p[2]};
-                session->orientation = glm::normalize(glm::quat{
-                    o[3],
-                    o[0],
-                    o[1],
-                    o[2]
-                });
-            }
             // TODO: What if the last frame hasn't been sent yet?
-            if (!session->voice.empty()) { }
-            session->voice.resize(session->m.users.voice[0].first);
-            copy(session->m.users.voice[0].second, session->voice);
         }
 
         session->buffer.consume(session->buffer.size());
@@ -192,6 +175,8 @@ boost::asio::awaitable<void> accept(
 void tick(boost::system::error_code error = {}) {
     if (error) return;
 
+    // TODO: don't wait until the last tick was sent to everyone.
+    // This would allow clients to stall the server.
     if (server->writes_pending > 0) {
         printf("Tick skipped, last tick still in flight\n");
     } else {
@@ -205,39 +190,14 @@ void tick(boost::system::error_code error = {}) {
             end, server->sessions.end()
         );
 
-        server->tick_positions.resize(server->sessions.size());
-        server->tick_orientations.resize(server->sessions.size());
-        for (auto session : boost::adaptors::index(server->sessions)) {
-            server->tick_positions[session.index()] = session.value()->position;
-            server->tick_orientations[session.index()] =
-                session.value()->orientation;
-        }
-
-        auto size = server->sessions.size();
-        server->m.users.size = size;
-        auto &p = server->m.users.position;
-        for (auto s : boost::adaptors::index(server->tick_positions)) {
-            p[s.index() * 3 + 0] = s.value().x;
-            p[s.index() * 3 + 1] = s.value().y;
-            p[s.index() * 3 + 2] = s.value().z;
-        }
-        auto &o = server->m.users.orientation;
-        for (auto s : boost::adaptors::index(server->tick_orientations)) {
-            o[s.index() * 4 + 0] = s.value().x;
-            o[s.index() * 4 + 1] = s.value().y;
-            o[s.index() * 4 + 2] = s.value().z;
-            o[s.index() * 4 + 3] = s.value().w;
-        }
-
-        for (auto i = 0; i < size; i++) {
-            server->m.users.voice[i].first = server->sessions[i]->voice.size();
-            copy(server->sessions[i]->voice, server->m.users.voice[i].second);
-            server->sessions[i]->voice.resize(0);
+        server->m.clear();
+        for (auto &session : server->sessions) {
+            server->m.append(session->m);
         }
 
         write(server->m, server->buffer);
 
-        server->writes_pending = size;
+        server->writes_pending = server->sessions.size();
 
         for (auto& session : server->sessions) {
             session->stream.async_write(

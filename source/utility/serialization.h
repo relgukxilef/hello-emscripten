@@ -84,9 +84,3 @@ void apply_fixed_point(
 ) {
     capacity.size += values.capacity * sizeof(T);
 }
-
-template<class In, class Out>
-void copy(In &source, Out &destination) {
-    auto size = std::min(std::size(source), std::size(destination));
-    std::copy(source.begin(), source.begin() + size, destination.begin());
-}

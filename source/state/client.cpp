@@ -18,12 +18,12 @@ client::client(std::string_view server) {
         new websocket(*this, event_loop, server)
     );
     next_network_update = std::chrono::steady_clock::now();
-    in_message = message(message_user_capacity, message_audio_capacity);
+    in_message.reset(message_user_capacity, message_audio_capacity);
     message_in_readable = false;
     // TODO: Either use vector::reserve or use a different type.
     // std::vector is almost the right type. But it is awkward to use with C API
     in_buffer.resize(capacity(in_message));
-    out_message = message(message_user_capacity, message_audio_capacity);
+    out_message.reset(message_user_capacity, message_audio_capacity);
     out_buffer.resize(capacity(out_message));
     encoded_audio_in.resize(message_audio_capacity);
     users.encoded_audio_out_size.resize(message_user_capacity);
@@ -104,7 +104,10 @@ void client::update(::input &input) {
             o[3] = user_orientation.w;
 
             out_message.users.voice[0].first = encoded_audio_in_size;
-            copy(encoded_audio_in, out_message.users.voice[0].second);
+            copy(
+                encoded_audio_in, 
+                std::views::all(out_message.users.voice[0].second)
+            );
             encoded_audio_in_size = 0;
 
             write(out_message, out_buffer);
@@ -142,7 +145,7 @@ void client::update(::input &input) {
                 in_message.users.voice[index].first;
             copy(
                 in_message.users.voice[index].second, 
-                users.encoded_audio_out[index]
+                std::views::all(users.encoded_audio_out[index])
             );
         }
 
