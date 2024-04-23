@@ -108,12 +108,14 @@ void audio::update(::client& client) {
     }
 
     if (audio_available) {
-        sample_count += std::size(capture_data);
-        for (unsigned i = 0; i < std::size(capture_data); ++i) {
-            // write sine with random frequency into buffer for testing
-            float sine = 
-                sinf((sample_count + i) * 2 * frequency * 3.1415f / 48000);
-            capture_data[i] = static_cast<int16_t>(sine * 0.1f * 32768);
+        if (play_sine) {
+            sample_count += std::size(capture_data);
+            for (unsigned i = 0; i < std::size(capture_data); ++i) {
+                // write sine with random frequency into buffer for testing
+                float sine = 
+                    sinf((sample_count + i) * 2 * frequency * 3.1415f / 48000);
+                capture_data[i] = static_cast<int16_t>(sine * 0.1f * 32768);
+            }
         }
 
         scope_trace trace;
@@ -126,15 +128,11 @@ void audio::update(::client& client) {
         ));
     }
 
-    printf("frame size: %i; ", client.encoded_audio_in_size);
-
     for (int i = 0; i < client.users.position.size(); i++) {
         scope_trace trace;
 
         if (i >= sources_count)
             break;
-
-        printf("%i, ", client.users.encoded_audio_out_size[i]);
 
         if (client.users.encoded_audio_out_size[i] == 0)
             continue;
@@ -170,5 +168,4 @@ void audio::update(::client& client) {
             openal_check();
         }
     }
-    printf("\n");
 }

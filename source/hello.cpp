@@ -20,6 +20,8 @@ hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
             if (*argument != nullptr) {
                 server = {*argument, *argument + strlen(*argument)};
             }
+        } else if (strcmp(*argument, "--sine") == 0) {
+            audio->play_sine = true;
         }
     }
 

@@ -29,4 +29,6 @@ struct audio {
 
     unique_openal_buffers<buffer_count * sources_count> buffers;
     unique_openal_sources<sources_count> sources;
+
+    bool play_sine = false;
 };
