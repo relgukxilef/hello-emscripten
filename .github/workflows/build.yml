@@ -45,14 +45,14 @@ jobs:
         submodules: recursive
 
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{matrix.type}} --target ${{matrix.platform.target}}
+      run: cmake --build build --config ${{matrix.type}} --target ${{matrix.platform.target}}
 
     - uses: actions/upload-artifact@v4
       with:
         name: build-${{matrix.type}}-${{matrix.platform.name}}
-        path: ${{github.workspace}}/build/source
+        path: build/source
         if-no-files-found: error
     
