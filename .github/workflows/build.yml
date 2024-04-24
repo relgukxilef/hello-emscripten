@@ -21,7 +21,7 @@ jobs:
               CC: emcc
           - name: Desktop
             target: test
-            dependencies: libglfw3-dev libgl-dev libssl-dev libwayland-dev
+            dependencies: libglfw3-dev libgl-dev libssl-dev libwayland-dev libxkbcommon-dev
             configure: -DGLFW_BUILD_WAYLAND=ON -DGLFW_BUILD_X11=OFF
 
     runs-on: ${{matrix.os}}
