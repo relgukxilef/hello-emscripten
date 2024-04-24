@@ -1,0 +1,2 @@
+AvatarSample_B.vrm (C) VRoid Project https://hub.vroid.com/en/characters/7939147878897061040/models/2292219474373673889
+white_modern_living_room.glb (C) dylanheyes (https://sketchfab.com/dylanheyes) https://sketchfab.com/3d-models/white-modern-living-room-afb8cb0cbee1488caf61471ef14041e9
