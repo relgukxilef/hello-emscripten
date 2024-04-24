@@ -53,6 +53,6 @@ jobs:
     - uses: actions/upload-artifact@v4
       with:
         name: build-${{matrix.type}}-${{matrix.platform.name}}
-        path: build/source
+        path: ${{github.workspace}}/build/source
         if-no-files-found: error
     
