@@ -18,9 +18,7 @@ if (EMSCRIPTEN)
     add_compile_options(-fdeclspec)
 endif()
 
-add_subdirectory(source)
-
-add_subdirectory(submodules/glm)
+add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
 add_subdirectory(submodules/SPIRV-Cross EXCLUDE_FROM_ALL)
 
@@ -30,12 +28,13 @@ set(BOOST_IOSTREAMS_ENABLE_ZLIB OFF)
 add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
 
 set(ZLIB_COMPAT ON)
-set(ZLIB_ROOT "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng")
-set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
 add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
 add_library(ZLIB::ZLIB ALIAS zlib)
 
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
+set(ZLIB_ROOT "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng")
+set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
+set(ENV{CPPFLAGS} "-I${ZLIB_ROOT}")
 target_include_directories(
     png_static PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng>
@@ -54,3 +53,5 @@ if (NOT EMSCRIPTEN)
     set(GLFW_BUILD_DOCS OFF)
     add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 endif()
+
+add_subdirectory(source)
