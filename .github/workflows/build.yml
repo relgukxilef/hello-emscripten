@@ -22,7 +22,7 @@ jobs:
           - name: Desktop
             target: test
             dependencies: libgl-dev libvulkan-dev libssl-dev
-            configure: -DGLFW_BUILD_WAYLAND=OF -DGLFW_BUILD_X11=OFF
+            configure: -DGLFW_BUILD_WAYLAND=OFF -DGLFW_BUILD_X11=OFF
 
     runs-on: ${{matrix.os}}
 
