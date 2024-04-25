@@ -21,7 +21,7 @@ jobs:
               CC: emcc
           - name: Desktop
             target: test
-            dependencies: libgl-dev libvulkan1 libssl-dev libwayland-dev libxkbcommon-dev xorg-dev
+            dependencies: libgl-dev libvulkan-dev libssl-dev libwayland-dev libxkbcommon-dev xorg-dev
             configure: -DGLFW_BUILD_WAYLAND=ON -DGLFW_BUILD_X11=ON
 
     runs-on: ${{matrix.os}}
@@ -41,6 +41,18 @@ jobs:
       run: wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
 
     - uses: actions/checkout@v3
+      with:
+        submodules: false
+
+    - uses: actions/cache@v4
+      id: submodule-cache
+      with:
+        path: submodules
+        key: submodules-${{ hashFiles('.gitmodules') }}
+        save-always: true
+
+    - uses: actions/checkout@v3
+      if: steps.submodule-cache.outputs.cache-hit != 'true'
       with:
         submodules: recursive
 
