@@ -1,6 +1,7 @@
 #include "trace.h"
 #include <cstdio>
 #include <thread>
+#include <inttypes.h>
 
 unsigned process_id;
 FILE *trace_file;
@@ -40,7 +41,7 @@ scope_trace::~scope_trace() {
         line,
         process_id,
         std::hash<std::thread::id>()(std::this_thread::get_id()),
-        start_time,
-        precise_time() - start_time
+        (long long unsigned)start_time,
+        (long long unsigned)precise_time() - start_time
     );
 }

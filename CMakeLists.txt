@@ -27,14 +27,19 @@ add_subdirectory(submodules/VulkanGL EXCLUDE_FROM_ALL)
 set(BOOST_IOSTREAMS_ENABLE_ZLIB OFF)
 add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
 
-set(ZLIB_COMPAT ON)
-add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
-add_library(ZLIB::ZLIB ALIAS zlib)
+if (NOT UNIX)
+    # Can't figure out how to keep libpng from using the system library for
+    # generated sources
+    set(ZLIB_COMPAT ON)
+    add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
+    add_library(ZLIB::ZLIB ALIAS zlib)
 
+    set(ZLIB_ROOT "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng")
+    set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
+    set(ZLIBINC "${ZLIB_ROOT}")
+endif()
+    
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
-set(ZLIB_ROOT "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng")
-set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
-set(ENV{CPPFLAGS} "-I${ZLIB_ROOT}")
 target_include_directories(
     png_static PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/submodules/libpng>
