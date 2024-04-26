@@ -27,7 +27,7 @@ add_subdirectory(submodules/VulkanGL EXCLUDE_FROM_ALL)
 set(BOOST_IOSTREAMS_ENABLE_ZLIB OFF)
 add_subdirectory(submodules/boost EXCLUDE_FROM_ALL)
 
-if (NOT UNIX)
+if (NOT UNIX OR EMSCRIPTEN)
     # Can't figure out how to keep libpng from using the system library for
     # generated sources
     set(ZLIB_COMPAT ON)
