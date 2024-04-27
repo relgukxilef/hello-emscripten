@@ -32,7 +32,6 @@ jobs:
     env:
       CXX: ${{matrix.platform.env.CXX}}
       CC: ${{matrix.platform.env.CC}}
-      build: ~/build
 
     steps:
     - name: Install Dependencies
@@ -58,24 +57,21 @@ jobs:
 
     - uses: actions/cache/save@v4
       id: submodule-cache-save
+      if: steps.submodule-cache.outputs.cache-hit != 'true'
       with:
         path: submodules
         key: submodules-${{ hashFiles('.gitmodules') }}
   
     - name: Configure CMake
-      run: cmake -B ${{env.build}} -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
 
     - name: Build
-      run: cmake --build ${{env.build}} --config ${{matrix.type}} --target ${{matrix.platform.target}}
+      run: cmake --build ${{github.workspace}}/build --config ${{matrix.type}} --target ${{matrix.platform.target}}
 
     - uses: actions/upload-artifact@v4
       id: upload-build
       with:
         name: build-${{matrix.type}}-${{matrix.platform.name}}
-        path: ${{env.build}}
+        path: ${{github.workspace}}
         compression-level: 9
-
-    - run: |
-        echo "${{github.workspace}}"
-        echo "${{env.build}}"
     
