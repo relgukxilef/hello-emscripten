@@ -63,7 +63,7 @@ jobs:
         key: submodules-${{ hashFiles('.gitmodules') }}
   
     - name: Configure CMake
-      run: cmake -B ${{env.build}}-DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
+      run: cmake -B ${{env.build}} -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
 
     - name: Build
       run: cmake --build ${{env.build}} --config ${{matrix.type}} --target ${{matrix.platform.target}}
