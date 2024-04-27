@@ -44,18 +44,23 @@ jobs:
       with:
         submodules: false
 
-    - uses: actions/cache@v4
+    - uses: actions/cache/restore@v4
       id: submodule-cache
       with:
         path: submodules
         key: submodules-${{ hashFiles('.gitmodules') }}
-        save-always: true
 
     - uses: actions/checkout@v3
       if: steps.submodule-cache.outputs.cache-hit != 'true'
       with:
         submodules: recursive
 
+    - uses: actions/cache/save@v4
+      id: submodule-cache-save
+      with:
+        path: submodules
+        key: submodules-${{ hashFiles('.gitmodules') }}
+  
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
 
