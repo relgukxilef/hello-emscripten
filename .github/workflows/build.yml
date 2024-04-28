@@ -73,6 +73,5 @@ jobs:
       with:
         name: build-${{matrix.type}}-${{matrix.platform.name}}
         path: ${{github.workspace}}
-        compression-level: 9
         if-no-files-found: error
     
