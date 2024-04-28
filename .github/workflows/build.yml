@@ -21,8 +21,8 @@ jobs:
               CC: emcc
           - name: Desktop
             target: test
-            dependencies: libglfw3-dev libgl-dev libssl-dev
-            configure: -DGLFW_BUILD_WAYLAND=OFF -DGLFW_BUILD_X11=OFF
+            dependencies: libgl-dev libvulkan-dev libssl-dev libwayland-dev libxkbcommon-dev xorg-dev
+            configure: -DGLFW_BUILD_WAYLAND=ON -DGLFW_BUILD_X11=ON
 
     runs-on: ${{matrix.os}}
 
@@ -40,12 +40,22 @@ jobs:
     - name: Install shaderc
       run: wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
 
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
-
+        lfs: true
+        clean: false
+  
     - name: Configure CMake
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
 
     - name: Build
-      run: cmake --build ${{github.workspace}}/build --config ${{matrix.type}} --target ${{matrix.platform.target}}
+      run: cmake --build build --config ${{matrix.type}} --target ${{matrix.platform.target}}
+
+    - uses: actions/upload-artifact@v3
+      id: upload-build
+      with:
+        name: build-${{matrix.type}}-${{matrix.platform.name}}
+        path: build
+        if-no-files-found: error
+    
