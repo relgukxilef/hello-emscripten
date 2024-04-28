@@ -40,27 +40,11 @@ jobs:
     - name: Install shaderc
       run: wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
 
-    - uses: actions/checkout@v3
-      with:
-        submodules: false
-
-    - uses: actions/cache/restore@v4
-      id: submodule-cache
-      with:
-        path: submodules
-        key: submodules-${{ hashFiles('.gitmodules') }}
-
-    - uses: actions/checkout@v3
-      if: steps.submodule-cache.outputs.cache-hit != 'true'
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
-
-    - uses: actions/cache/save@v4
-      id: submodule-cache-save
-      if: steps.submodule-cache.outputs.cache-hit != 'true'
-      with:
-        path: submodules
-        key: submodules-${{ hashFiles('.gitmodules') }}
+        lfs: true
+        clean: false
   
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
@@ -72,6 +56,6 @@ jobs:
       id: upload-build
       with:
         name: build-${{matrix.type}}-${{matrix.platform.name}}
-        path: ${{github.workspace}}
+        path: ${{github.workspace}}/build
         if-no-files-found: error
     
