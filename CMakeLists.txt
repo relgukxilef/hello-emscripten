@@ -59,4 +59,6 @@ if (NOT EMSCRIPTEN)
     add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
 endif()
 
+add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
+
 add_subdirectory(source)

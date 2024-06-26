@@ -26,6 +26,8 @@ add_library(
     utility/serialization.h utility/serialization.cpp
     utility/unique_span.h
     utility/trace.h utility/trace.cpp
+    utility/vulkan_memory_allocator_resource.h
+    utility/vulkan_memory_allocator_resource.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -39,6 +41,13 @@ target_link_libraries(
     Boost::json
     Boost::static_string
     opus
+    VulkanMemoryAllocator
+)
+
+target_compile_definitions(
+    hello PRIVATE
+    VMA_STATIC_VULKAN_FUNCTIONS=0
+    VMA_DYNAMIC_VULKAN_FUNCTIONS=1
 )
 
 if (EMSCRIPTEN)
