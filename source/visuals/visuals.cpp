@@ -139,6 +139,24 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     }
     current_device = device.get();
 
+    {
+        VmaVulkanFunctions vulkanFunctions = {
+            .vkGetInstanceProcAddr = &vkGetInstanceProcAddr,
+            .vkGetDeviceProcAddr = &vkGetDeviceProcAddr,
+        };
+
+        VmaAllocatorCreateInfo allocatorCreateInfo = {
+            .physicalDevice = physical_device,
+            .device = device.get(),
+            .pVulkanFunctions = &vulkanFunctions,
+            .instance = instance,
+            .vulkanApiVersion = VK_API_VERSION_1_2,
+        };
+
+        vmaCreateAllocator(&allocatorCreateInfo, out_ptr(allocator));
+    }
+    current_allocator = allocator.get();
+
     // retreive queues
     vkGetDeviceQueue(device.get(), graphics_queue_family, 0, &graphics_queue);
     vkGetDeviceQueue(device.get(), present_queue_family, 0, &present_queue);

@@ -22,9 +22,8 @@ inline vulkan_error::vulkan_error(VkResult result) noexcept : result(result) {}
 inline void check(VkResult success) {
     if (success == VK_SUCCESS) {
         return;
-    } else {
-        throw vulkan_error(success);
     }
+    throw vulkan_error(success);
 }
 
 template<typename T, auto Deleter>

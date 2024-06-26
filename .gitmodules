@@ -38,3 +38,7 @@
 	path = submodules/glfw
 	url = https://github.com/glfw/glfw.git
 	shallow = true
+[submodule "submodules/VulkanMemoryAllocator"]
+	path = submodules/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+	shallow = true
