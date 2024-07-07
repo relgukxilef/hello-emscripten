@@ -61,7 +61,9 @@ else()
     set(VMA_STATIC_VULKAN_FUNCTIONS OFF)
     set(VMA_DYNAMIC_VULKAN_FUNCTIONS ON)
     set(Vulkan_LIBRARY vulkangl)
-    get_target_property(Vulkan_INCLUDE_DIR Vulkan-Headers INCLUDE_DIRECTORIES)
+    get_target_property(
+        Vulkan_INCLUDE_DIR Vulkan-Headers INTERFACE_INCLUDE_DIRECTORIES
+    )
 endif()
 
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
