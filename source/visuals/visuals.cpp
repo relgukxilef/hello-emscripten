@@ -150,7 +150,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .device = device.get(),
             .pVulkanFunctions = &vulkanFunctions,
             .instance = instance,
-            .vulkanApiVersion = VK_API_VERSION_1_2,
+            .vulkanApiVersion = VK_API_VERSION_1_0,
         };
 
         vmaCreateAllocator(&allocatorCreateInfo, out_ptr(allocator));
