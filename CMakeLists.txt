@@ -57,8 +57,12 @@ add_subdirectory(submodules/openal-soft EXCLUDE_FROM_ALL)
 if (NOT EMSCRIPTEN)
     set(GLFW_BUILD_DOCS OFF)
     add_subdirectory(submodules/glfw EXCLUDE_FROM_ALL)
+else()
+    add_library(Vulkan::Vulkan ALIAS vulkangl)
 endif()
 
+set(VMA_STATIC_VULKAN_FUNCTIONS OFF)
+set(VMA_DYNAMIC_VULKAN_FUNCTIONS ON)
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
 
 add_subdirectory(source)

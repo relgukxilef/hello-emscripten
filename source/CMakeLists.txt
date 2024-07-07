@@ -44,12 +44,6 @@ target_link_libraries(
     VulkanMemoryAllocator
 )
 
-target_compile_definitions(
-    hello PRIVATE
-    VMA_STATIC_VULKAN_FUNCTIONS=0
-    VMA_DYNAMIC_VULKAN_FUNCTIONS=1
-)
-
 if (EMSCRIPTEN)
     add_executable(
         hello-gl
