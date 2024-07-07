@@ -40,7 +40,10 @@ struct visuals {
 
     void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
-    std::uint32_t memory_size = 1u * 1024 * 1024 * 1024;
+    // TODO: let vma handle memory limits
+    std::uint32_t vertex_memory_size = 128 * 1024 * 1024;
+    std::uint32_t index_memory_size = 128 * 1024 * 1024;
+    std::uint32_t pixel_memory_size = 1024 * 1024 * 1024;
 
     unique_debug_utils_messenger debug_utils_messenger;
 
@@ -65,14 +68,16 @@ struct visuals {
 
     unique_pipeline_layout pipeline_layout;
 
-    uint32_t host_visible_memory_type_index, device_local_memory_type_index;
-
-    unique_device_memory host_visible_memory, device_local_memory;
-
-    unique_buffer host_visible_buffer, device_local_buffer;
-
-    std::vector<unique_image> model_images;
-    std::vector<unique_image_view> model_image_views;
+    // TODO: replace pixel_buffer with fixed size staging
+    // buffer
+    unique_allocation pixel_allocation;
+    unique_buffer pixel_buffer;
+    struct image {
+        unique_allocation allocation;
+        unique_image image;
+        unique_image_view view;
+    };
+    std::vector<image> images;
     unique_sampler default_sampler;
 
     uint32_t view_parameters_offset, user_position_offset;
@@ -84,9 +89,14 @@ struct visuals {
     };
     std::vector<visual_model> models;
 
+    unique_allocation parameter_allocation;
+    unique_buffer parameter_buffer;
+    unique_allocation vertex_allocation;
+    unique_buffer vertex_buffer;
+    unique_allocation index_allocation;
+    unique_buffer index_buffer;
+
     unique_command_pool command_pool;
 
     std::unique_ptr<::view> view;
-
-    unique_allocation allocation;
 };

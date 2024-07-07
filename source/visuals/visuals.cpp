@@ -240,30 +240,6 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         ));
     }
 
-    for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
-        if (
-            (
-                properties.memoryTypes[i].propertyFlags &
-                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-            ) == VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
-        ) {
-            host_visible_memory_type_index = i;
-            break;
-        }
-    }
-
-    for (uint32_t i = 0; i < properties.memoryTypeCount; i++) {
-        if (
-            (
-                properties.memoryTypes[i].propertyFlags &
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            ) == VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-        ) {
-            device_local_memory_type_index = i;
-            break;
-        }
-    }
-
     {
         VkCommandPoolCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -279,65 +255,21 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     {
         VkBufferCreateInfo create_info {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
-            .size = memory_size,
+            .size = sizeof(parameters),
             .usage =
-                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
-                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
-                VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
         };
-
-        check(vkCreateBuffer(
-            device.get(), &create_info, nullptr, out_ptr(host_visible_buffer)
-        ));
-    }
-
-    {
-        VkMemoryRequirements requirements;
-        vkGetBufferMemoryRequirements(
-            device.get(), host_visible_buffer.get(), &requirements
-        );
-
-        if (
-            ~requirements.memoryTypeBits & (1 << host_visible_memory_type_index)
-        ) {
-            // TODO: do this check when looking for memory types
-            throw;
-        }
-
-        VkMemoryAllocateInfo allocate_info {
-            .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-            .allocationSize = requirements.size,
-            .memoryTypeIndex = host_visible_memory_type_index,
+        VmaAllocationCreateInfo allocation_create_info {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
         };
-
-        check(vkAllocateMemory(
-            device.get(), &allocate_info, nullptr, out_ptr(host_visible_memory)
-        ));
-
-        check(vkBindBufferMemory(
-            device.get(), host_visible_buffer.get(),
-            host_visible_memory.get(), 0
+        
+        check(vmaCreateBuffer(
+            allocator.get(), &create_info, &allocation_create_info, 
+            out_ptr(parameter_buffer), out_ptr(parameter_allocation), nullptr
         ));
     }
-
-    unsigned memory_offset = 0;
-    view_parameters_offset = memory_offset;
-    memory_offset += sizeof(parameters);
-    user_position_offset = memory_offset;
-    memory_offset += sizeof(glm::vec4) * 16;
-
-    memory_offset = round_up(memory_offset, 128);
-
-    uint8_t *memory;
-    check(vkMapMemory(
-        device.get(), host_visible_memory.get(), 0, memory_size, 0,
-        (void**)&memory
-    ));
-
-    uint8_t *i = memory + memory_offset;
 
     {
         VkSamplerCreateInfo create_info{
@@ -360,35 +292,99 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         ));
     }
 
-    VkMemoryAllocateInfo allocate_info{
-        .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-        .allocationSize = memory_size,
-        .memoryTypeIndex = device_local_memory_type_index,
-    };
+    mapped_allocation vertex_mapping, index_mapping, pixel_mapping;
+    {
+        VkBufferCreateInfo create_info {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = vertex_memory_size,
+            .usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+        VmaAllocationCreateInfo allocation_create_info {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+        };
+        check(vmaCreateBuffer(
+            allocator.get(), &create_info, &allocation_create_info, 
+            out_ptr(vertex_buffer), 
+            out_ptr(vertex_allocation), nullptr
+        ));
+        vulkan_memory_allocator_map_memory(
+            vertex_allocation.get(), out_ptr(vertex_mapping)
+        );
+    }
+    {
+        VkBufferCreateInfo create_info {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = index_memory_size,
+            .usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+        VmaAllocationCreateInfo allocation_create_info {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+        };
+        VmaAllocationInfo allocation_info;
+        check(vmaCreateBuffer(
+            allocator.get(), &create_info, &allocation_create_info, 
+            out_ptr(index_buffer), 
+            out_ptr(index_allocation), 
+            &allocation_info
+        ));
+        vulkan_memory_allocator_map_memory(
+            index_allocation.get(), out_ptr(index_mapping)
+        );
+    }
+    {
+        VkBufferCreateInfo create_info {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .size = pixel_memory_size,
+            .usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        };
+        VmaAllocationCreateInfo allocation_create_info {
+            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+        };
+        VmaAllocationInfo allocation_info;
+        check(vmaCreateBuffer(
+            allocator.get(), &create_info, &allocation_create_info, 
+            out_ptr(pixel_buffer), 
+            out_ptr(pixel_allocation), 
+            &allocation_info
+        ));
+        vulkan_memory_allocator_map_memory(
+            pixel_allocation.get(), out_ptr(pixel_mapping)
+        );
+    }
 
-    check(vkAllocateMemory(
-        device.get(), &allocate_info, nullptr,
-        out_ptr(device_local_memory)
-    ));
-
-    uint32_t image_begin = 0;
+    uint8_t 
+        *vertices = vertex_mapping->bytes, 
+        *indices = index_mapping->bytes, 
+        *pixels = pixel_mapping->bytes;
+    uint8_t *vertex = vertices, *index = indices, *pixel = pixels;
 
     for (auto &model : {client.test_model, client.world_model}) {
         models.push_back({});
         auto& visual_model = models.back();
-        visual_model.position_offset = i - memory;
-        i = std::ranges::copy(model.positions, i).out;
-        visual_model.normal_offset = i - memory;
-        i = std::ranges::copy(model.normals, i).out;
-        visual_model.texture_coordinate_offset = i - memory;
-        i = std::ranges::copy(model.texture_coordinates, i).out;
-        visual_model.indices_offset = i - memory;
-        i = std::ranges::copy(model.indices, i).out;
-        visual_model.images_offset = i - memory;
-        i = std::ranges::copy(model.pixels, i).out;
+
+        visual_model.position_offset = vertex - vertices;
+        vertex = std::ranges::copy(model.positions, vertex).out;
+        visual_model.normal_offset = vertex - vertices;
+        vertex = std::ranges::copy(model.normals, vertex).out;
+        visual_model.texture_coordinate_offset = vertex - vertices;
+        vertex = std::ranges::copy(model.texture_coordinates, vertex).out;
+
+        visual_model.indices_offset = index - indices;
+        index = std::ranges::copy(model.indices, index).out;
+
+        visual_model.images_offset = pixel - pixels;
+        pixel = std::ranges::copy(model.pixels, pixel).out;
+
+        // TODO: flush pixels before vkCmdCopyBufferToImage
 
         for (auto image : model.images) {
-            model_images.push_back({});
+            images.push_back({});
             VkImageCreateInfo create_info{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
                 .imageType = VK_IMAGE_TYPE_2D,
@@ -404,21 +400,20 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                 .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             };
-            check(vkCreateImage(
-                device.get(), &create_info, nullptr,
-                out_ptr(model_images.back())
+            VmaAllocationCreateInfo allocation_info{
+                .usage = VMA_MEMORY_USAGE_AUTO,
+            };
+            check(vmaCreateImage(
+                allocator.get(), &create_info, &allocation_info, 
+                out_ptr(images.back().image), 
+                out_ptr(images.back().allocation),
+                nullptr
             ));
 
             {
-                check(vkBindImageMemory(
-                    device.get(), model_images.back().get(),
-                    device_local_memory.get(), image_begin
-                ));
-
-                model_image_views.push_back({});
                 VkImageViewCreateInfo create_info{
                     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-                    .image = model_images.back().get(),
+                    .image = images.back().image.get(),
                     .viewType = VK_IMAGE_VIEW_TYPE_2D,
                     .format = VK_FORMAT_R8G8B8A8_SRGB,
                     .subresourceRange = {
@@ -432,11 +427,9 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
 
                 check(vkCreateImageView(
                     device.get(), &create_info, nullptr,
-                    out_ptr(model_image_views.back())
+                    out_ptr(images.back().view)
                 ));
             }
-
-            image_begin = round_up(image_begin + image.size, 1024);
 
             {
                 VkCommandBuffer copy_command;
@@ -463,7 +456,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                     .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = model_images.back().get(),
+                    .image = images.back().image.get(),
                     .subresourceRange = {
                         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                         .baseMipLevel = 0,
@@ -498,8 +491,8 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                     },
                 };
                 vkCmdCopyBufferToImage(
-                    copy_command, host_visible_buffer.get(),
-                    model_images.back().get(),
+                    copy_command, pixel_buffer.get(),
+                    images.back().image.get(),
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     1, &buffer_image_copy
                 );
@@ -512,7 +505,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                     .newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = model_images.back().get(),
+                    .image = images.back().image.get(),
                     .subresourceRange = {
                         .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                         .baseMipLevel = 0,
@@ -541,21 +534,17 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                 check(vkQueueSubmit(
                     graphics_queue, 1, &submit_info, VK_NULL_HANDLE
                 ));
-                check(vkQueueWaitIdle(graphics_queue));
+                check(vkQueueWaitIdle(graphics_queue)); // TODO: remove this
             }
         }
     }
 
-    VkMappedMemoryRange ranges[] = {
-        VkMappedMemoryRange{
-            .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-            .memory = host_visible_memory.get(),
-            .offset = 0,
-            .size = static_cast<VkDeviceSize>(memory_size),
-        }
-    };
-    check(vkFlushMappedMemoryRanges(device.get(), 1, ranges));
-    vkUnmapMemory(device.get(), host_visible_memory.get());
+    VmaAllocation allocations[] = 
+        { vertex_allocation.get(), index_allocation.get(), };
+    check(vmaFlushAllocations(
+        allocator.get(), std::size(allocations),
+        allocations, nullptr, nullptr
+    ));
 
     view.reset(new ::view(client, *this, instance, surface));
 }

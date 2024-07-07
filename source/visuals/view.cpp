@@ -33,13 +33,13 @@ void record_command_buffer(
             break;
         image_info[primitive] = {
             .sampler = visuals.default_sampler.get(),
-            .imageView = visuals.model_image_views[
+            .imageView = visuals.images[
                 std::min<unsigned>(
                     client.test_model.images.size() +
                     client.world_model.primitives[j].image_index,
-                    visuals.model_image_views.size() - 1
+                    visuals.images.size() - 1
                 )
-            ].get(),
+            ].view.get(),
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
         write_descriptor_sets[primitive] = {
@@ -59,12 +59,12 @@ void record_command_buffer(
                 break;
             image_info[primitive] = {
                 .sampler = visuals.default_sampler.get(),
-                .imageView = visuals.model_image_views[
+                .imageView = visuals.images[
                     std::min<unsigned>(
                         client.test_model.primitives[j].image_index,
-                        visuals.model_image_views.size() - 1
+                        visuals.images.size() - 1
                     )
-                ].get(),
+                ].view.get(),
                 .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
             };
             write_descriptor_sets[primitive] = {
@@ -144,8 +144,8 @@ void record_command_buffer(
     };
 
     VkBuffer vertex_buffers[] = {
-        visuals.host_visible_buffer.get(), visuals.host_visible_buffer.get(),
-        visuals.host_visible_buffer.get(),
+        visuals.vertex_buffer.get(), visuals.vertex_buffer.get(),
+        visuals.vertex_buffer.get(),
     };
 
     vkCmdBindDescriptorSets(
@@ -169,7 +169,7 @@ void record_command_buffer(
             vertex_buffers, offsets
         );
         vkCmdBindIndexBuffer(
-            image.draw_command_buffer, visuals.host_visible_buffer.get(),
+            image.draw_command_buffer, visuals.index_buffer.get(),
             model.indices_offset, VK_INDEX_TYPE_UINT32
         );
     }
@@ -211,7 +211,7 @@ void record_command_buffer(
             vertex_buffers, offsets
         );
         vkCmdBindIndexBuffer(
-            image.draw_command_buffer, visuals.host_visible_buffer.get(),
+            image.draw_command_buffer, visuals.index_buffer.get(),
             model.indices_offset, VK_INDEX_TYPE_UINT32
         );
     }
@@ -640,13 +640,13 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         );
         VkDescriptorImageInfo image_info{
             .sampler = v.default_sampler.get(),
-            .imageView = v.model_image_views[0].get(),
+            .imageView = v.images[0].view.get(),
             .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
 
         for (auto j = 0u; j < descriptor_set_count; j++) {
             buffer_info[j] = {
-                .buffer = v.host_visible_buffer.get(),
+                .buffer = v.parameter_buffer.get(),
                 .offset = sizeof(parameter) * j,
                 .range = sizeof(parameter)
             };
@@ -974,15 +974,15 @@ VkResult view::draw(visuals &v, ::client& client) {
         glm::mat4 view = glm::mat4_cast(glm::inverse(client.user_orientation));
         view = glm::translate(view, -client.user_position);
 
-        ::parameters* parameters;
 
         // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
         uint32_t size = round_up(sizeof(::parameters), 128);
 
-        check(vkMapMemory(
-            v.device.get(), v.host_visible_memory.get(), 0, size, 0,
-            (void**)&parameters
-        ));
+        mapped_allocation parameter_mapping;
+        vulkan_memory_allocator_map_memory(
+            v.parameter_allocation.get(), out_ptr(parameter_mapping)
+        );
+        ::parameters* parameters = (::parameters*)parameter_mapping->bytes;
         parameters->parameters[0].model_view_projection_matrix =
             projection * view;
 
@@ -1017,16 +1017,9 @@ VkResult view::draw(visuals &v, ::client& client) {
             }
         }
 
-        VkMappedMemoryRange ranges[] = {
-            VkMappedMemoryRange{
-                .sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,
-                .memory = v.host_visible_memory.get(),
-                .offset = 0,
-                .size = size,
-            }
-        };
-        check(vkFlushMappedMemoryRanges(v.device.get(), 1, ranges));
-        vkUnmapMemory(v.device.get(), v.host_visible_memory.get());
+        vmaFlushAllocation(
+            v.allocator.get(), v.parameter_allocation.get(), 0, VK_WHOLE_SIZE
+        );
     }
 
 
