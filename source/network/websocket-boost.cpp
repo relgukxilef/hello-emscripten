@@ -223,18 +223,7 @@ insecure_websocket::insecure_websocket(
 }
 
 insecure_websocket::~insecure_websocket() {
-    std::promise<void> promise;
-    auto future = promise.get_future();
-    boost::asio::post(stream.get_executor(), [this, &promise] () {
-        stream.async_close(
-            boost::beast::websocket::close_code::normal,
-            [&promise](const boost::system::error_code& error) {
-                check(error);
-                promise.set_value();
-            }
-        );
-    });
-    future.wait();
+    
 }
 
 void secure_websocket::read() {
@@ -319,17 +308,5 @@ secure_websocket::secure_websocket(
 }
 
 secure_websocket::~secure_websocket() {
-    // TODO: sync with other operations
-    std::promise<void> promise;
-    auto future = promise.get_future();
-    boost::asio::post(stream.get_executor(), [this, &promise] () {
-        stream.async_close(
-            boost::beast::websocket::close_code::normal,
-            [&promise](const boost::system::error_code& error) {
-                check(error);
-                promise.set_value();
-            }
-        );
-    });
-    future.wait();
+    
 }
