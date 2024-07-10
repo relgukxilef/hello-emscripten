@@ -181,17 +181,17 @@ else()
         ${Boost_LIBRARIES}
         Boost::process
     )
-
-    add_custom_command(
-        TARGET hello PRE_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
-            ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_files/white_modern_living_room.glb
-            ${CMAKE_CURRENT_BINARY_DIR}/test_files/white_modern_living_room.glb
-    )
 endif()
+
+add_custom_command(
+    TARGET hello POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
+        ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_files/white_modern_living_room.glb
+        ${CMAKE_CURRENT_BINARY_DIR}/test_files/white_modern_living_room.glb
+)
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
     target_sources(
