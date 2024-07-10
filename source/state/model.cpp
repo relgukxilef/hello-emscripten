@@ -414,8 +414,8 @@ struct handler {
 
     ::state state = ::state::root;
     uint32_t depth = 0;
-    boost::static_string<128> key;
-    boost::static_string<128> value;
+    std::string key;
+    std::string value;
     uint32_t array_index = 0;
 
     std::vector<buffer_view> buffer_views;

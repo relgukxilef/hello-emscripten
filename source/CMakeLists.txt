@@ -76,10 +76,15 @@ if (EMSCRIPTEN)
     )
 
     target_link_options(
-        hello-gl PUBLIC
+        hello PUBLIC
         "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals"
         "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
         -sINITIAL_MEMORY=268435456
+        -fwasm-exceptions 
+    )
+    target_compile_options(
+        hello PUBLIC
+        -fwasm-exceptions 
     )
 
 else()
