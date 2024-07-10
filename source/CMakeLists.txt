@@ -77,8 +77,8 @@ if (EMSCRIPTEN)
 
     target_link_options(
         hello-gl PUBLIC
-        --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
-        --preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals"
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
         -sINITIAL_MEMORY=268435456
     )
 
