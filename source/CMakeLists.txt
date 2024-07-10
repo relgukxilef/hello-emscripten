@@ -183,7 +183,7 @@ else()
     )
 
     add_custom_command(
-        TARGET hello POST_BUILD
+        TARGET hello PRE_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
             ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
