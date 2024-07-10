@@ -38,7 +38,7 @@ if (NOT UNIX OR EMSCRIPTEN)
     set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
     set(ZLIBINC "${ZLIB_ROOT}")
 endif()
-    
+
 add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
 target_include_directories(
     png_static PUBLIC

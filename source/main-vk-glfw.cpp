@@ -107,10 +107,6 @@ int main(int argc, char *argv[]) {
         extensions.get() + glfw_extension_count
     );
 
-    const char* enabled_layers[] = {
-        "VK_LAYER_KHRONOS_validation",
-    };
-
     unique_instance instance;
     VkApplicationInfo application_info{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -121,8 +117,8 @@ int main(int argc, char *argv[]) {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
         .pNext = &debug_utils_messenger_create_info,
         .pApplicationInfo = &application_info,
-        .enabledLayerCount = std::size(enabled_layers),
-        .ppEnabledLayerNames = enabled_layers,
+        .enabledLayerCount = 0,
+        .ppEnabledLayerNames = nullptr,
         .enabledExtensionCount = static_cast<uint32_t>(extension_count),
         .ppEnabledExtensionNames = extensions.get(),
     };

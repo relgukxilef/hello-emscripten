@@ -115,6 +115,10 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             }
         };
 
+        // Vulkan doesn't allow asking for multiple queues of the same family
+        std::uint32_t queue_count = 
+            1 + (graphics_queue_family != present_queue_family);
+
         const char* enabled_extension_names[] = {
             VK_KHR_SWAPCHAIN_EXTENSION_NAME,
         };
@@ -124,8 +128,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         };
         VkDeviceCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .queueCreateInfoCount =
-                static_cast<uint32_t>(std::size(queue_create_infos)),
+            .queueCreateInfoCount = queue_count,
             .pQueueCreateInfos = queue_create_infos,
             .enabledExtensionCount =
                 static_cast<uint32_t>(std::size(enabled_extension_names)),
