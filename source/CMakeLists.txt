@@ -79,7 +79,7 @@ if (EMSCRIPTEN)
         hello PUBLIC
         "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals"
         "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
-        -sINITIAL_MEMORY=268435456
+        -sINITIAL_MEMORY=1073741824
         -fwasm-exceptions 
     )
     target_compile_options(
