@@ -388,8 +388,8 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
 
         for (auto image : model.images) {
             if (image.width == 0 || image.height == 0) {
-                image.width = 8;
-                image.height = 8;
+                image.width = 16;
+                image.height = 16;
             }
             images.push_back({});
             VkImageCreateInfo create_info{
