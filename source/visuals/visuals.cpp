@@ -387,6 +387,10 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         // TODO: flush pixels before vkCmdCopyBufferToImage
 
         for (auto image : model.images) {
+            if (image.width == 0 || image.height == 0) {
+                image.width = 8;
+                image.height = 8;
+            }
             images.push_back({});
             VkImageCreateInfo create_info{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
