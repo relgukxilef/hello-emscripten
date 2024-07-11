@@ -82,10 +82,12 @@ if (EMSCRIPTEN)
         -sINITIAL_MEMORY=1073741824
         -sALLOW_MEMORY_GROWTH
         -fwasm-exceptions 
+        -gsource-map
     )
     target_compile_options(
         hello PUBLIC
         -fwasm-exceptions 
+        -gsource-map
     )
 
 else()
