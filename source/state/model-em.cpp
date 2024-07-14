@@ -35,8 +35,9 @@ EM_ASYNC_JS(
 
         context.drawImage(image, 0, 0);
 
-        const pixels = 
-            context.getImageData(0, 0, canvas.width, canvas.height).data.buffer;
+        const pixels = context.getImageData(
+            0, 0, canvas.width, canvas.height, {colorSpace: "srgb"}
+        ).data;
 
         const pixels_pointer = Module._malloc(pixels.length);
         Module.HEAPU8.set(pixels, pixels_pointer);
