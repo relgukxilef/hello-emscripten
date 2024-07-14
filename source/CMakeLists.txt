@@ -37,7 +37,6 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
-    png_static
     Boost::json
     Boost::static_string
     opus
@@ -49,6 +48,7 @@ if (EMSCRIPTEN)
         hello-gl
         main-em.cpp
         network/websocket-em.cpp
+        state/model-em.cpp
     )
 
     set_target_properties(hello-gl PROPERTIES SUFFIX ".js")
@@ -73,6 +73,8 @@ if (EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
         -lwebsocket.js
         -lopenal
+        -sASYNCIFY
+        -sEXPORTED_FUNCTIONS=['_main','_malloc']
     )
 
     target_link_options(
@@ -81,16 +83,26 @@ if (EMSCRIPTEN)
         "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
         -sINITIAL_MEMORY=1073741824
         -sALLOW_MEMORY_GROWTH
-        -fwasm-exceptions 
+        -sMAXIMUM_MEMORY=4294967296
+        #-fwasm-exceptions 
         -gsource-map
     )
     target_compile_options(
         hello PUBLIC
-        -fwasm-exceptions 
+        #-fwasm-exceptions 
         -gsource-map
     )
 
 else()
+    target_sources(
+        hello PUBLIC
+        state/model-native.cpp
+    )
+    target_link_libraries(
+       hello PUBLIC
+       png_static
+    )
+
     find_package(Vulkan 1.1)
     find_package(OpenGL)
     

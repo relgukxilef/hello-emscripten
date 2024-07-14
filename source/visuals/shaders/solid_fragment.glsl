@@ -16,5 +16,4 @@ void main() {
     color = texture(image, fragment_texture_coordinate);
     color.a = filtered_step(color.a - 0.5, fwidth(color.a));
     //color.rgb *= dot(fragment_normal, vec3(1, 0, 0)) * 0.5 + 0.5;
-    color = vec4(fragment_texture_coordinate, 1, 1);
 }

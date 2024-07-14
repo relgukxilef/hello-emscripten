@@ -384,7 +384,10 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         visual_model.images_offset = pixel - pixels;
         pixel = std::ranges::copy(model.pixels, pixel).out;
 
-        // TODO: flush pixels before vkCmdCopyBufferToImage
+        check(vmaFlushAllocation(
+            allocator.get(), pixel_allocation.get(), 
+            visual_model.images_offset, model.pixels.size()
+        ));
 
         for (auto image : model.images) {
             if (image.width == 0 || image.height == 0) {
