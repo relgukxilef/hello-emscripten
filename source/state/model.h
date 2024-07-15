@@ -48,3 +48,10 @@ struct model {
     std::vector<node_primitive> primitives;
     std::vector<image> images;
 };
+
+void parse_check(bool correct);
+
+std::vector<uint8_t> read_png(
+    std::ranges::subrange<uint8_t*> file,
+    unsigned &width, unsigned &height
+);

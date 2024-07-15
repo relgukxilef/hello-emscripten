@@ -26,6 +26,8 @@ add_library(
     utility/serialization.h utility/serialization.cpp
     utility/unique_span.h
     utility/trace.h utility/trace.cpp
+    utility/vulkan_memory_allocator_resource.h
+    utility/vulkan_memory_allocator_resource.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -35,10 +37,10 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
-    png_static
     Boost::json
     Boost::static_string
     opus
+    VulkanMemoryAllocator
 )
 
 if (EMSCRIPTEN)
@@ -46,6 +48,7 @@ if (EMSCRIPTEN)
         hello-gl
         main-em.cpp
         network/websocket-em.cpp
+        state/model-em.cpp
     )
 
     set_target_properties(hello-gl PROPERTIES SUFFIX ".js")
@@ -70,15 +73,36 @@ if (EMSCRIPTEN)
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
         -lwebsocket.js
         -lopenal
+        -sASYNCIFY
+        -sEXPORTED_FUNCTIONS=['_main','_malloc']
     )
 
     target_link_options(
-        hello-gl PUBLIC
-        --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
-        -sINITIAL_MEMORY=268435456
+        hello PUBLIC
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals"
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
+        -sINITIAL_MEMORY=1073741824
+        -sALLOW_MEMORY_GROWTH
+        -sMAXIMUM_MEMORY=4294967296
+        #-fwasm-exceptions 
+        -gsource-map
+    )
+    target_compile_options(
+        hello PUBLIC
+        #-fwasm-exceptions 
+        -gsource-map
     )
 
 else()
+    target_sources(
+        hello PUBLIC
+        state/model-native.cpp
+    )
+    target_link_libraries(
+       hello PUBLIC
+       png_static
+    )
+
     find_package(Vulkan 1.1)
     find_package(OpenGL)
     
@@ -177,17 +201,17 @@ else()
         ${Boost_LIBRARIES}
         Boost::process
     )
-
-    add_custom_command(
-        TARGET hello POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
-            ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_CURRENT_SOURCE_DIR}/test_files/white_modern_living_room.glb
-            ${CMAKE_CURRENT_BINARY_DIR}/test_files/white_modern_living_room.glb
-    )
 endif()
+
+add_custom_command(
+    TARGET hello POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
+        ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_files/white_modern_living_room.glb
+        ${CMAKE_CURRENT_BINARY_DIR}/test_files/white_modern_living_room.glb
+)
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
     target_sources(

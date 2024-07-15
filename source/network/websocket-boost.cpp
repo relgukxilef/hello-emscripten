@@ -32,7 +32,7 @@ struct insecure_websocket : public websocket::data {
     void try_write_message(websocket& s) override;
 
     insecure_websocket(client &c, event_loop &loop, url_view url);
-    ~insecure_websocket();
+    ~insecure_websocket(); // TODO: can't destroy while requests are running
     boost::beast::websocket::stream<boost::asio::ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
     boost::asio::io_context& context;
@@ -43,7 +43,7 @@ struct secure_websocket : public websocket::data {
     void try_write_message(websocket& s) override;
 
     secure_websocket(client& c, event_loop& loop, url_view url);
-    ~secure_websocket();
+    ~secure_websocket(); // TODO: can't destroy while requests are running
     boost::asio::ssl::context ssl_context;
     boost::beast::websocket::stream<
         boost::beast::ssl_stream<boost::asio::ip::tcp::socket>
@@ -223,18 +223,7 @@ insecure_websocket::insecure_websocket(
 }
 
 insecure_websocket::~insecure_websocket() {
-    std::promise<void> promise;
-    auto future = promise.get_future();
-    boost::asio::post(stream.get_executor(), [this, &promise] () {
-        stream.async_close(
-            boost::beast::websocket::close_code::normal,
-            [&promise](const boost::system::error_code& error) {
-                check(error);
-                promise.set_value();
-            }
-        );
-    });
-    future.wait();
+    
 }
 
 void secure_websocket::read() {
@@ -319,17 +308,5 @@ secure_websocket::secure_websocket(
 }
 
 secure_websocket::~secure_websocket() {
-    // TODO: sync with other operations
-    std::promise<void> promise;
-    auto future = promise.get_future();
-    boost::asio::post(stream.get_executor(), [this, &promise] () {
-        stream.async_close(
-            boost::beast::websocket::close_code::normal,
-            [&promise](const boost::system::error_code& error) {
-                check(error);
-                promise.set_value();
-            }
-        );
-    });
-    future.wait();
+    
 }
