@@ -110,9 +110,11 @@ void client::update(::input &input) {
             );
             encoded_audio_in_size = 0;
 
-            write(out_message, out_buffer);
+            unsigned size = write(out_message, out_buffer);
 
-            connection->try_write_message(out_buffer);
+            connection->try_write_message(
+                std::span<std::uint8_t>(out_buffer).subspan(0, size)
+            );
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
