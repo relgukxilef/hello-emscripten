@@ -40,6 +40,12 @@ struct unique_resource {
         return value;
     };
 
+    void reset(T o = Null) {
+        if (value != Null)
+            Deleter(&value);
+        value = o;
+    };
+
 private:
     T value;
 };
