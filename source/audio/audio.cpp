@@ -33,10 +33,17 @@ audio::audio() {
     capture_device = alcCaptureOpenDevice(
         device_name, 48000, AL_FORMAT_MONO16, buffer_count * buffer_size
     );
-    check(capture_device);
+    error = alcGetError(capture_device.get());
+    if (error != AL_OUT_OF_MEMORY) {
+        // This error also indicates that the user hasn't given permission to
+        // use the mic yet
+        openal_check(error);
 
-    alcCaptureStart(capture_device.get());
-    check(capture_device);
+        alcCaptureStart(capture_device.get());
+        check(capture_device);
+    } else {
+        capture_device.reset();
+    }
 
     context = alcCreateContext(playback_device.get(), nullptr);
     check(playback_device);
@@ -89,6 +96,8 @@ void audio::update(::client& client) {
 
     if (client.encoded_audio_in_size == 0) {
         while (true) {
+            if (!capture_device)
+                break;
             alcCaptureSamples(
                 capture_device.get(), (ALCvoid *)capture_data, 
                 std::size(capture_data)
