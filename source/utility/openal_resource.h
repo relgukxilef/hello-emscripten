@@ -11,17 +11,24 @@
 #include "resource.h"
 
 struct openal_error : public std::exception {
-    openal_error(ALCenum error) noexcept;
+    openal_error(ALenum error) noexcept;
+
+    const char *what() const noexcept override;
+
+    ALenum error;
+};
+
+struct openalc_error : public std::exception {
+    openalc_error(ALCenum error) noexcept;
 
     const char *what() const noexcept override;
 
     ALCenum error;
 };
 
-inline openal_error::openal_error(ALCenum error) noexcept : error(error) {
-    std::puts(what());
-    std::puts("\n");
-}
+inline openal_error::openal_error(ALenum error) noexcept : error(error) {}
+
+inline openalc_error::openalc_error(ALCenum error) noexcept : error(error) {}
 
 template<unsigned N, typename T, auto Deleter>
 void openal_array_delete(std::array<T, N>* t) {
@@ -51,21 +58,28 @@ using unique_openal_sources = unique_resource<
 >;
 
 
-// TODO: ALCenum and ALenum error codes have different meaning but the same type
-inline void openal_check(ALCenum error) {
-    if (error == ALC_NO_ERROR) {
+inline void openal_check(ALenum error) {
+    if (error == AL_NO_ERROR) {
         return;
     } else {
         throw openal_error(error);
     }
 }
 
+inline void openalc_check(ALCenum error) {
+    if (error == ALC_NO_ERROR) {
+        return;
+    } else {
+        throw openalc_error(error);
+    }
+}
+
 inline void check(unique_openal_capture_device &device) {
-    openal_check(alcGetError(device.get()));
+    openalc_check(alcGetError(device.get()));
 }
 
 inline void check(unique_openal_playback_device &device) {
-    openal_check(alcGetError(device.get()));
+    openalc_check(alcGetError(device.get()));
 }
 
 inline void openal_check() {

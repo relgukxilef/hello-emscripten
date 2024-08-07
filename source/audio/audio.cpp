@@ -34,14 +34,15 @@ audio::audio() {
         device_name, 48000, AL_FORMAT_MONO16, buffer_count * buffer_size
     );
     error = alcGetError(capture_device.get());
-    if (error != AL_OUT_OF_MEMORY) {
-        // This error also indicates that the user hasn't given permission to
-        // use the mic yet
-        openal_check(error);
+    if (error != ALC_OUT_OF_MEMORY) {
+        // This error also indicates that the user hasn't interacted with the
+        // page yet. 
+        openalc_check(error);
 
         alcCaptureStart(capture_device.get());
         check(capture_device);
     } else {
+        // TODO: create device on unmute
         capture_device.reset();
     }
 
@@ -104,10 +105,14 @@ void audio::update(::client& client) {
             );
             error = alcGetError(capture_device.get());
 
+            if (error == ALC_INVALID_DEVICE)
+                // On web this means user has not given permission
+                break;
             if (error == ALC_INVALID_VALUE)
+                // No more audio available
                 break;
 
-            openal_check(error);
+            openalc_check(error);
 
             audio_available = true;
 
