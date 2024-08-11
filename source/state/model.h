@@ -44,6 +44,8 @@ struct model {
     std::vector<uint8_t> normals;
     std::vector<uint8_t> texture_coordinates;
     std::vector<uint8_t> indices;
+    std::vector<uint8_t> joints;
+    std::vector<uint8_t> weights;
     std::vector<uint8_t> pixels;
     std::vector<node_primitive> primitives;
     std::vector<image> images;

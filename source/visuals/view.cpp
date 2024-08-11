@@ -146,6 +146,8 @@ void record_command_buffer(
     VkBuffer vertex_buffers[] = {
         visuals.vertex_buffer.get(), visuals.vertex_buffer.get(),
         visuals.vertex_buffer.get(),
+        visuals.vertex_buffer.get(), 
+        visuals.vertex_buffer.get(), 
     };
 
     vkCmdBindDescriptorSets(
@@ -163,6 +165,8 @@ void record_command_buffer(
             model.position_offset,
             model.normal_offset,
             model.texture_coordinate_offset,
+            model.joints_offset,
+            model.weights_offset,
         };
         vkCmdBindVertexBuffers(
             image.draw_command_buffer, 0, std::size(vertex_buffers),
@@ -205,6 +209,8 @@ void record_command_buffer(
             model.position_offset,
             model.normal_offset,
             model.texture_coordinate_offset,
+            model.joints_offset,
+            model.weights_offset,
         };
         vkCmdBindVertexBuffers(
             image.draw_command_buffer, 0, std::size(vertex_buffers),
@@ -488,6 +494,16 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .stride = 4 * 2,
                 .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
             },
+            {
+                .binding = 3,
+                .stride = 4 * 2,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
+            {
+                .binding = 4,
+                .stride = 4 * 4,
+                .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+            },
         };
         VkVertexInputAttributeDescription vertex_input_attribute_description[]{
             VkVertexInputAttributeDescription{
@@ -505,6 +521,18 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             VkVertexInputAttributeDescription{
                 .location = 2,
                 .binding = 2,
+                .format = VK_FORMAT_R32G32_SFLOAT,
+                .offset = 0,
+            },
+            VkVertexInputAttributeDescription{
+                .location = 3,
+                .binding = 3,
+                .format = VK_FORMAT_R32G32_SFLOAT,
+                .offset = 0,
+            },
+            VkVertexInputAttributeDescription{
+                .location = 4,
+                .binding = 4,
                 .format = VK_FORMAT_R32G32_SFLOAT,
                 .offset = 0,
             },

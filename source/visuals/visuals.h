@@ -85,6 +85,7 @@ struct visuals {
         uint32_t
             position_offset, normal_offset,
             texture_coordinate_offset, indices_offset,
+            joints_offset, weights_offset,
             images_offset;
     };
     std::vector<visual_model> models;

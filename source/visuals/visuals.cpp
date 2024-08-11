@@ -377,6 +377,10 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         vertex = std::ranges::copy(model.normals, vertex).out;
         visual_model.texture_coordinate_offset = vertex - vertices;
         vertex = std::ranges::copy(model.texture_coordinates, vertex).out;
+        visual_model.joints_offset = vertex - vertices;
+        vertex = std::ranges::copy(model.joints, vertex).out;
+        visual_model.weights_offset = vertex - vertices;
+        vertex = std::ranges::copy(model.weights, vertex).out;
 
         visual_model.indices_offset = index - indices;
         index = std::ranges::copy(model.indices, index).out;

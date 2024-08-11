@@ -111,6 +111,7 @@ struct accessor {
 
 struct primitive_info {
     uint32_t positions, normals, texture_coordinates, indices, material;
+    uint32_t joints = ~0u, weights = ~0u;
     primitive_mode mode;
 };
 
@@ -346,6 +347,10 @@ struct handler {
                 primitives.back().normals = i;
             } else if (key == "TEXCOORD_0") {
                 primitives.back().texture_coordinates = i;
+            } else if (key == "JOINTS_0") {
+                primitives.back().joints = i;
+            } else if (key == "WEIGHTS_0") {
+                primitives.back().weights = i;
             }
         } else if (depth == 5 && state == state::meshes_n_primitives_n) {
             if (key == "mode") {
@@ -537,10 +542,37 @@ model::model(std::ranges::subrange<uint8_t*> file) {
                 file.begin() + offset + h.accessors[a].count * 8
             );
 
+            a = h.primitives[p].joints;
+            if (a != ~0) {
+                v = h.accessors[a].buffer_view;
+                offset = h.accessors[a].offset + h.buffer_views[v].offset;
+                parse_check(
+                    h.buffer_views[v].stride == 0 || h.buffer_views[v].stride == 8
+                );
+                joints.insert(
+                    joints.end(),
+                    file.begin() + offset,
+                    file.begin() + offset + h.accessors[a].count * 8
+                );
+            }
+
+            if (a != ~0) {
+                a = h.primitives[p].weights;
+                v = h.accessors[a].buffer_view;
+                offset = h.accessors[a].offset + h.buffer_views[v].offset;
+                parse_check(
+                    h.buffer_views[v].stride == 0 || h.buffer_views[v].stride == 16
+                );
+                weights.insert(
+                    weights.end(),
+                    file.begin() + offset,
+                    file.begin() + offset + h.accessors[a].count * 16
+                );
+            }
+
             a = h.primitives[p].indices;
             v = h.accessors[a].buffer_view;
             offset = h.accessors[a].offset + h.buffer_views[v].offset;
-
             parse_check(h.accessors[a].type == component_type::unsigned_int);
             auto new_indices_begin = indices.size();
             indices.resize(indices.size() + h.accessors[a].count * 4);
