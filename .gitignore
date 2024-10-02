@@ -4,6 +4,7 @@ build*
 
 !.gitignore
 !.gitsubmodules
+!.gitattributes
 
 !*.Dockerfile
 
@@ -18,3 +19,5 @@ build*
 !*.glsl
 !*.cmake
 !*.html
+!*.glb
+!*.vrm

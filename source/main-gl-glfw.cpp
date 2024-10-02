@@ -11,6 +11,7 @@
 #include "main-glfw.h"
 #include "hello.h"
 #include "utility/resource.h"
+#include "utility/trace.h"
 
 struct glfw_error : public std::exception {
     glfw_error() noexcept {};
@@ -46,7 +47,9 @@ void error_callback(int error, const char* description) {
     std::fprintf(stderr, "Error %i: %s\n", error, description);
 }
 
-int main() {
+int main(int argc, char *argv[]) {
+    start_trace("trace.json", 0);
+
     unique_glfw glfw;
 
     glfwSetErrorCallback(error_callback);
@@ -59,13 +62,16 @@ int main() {
 
     gladLoadGLES2(glfwGetProcAddress);
 
+    vglSetDeviceMemory(256 * 1024 * 1024);
+    vglSetHostMemory(256 * 1024 * 1024);
+
     int width, height;
     glfwGetWindowSize(window.get(), &width, &height);
     vglSetCurrentSurfaceExtent(
         { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
     );
 
-    hello h(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
+    hello h(argv, vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
     ::input input {};
 

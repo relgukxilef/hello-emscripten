@@ -16,6 +16,18 @@ add_library(
     network/websocket.h
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
+    state/file_cache.h state/file_cache.cpp
+    state/model.h state/model.cpp
+    utility/file.h utility/file.cpp
+    utility/math.h
+    audio/audio.h audio/audio.cpp
+    utility/opus_resource.h utility/opus_resource.cpp
+    utility/openal_resource.h utility/openal_resource.cpp
+    utility/serialization.h utility/serialization.cpp
+    utility/unique_span.h
+    utility/trace.h utility/trace.cpp
+    utility/vulkan_memory_allocator_resource.h
+    utility/vulkan_memory_allocator_resource.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -25,6 +37,10 @@ target_link_libraries(
     hello PUBLIC
     Vulkan-Headers
     glm
+    Boost::json
+    Boost::static_string
+    opus
+    VulkanMemoryAllocator
 )
 
 if (EMSCRIPTEN)
@@ -32,6 +48,7 @@ if (EMSCRIPTEN)
         hello-gl
         main-em.cpp
         network/websocket-em.cpp
+        state/model-em.cpp
     )
 
     set_target_properties(hello-gl PROPERTIES SUFFIX ".js")
@@ -55,21 +72,41 @@ if (EMSCRIPTEN)
         -sNO_EXIT_RUNTIME
         -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2
         -lwebsocket.js
+        -lopenal
+        -sASYNCIFY
+        -sEXPORTED_FUNCTIONS=['_main','_malloc']
     )
 
     target_link_options(
-        hello-gl PUBLIC
-        --preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals
-        -sINITIAL_MEMORY=268435456
+        hello PUBLIC
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals"
+        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
+        -sINITIAL_MEMORY=1073741824
+        -sALLOW_MEMORY_GROWTH
+        -sMAXIMUM_MEMORY=4294967296
+        #-fwasm-exceptions 
+        -gsource-map
+    )
+    target_compile_options(
+        hello PUBLIC
+        #-fwasm-exceptions 
+        -gsource-map
     )
 
 else()
-    find_package(glfw3 3.3)
-    find_package(Vulkan)
+    target_sources(
+        hello PUBLIC
+        state/model-native.cpp
+    )
+    target_link_libraries(
+       hello PUBLIC
+       png_static
+    )
+
+    find_package(Vulkan 1.1)
     find_package(OpenGL)
     
     set(Boost_USE_STATIC_LIBS ON)
-    find_package(Boost 1.74.0 COMPONENTS system serialization log REQUIRED)
     find_package(OpenSSL 3.2 REQUIRED)
 
     target_sources(
@@ -81,6 +118,13 @@ else()
         hello PRIVATE
         ${CMAKE_DL_LIBS}
         OpenSSL::SSL
+        Boost::beast
+        $<$<BOOL:${WIN32}>:wsock32>
+        $<$<BOOL:${WIN32}>:ws2_32>
+    )
+    target_link_libraries(
+        hello PUBLIC
+        OpenAL::OpenAL
     )
 
     target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
@@ -135,11 +179,45 @@ else()
 
     target_link_libraries(
         server PRIVATE
-        ${Boost_LIBRARIES} glm $<$<BOOL:${UNIX}>:pthread> OpenSSL::SSL
+        ${Boost_LIBRARIES}
+        OpenSSL::SSL
+        Boost::lexical_cast
+        Boost::beast
+        Boost::log
+        Boost::serialization
+        Boost::iostreams
+        glm 
+        $<$<BOOL:${UNIX}>:pthread>
+        $<$<BOOL:${WIN32}>:wsock32>
+        $<$<BOOL:${WIN32}>:ws2_32>
     )
 
     target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
+
+
+    add_executable(
+        test
+        test-main.cpp
+    )
+
+    add_dependencies(test hello-gl hello-vk server)
+
+    target_link_libraries(
+        test PRIVATE 
+        ${Boost_LIBRARIES}
+        Boost::process
+    )
 endif()
+
+add_custom_command(
+    TARGET hello POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
+        ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_files/white_modern_living_room.glb
+        ${CMAKE_CURRENT_BINARY_DIR}/test_files/white_modern_living_room.glb
+)
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
     target_sources(
@@ -158,7 +236,6 @@ target_compile_features(hello PUBLIC cxx_std_20)
 
 if (MSVC)
     add_definitions(/bigobj)
+    add_compile_options(/fsanitize=address)
+    add_link_options(/fsanitize=address)
 endif ()
-
-#set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-#set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)

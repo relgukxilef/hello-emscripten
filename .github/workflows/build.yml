@@ -1,0 +1,63 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        type: [Release, Debug]
+        platform:
+          - name: Emscripten
+            target: hello-gl
+            configure: -DEMSCRIPTEN=ON
+            env: 
+              CXX: em++
+              CC: emcc
+          - name: Desktop
+            target: test
+            dependencies: libgl-dev libvulkan-dev libssl-dev libwayland-dev libxkbcommon-dev xorg-dev
+            configure: -DGLFW_BUILD_WAYLAND=ON -DGLFW_BUILD_X11=ON
+
+    runs-on: ${{matrix.os}}
+
+    container:
+      image: emscripten/emsdk
+
+    env:
+      CXX: ${{matrix.platform.env.CXX}}
+      CC: ${{matrix.platform.env.CC}}
+
+    steps:
+    - name: Install Dependencies
+      run: sudo apt-get update && apt-get install -y ${{matrix.platform.dependencies}}
+
+    - name: Install shaderc
+      run: wget -q -c https://storage.googleapis.com/shaderc/artifacts/prod/graphics_shader_compiler/shaderc/linux/continuous_clang_release/386/20220812-081917/install.tgz -O - | sudo tar -xzv --strip-components=2 -C /usr/bin install/bin
+
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        lfs: true
+        clean: false
+  
+    - name: Configure CMake
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{matrix.type}} ${{matrix.platform.configure}}
+
+    - name: Build
+      run: cmake --build build --config ${{matrix.type}} --target ${{matrix.platform.target}}
+
+    - uses: actions/upload-artifact@v4
+      id: upload-build
+      with:
+        name: build-${{matrix.type}}-${{matrix.platform.name}}
+        path: build/source
+        if-no-files-found: error
+        compression-level: 9
+    

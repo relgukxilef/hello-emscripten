@@ -15,6 +15,12 @@ struct image {
 
     std::unique_ptr<VkDescriptorSet[]> descriptor_sets;
 
+    unique_image color_image;
+    unique_image depth_image;
+    unique_device_memory color_memory;
+    unique_device_memory depth_memory;
+    unique_image_view color_view;
+    unique_image_view depth_view;
     unique_image_view image_view;
     unique_framebuffer framebuffer;
 
@@ -36,12 +42,11 @@ struct view {
 
     unique_descriptor_pool descriptor_pool;
 
-    unique_command_pool command_pool;
     unique_swapchain swapchain;
 
     VkExtent2D surface_extent;
 
-    unsigned descriptor_set_count = 32; // per image
+    unsigned descriptor_set_count = 256; // per image
 
     unique_render_pass render_pass;
 

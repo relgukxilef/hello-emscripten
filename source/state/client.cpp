@@ -1,12 +1,38 @@
 #include "client.h"
 
+#include "../utility/file.h"
 #include "../network/network_message.h"
+#include "../utility/serialization.h"
 
-client::client() {
+// These may differ between server and client
+unsigned message_user_capacity = 16;
+unsigned message_audio_capacity = 200;
+
+client::client(std::string_view server) {
+    auto test_file = read_file("test_files/AvatarSample_B.vrm");
+    test_model = model({test_file.data(), test_file.data() + test_file.size()});
+    auto world_file = read_file("test_files/white_modern_living_room.glb");
+    world_model = model({world_file.data(), world_file.data() + world_file.size()});
+
     connection.reset(
-        new websocket(*this, event_loop, "wss://hellovr.at:443/")
+        new websocket(*this, event_loop, server)
     );
     next_network_update = std::chrono::steady_clock::now();
+    in_message.reset(message_user_capacity, message_audio_capacity);
+    message_in_readable = false;
+    // TODO: Either use vector::reserve or use a different type.
+    // std::vector is almost the right type. But it is awkward to use with C API
+    in_buffer.resize(capacity(in_message));
+    out_message.reset(message_user_capacity, message_audio_capacity);
+    out_buffer.resize(capacity(out_message));
+    encoded_audio_in.resize(message_audio_capacity);
+    users.encoded_audio_out_size.resize(message_user_capacity);
+    users.encoded_audio_out.resize(
+        message_user_capacity
+    );
+    for (auto &audio : users.encoded_audio_out) {
+        audio.resize(message_audio_capacity);
+    }
 }
 
 void client::update(::input &input) {
@@ -55,7 +81,7 @@ void client::update(::input &input) {
         user_orientation * glm::vec3(input.motion.x, 0, input.motion.y);
 
     // physics
-    user_position.z = glm::max(0.0f, user_position.z);
+    //user_position.z = glm::max(0.0f, user_position.z);
 
     // user interface
     input.prefer_pointer_locked = true;
@@ -64,13 +90,29 @@ void client::update(::input &input) {
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
         if (connection->is_write_completed()) {
-            message_header header = {{1}};
-            message.resize(message_size(header));
-            *reinterpret_cast<message_header*>(message.data()) = header;
-            auto data = parse_message({message.data(), message.size()});
-            data.users.position[0] = user_position;
-            data.users.orientation[0] = user_orientation;
-            connection->try_write_message({message.data(), message.size()});
+            out_message.users.size = 1;
+
+            auto &p = out_message.users.position;
+            p[0] = user_position.x;
+            p[1] = user_position.y;
+            p[2] = user_position.z;
+
+            auto &o = out_message.users.orientation;
+            o[0] = user_orientation.x;
+            o[1] = user_orientation.y;
+            o[2] = user_orientation.z;
+            o[3] = user_orientation.w;
+
+            out_message.users.voice[0].first = encoded_audio_in_size;
+            copy(
+                encoded_audio_in, 
+                std::views::all(out_message.users.voice[0].second)
+            );
+            encoded_audio_in_size = 0;
+
+            write(out_message, out_buffer);
+
+            connection->try_write_message(out_buffer);
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
@@ -78,22 +120,35 @@ void client::update(::input &input) {
     }
 
     if (message_in_readable) {
-        auto header = *reinterpret_cast<message_header*>(message_in.data());
-        auto data = parse_message({message_in.data(), message_in.size()});
-        std::size_t user_count = header.users.size;
+        read(in_message, in_buffer);
+        std::size_t user_count = in_message.users.size;
+
         if (user_count != users.position.size()) {
             users.position.resize(user_count);
             users.orientation.resize(user_count);
             update_number++;
         }
-        std::move(
-            data.users.position.begin(), data.users.position.end(),
-            users.position.begin()
-        );
-        std::move(
-            data.users.orientation.begin(), data.users.orientation.end(),
-            users.orientation.begin()
-        );
+
+        for (size_t index = 0; index < user_count; index++) {
+            auto &p = in_message.users.position;
+            users.position[index].x = p[index * 3 + 0];
+            users.position[index].y = p[index * 3 + 1];
+            users.position[index].z = p[index * 3 + 2];
+
+            auto &o = in_message.users.orientation;
+            users.orientation[index].x = o[index * 4 + 0];
+            users.orientation[index].y = o[index * 4 + 1];
+            users.orientation[index].z = o[index * 4 + 2];
+            users.orientation[index].w = o[index * 4 + 3];
+
+            users.encoded_audio_out_size[index] = 
+                in_message.users.voice[index].first;
+            copy(
+                in_message.users.voice[index].second, 
+                std::views::all(users.encoded_audio_out[index])
+            );
+        }
+
         message_in_readable = false;
     }
 }

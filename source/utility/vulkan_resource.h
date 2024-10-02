@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdexcept>
+#include <exception>
 
 #include <vulkan/vulkan.h>
 
@@ -22,9 +23,8 @@ inline vulkan_error::vulkan_error(VkResult result) noexcept : result(result) {}
 inline void check(VkResult success) {
     if (success == VK_SUCCESS) {
         return;
-    } else {
-        throw vulkan_error(success);
     }
+    throw vulkan_error(success);
 }
 
 template<typename T, auto Deleter>
@@ -59,7 +59,11 @@ inline void vulkan_wait_and_delete_fence(VkFence* fence) {
     VkResult result = vkWaitForFences(current_device, 1, fence, VK_TRUE, ~0ul);
     // fence needs to be cleaned up regardless of whether waiting succeeded
     vkDestroyFence(current_device, *fence, nullptr);
-    if (result != VK_SUCCESS && result != VK_TIMEOUT)
+    if (std::uncaught_exceptions())
+       // Destructor was called during stack unwinding, throwing a new expcetion
+       // would terminate the application.
+       return;
+    if (result != VK_TIMEOUT)
         check(result);
 }
 

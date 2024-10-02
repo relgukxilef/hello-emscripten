@@ -149,6 +149,31 @@ EM_BOOL key_event(
     return true;
 }
 
+glm::vec2 deadzone(glm::vec2 stick) {
+    // TODO: move this function to client
+    float deadzone = 0.25;
+    // clamped linear map length from [0.25, 1] to [0, 1], avoiding x/0
+    float length = glm::max(glm::length(stick), deadzone);
+    stick *= (length - deadzone) / (1 - deadzone) / length;
+    return stick;
+}
+
+EM_BOOL gamepad_event(
+    int eventType, const EmscriptenGamepadEvent *gamepadEvent, void *
+) {
+    if (eventType == EMSCRIPTEN_EVENT_GAMEPADCONNECTED) {
+
+    } else if (eventType == EMSCRIPTEN_EVENT_GAMEPADDISCONNECTED) {
+
+    }
+
+    return true;
+}
+
+float length_squared(glm::vec4 x)  {
+    return glm::dot(x, x);
+}
+
 EM_BOOL request_animation_frame(double time, void* userData) {
     float delta = glm::min((time - last_frame_time) / 1000, 1.0);
     last_frame_time = time;
@@ -170,6 +195,21 @@ EM_BOOL request_animation_frame(double time, void* userData) {
 
     mouse_rotation = {};
 
+    if (emscripten_sample_gamepad_data() == EMSCRIPTEN_RESULT_SUCCESS) {
+        for (auto i = 0; i < emscripten_get_num_gamepads(); i++) {
+            EmscriptenGamepadEvent event;
+            auto result = emscripten_get_gamepad_status(i, &event);
+            if (result != EMSCRIPTEN_RESULT_SUCCESS || !event.connected)
+                continue;
+
+            if (event.numAxes < 4)
+                continue;
+
+            input.rotation += deadzone({event.axis[2], event.axis[3]}) * delta;
+            input.motion += deadzone({event.axis[0], event.axis[1]}) * delta;
+        }
+    }
+
     h->update(input);
     h->draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
@@ -190,7 +230,10 @@ int main() {
 
     update_canvas_size();
 
-    h.reset(new hello(vglCreateInstanceForGL(), vglCreateSurfaceForGL()));
+    char *arguments = nullptr;
+    h.reset(
+        new hello(&arguments, vglCreateInstanceForGL(), vglCreateSurfaceForGL())
+    );
 
     EM_ASM(document.getElementById("canvas").focus(););
 
@@ -204,6 +247,8 @@ int main() {
 
     emscripten_set_keydown_callback("#canvas", nullptr, true, key_event);
     emscripten_set_keyup_callback("#canvas", nullptr, true, key_event);
+
+    emscripten_set_gamepadconnected_callback(nullptr, true, gamepad_event);
 
     emscripten_request_animation_frame_loop(request_animation_frame, nullptr);
 
