@@ -1,39 +1,9 @@
 {
     "editor.tabCompletion": "on",
-    "diffEditor.codeLens": true,
-    "files.associations": {
-        "deque": "cpp",
-        "functional": "cpp",
-        "list": "cpp",
-        "map": "cpp",
-        "set": "cpp",
-        "string": "cpp",
-        "unordered_map": "cpp",
-        "unordered_set": "cpp",
-        "vector": "cpp",
-        "*.ipp": "cpp",
-        "__nullptr": "cpp",
-        "any": "cpp",
-        "exception": "cpp",
-        "initializer_list": "cpp",
-        "new": "cpp",
-        "optional": "cpp",
-        "type_traits": "cpp",
-        "typeinfo": "cpp",
-        "variant": "cpp",
-        "cctype": "cpp",
-        "clocale": "cpp",
-        "cmath": "cpp",
-        "csetjmp": "cpp",
-        "csignal": "cpp",
-        "cstdarg": "cpp",
-        "cstddef": "cpp",
-        "cstdio": "cpp",
-        "cstdlib": "cpp",
-        "cstring": "cpp",
-        "ctime": "cpp",
-        "cwchar": "cpp",
-        "cwctype": "cpp",
-        "__node_handle": "cpp"
+    "cmake.debugConfig": {
+        "args": [
+            "--login.secret", "TEST_SECRET_e4B0PSdwUA==",
+            "--login.pepper", "TEST_SECRET_8nCGAIn0RA=="
+        ]
     }
 }

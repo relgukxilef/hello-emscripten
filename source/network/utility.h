@@ -54,6 +54,16 @@ void append(range_stream &buffer, const T1 &t1, const T2 &t2, const R &... r) {
 
 std::uint64_t unix_time();
 
+char *base64_encode(
+    std::ranges::subrange<const char*> input,
+    std::ranges::subrange<char*> output
+);
+
+char *base64_decode(
+    std::ranges::subrange<const char*> input,
+    std::ranges::subrange<char*> output
+);
+
 struct jwt {
     std::uint64_t subject, expiration;
 
@@ -76,7 +86,7 @@ char *write_password(
     std::ranges::subrange<char*> buffer,
     std::ranges::subrange<const char*> user_input,
     std::ranges::subrange<const char*> pepper,
-    unsigned m = 64*1024, unsigned t = 1
+    unsigned m = 47104, unsigned t = 1
 );
 
 /**
@@ -87,5 +97,5 @@ bool is_password_valid(
     std::ranges::subrange<const char*> buffer,
     std::ranges::subrange<const char*> user_input,
     std::ranges::subrange<const char*> pepper,
-    unsigned m = 64*1024, unsigned t = 1
+    unsigned m = 47104, unsigned t = 1
 );

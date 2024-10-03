@@ -4,6 +4,7 @@
 #include <chrono>
 #include <string_view>
 #include <algorithm>
+#include <cassert>
 
 #include <boost/archive/iterators/transform_width.hpp>
 #include <boost/iterator/transform_iterator.hpp>
@@ -238,10 +239,12 @@ char* write_password(
 ) {
     // TODO: normalize user_input and check for invalid characters
 
-    EVP_KDF *function = EVP_KDF_fetch(nullptr, "ARGON2D", nullptr);
+    EVP_KDF *function = EVP_KDF_fetch(nullptr, "ARGON2ID", nullptr);
+    assert(function);
     EVP_KDF_CTX *context = EVP_KDF_CTX_new(function);
+    assert(context);
 
-    unsigned char salt[8];
+    unsigned char salt[16];
     RAND_bytes(salt, std::size(salt));
     uint32_t lanes = 1;
 
@@ -270,9 +273,9 @@ char* write_password(
         OSSL_PARAM_construct_end()
     };
 
-    EVP_KDF_derive(
+    assert(EVP_KDF_derive(
         context, hash, std::size(hash), parameters
-    );
+    ) == 1);
 
     size_t hex_length = 0;
     OPENSSL_buf2hexstr_ex(

@@ -296,11 +296,23 @@ void tick(boost::system::error_code error = {}) {
     server->tick_timer.async_wait(tick);
 }
 
+std::ranges::subrange<const char *> base64_argument(
+    char *arg, std::unique_ptr<char[]> &storage
+) {
+    auto end = std::find(arg, arg + strlen(arg), '=');
+    auto length = (end - arg) * 3 / 4;
+    storage = std::make_unique<char[]>(length);
+    base64_decode({arg, end}, {storage.get(), storage.get() + length});
+    return {storage.get(), storage.get() + length};
+}
+
 int main(int argc, char *argv[]) {
     boost::asio::io_context context;
 
     server_t current_server(context);
     ::server = &current_server;
+
+    std::unique_ptr<char[]> secret, pepper;
 
     for (auto arg = argv; *arg != nullptr; arg++) {
         if (strcmp(*arg, "--login.secret") == 0) {
@@ -309,12 +321,12 @@ int main(int argc, char *argv[]) {
                 // TODO: the command line argument should hold a path to a file
                 // containing the secret, instead of the secret
                 // TODO: create a login module that stores this secret
-                server->login_secret = {*arg, *arg + strlen(*arg)};
+                server->login_secret = base64_argument(*arg, secret);
             }
         } else if (strcmp(*arg, "--login.pepper") == 0) {
             arg++;
             if (*arg != nullptr) {
-                server->login_pepper = {*arg, *arg + strlen(*arg)};
+                server->login_pepper = base64_argument(*arg, pepper);
             }
         }
     }
