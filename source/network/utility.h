@@ -73,8 +73,8 @@ struct jwt {
     );
 
     bool read(
-        std::ranges::subrange<const char*> secret,
-        std::ranges::subrange<char*> buffer, uint64_t now
+        std::ranges::subrange<char*> buffer, 
+        std::ranges::subrange<const char*> secret, uint64_t now
     );
 };
 

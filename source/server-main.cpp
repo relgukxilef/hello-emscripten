@@ -206,11 +206,29 @@ boost::asio::awaitable<void> accept(
             ",\"bearer\":\""
         );
 
-        response_body.cursor = jwt{
-            0, unix_time() + 500
-        }.write(
+        auto now = unix_time();
+        auto token = jwt{1234, now + 500};
+        auto token_begin = response_body.cursor;
+        response_body.cursor = token.write(
             {response_body.cursor, response_body.end()}, server->login_secret
         );
+        // TODO: move to test
+        assert(token.read(
+            {token_begin, response_body.cursor}, 
+            server->login_secret, now + 200
+        ));
+        assert(token.subject == 1234);
+        assert(token.expiration == now + 500);
+        assert(!token.read(
+            {token_begin, response_body.cursor}, 
+            server->login_secret, now + 500
+        ));
+        token_begin[0]++;
+        assert(!token.read(
+            {token_begin, response_body.cursor}, 
+            server->login_secret, now + 200
+        ));
+        token_begin[0]--;
 
         append(response_body, "\"}");
 

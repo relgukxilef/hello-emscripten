@@ -168,8 +168,8 @@ char *jwt::write(
 }
 
 bool jwt::read(
-    std::ranges::subrange<const char*> secret,
     std::ranges::subrange<char*> buffer,
+    std::ranges::subrange<const char*> secret,
     uint64_t now
 ) {
     char payload_buffer[128];
@@ -204,13 +204,13 @@ bool jwt::read(
     };
 
 
-    auto result = std::ranges::search(payload, "\"sub\":");
+    auto result = std::ranges::search(payload, std::string_view("\"sub\":"));
     if (!result)
         return false;
     std::from_chars(result.begin(), result.end(), subject);
 
-    result = std::ranges::search(payload, "\"exp\":");
-    if (result)
+    result = std::ranges::search(payload, std::string_view("\"exp\":"));
+    if (!result)
         return false;
     std::from_chars(result.begin(), result.end(), expiration);
 
