@@ -25,8 +25,8 @@ struct range_stream : public std::ranges::subrange<char*> {
 };
 
 char *copy(
-    std::ranges::subrange<char*> buffer,
-    std::ranges::subrange<const char*> secret
+    std::ranges::subrange<char*> destination,
+    std::ranges::subrange<const char*> source
 );
 
 void append(range_stream &buffer, std::ranges::subrange<const char*> string);

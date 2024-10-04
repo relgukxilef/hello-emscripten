@@ -186,15 +186,19 @@ boost::asio::awaitable<void> accept(
             ",\"hash\":\""
         );
 
-        auto password_begin = response_body.cursor;
-        response_body.cursor = write_password(
-            response_body.right(), password, server->login_pepper
-        );
+        char hash_buffer[32];
+        std::ranges::subrange<char*> hash = hash_buffer;
 
-        assert(is_password_valid(
-            {password_begin, response_body.cursor}, password,
-            server->login_pepper
-        ));
+        hash = {
+            hash.begin(),
+            write_password(hash, password, server->login_pepper)
+        };
+
+        assert(is_password_valid(hash, password, server->login_pepper));
+        password[0]++;
+        assert(!is_password_valid(hash, password, server->login_pepper));
+
+        response_body.cursor = base64_encode(hash, response_body.right());
 
         append(
             response_body,
