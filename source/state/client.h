@@ -17,7 +17,7 @@
 struct client {
     client(std::string_view server);
     // TODO: maybe this function should not be in this struct
-    void update(::input& input);
+    void update(::input &input, ::web_sockets &web_sockets);
 
     glm::vec3 user_position {0, 0, 0};
     float user_pitch = glm::radians(90.f), user_yaw = 0;
@@ -29,7 +29,7 @@ struct client {
     std::vector<std::uint8_t> encoded_audio_in;
     unsigned encoded_audio_in_size = 0;
 
-    // no need to double/tripple buffer the state if the messages are already
+    // no need to double/triple buffer the state if the messages are already
     // buffered
     unsigned time;
     unsigned update_number = 0;
@@ -53,14 +53,13 @@ struct client {
     message out_message;
     std::vector<std::uint8_t> out_buffer;
 
-    // in-comming
+    // in-coming
     // TODO: might need a queue for delta compression
     message in_message;
     std::vector<std::uint8_t> in_buffer;
     std::atomic_bool message_in_readable;
 
-    // TODO: maybe should be in another struct
-    ::event_loop event_loop;
+    std::vector<web_socket> socket_free_list;
 
-    std::unique_ptr<websocket> connection;
+    unique_web_socket connection;
 };

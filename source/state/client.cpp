@@ -35,7 +35,7 @@ client::client(std::string_view server) {
     }
 }
 
-void client::update(::input &input) {
+void client::update(::input &input, ::web_sockets &web_sockets) {
     glm::vec2 touch_rotation = {};
 
     for (int i = 0; i < input.touch.size; i++) {
@@ -89,7 +89,8 @@ void client::update(::input &input) {
     // network
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
-        if (connection->is_write_completed()) {
+        auto out_buffer = web_sockets.try_prepare(connection.get());
+        if (!out_buffer.empty()) {
             out_message.users.size = 1;
 
             auto &p = out_message.users.position;
@@ -112,7 +113,7 @@ void client::update(::input &input) {
 
             write(out_message, out_buffer);
 
-            connection->try_write_message(out_buffer);
+            web_sockets.write(connection, std::move(out_buffer));
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
