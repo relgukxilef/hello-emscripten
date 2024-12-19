@@ -11,7 +11,7 @@
 #include "utility/vulkan_resource.h"
 
 hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
-    audio(new ::audio())
+    audio(new ::audio()), sockets(16, 512, 1024, 1024)
 {
     std::string_view server = "wss://hellovr.at:443/";
     for (auto argument = arguments; *argument != nullptr; argument++) {
@@ -48,7 +48,7 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
 
 void hello::update(input& input) {
     scope_trace trace;
-    client->update(input);
+    client->update(input, sockets);
 
     try {
         audio->update(*client);

@@ -12,8 +12,8 @@ add_library(
     visuals/view.h visuals/view.cpp
     state/input.h state/input.cpp
     state/client.h state/client.cpp
-    network/network_client.h network/network_client.cpp
-    network/websocket.h
+    #network/network_client.h network/network_client.cpp
+    network/websocket.h network/websocket.cpp
     visuals/indirect_draw.h
     network/network_message.h network/network_message.cpp
     state/file_cache.h state/file_cache.cpp
@@ -111,7 +111,7 @@ else()
 
     target_sources(
         hello PRIVATE
-        network/websocket-boost.cpp
+        #network/websocket-boost.cpp
     )
 
     target_link_libraries(

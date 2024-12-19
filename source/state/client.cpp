@@ -12,19 +12,12 @@ client::client(std::string_view server) {
     auto test_file = read_file("test_files/AvatarSample_B.vrm");
     test_model = model({test_file.data(), test_file.data() + test_file.size()});
     auto world_file = read_file("test_files/white_modern_living_room.glb");
-    world_model = model({world_file.data(), world_file.data() + world_file.size()});
+    world_model = 
+        model({world_file.data(), world_file.data() + world_file.size()});
 
-    connection.reset(
-        new websocket(*this, event_loop, server)
-    );
     next_network_update = std::chrono::steady_clock::now();
     in_message.reset(message_user_capacity, message_audio_capacity);
-    message_in_readable = false;
-    // TODO: Either use vector::reserve or use a different type.
-    // std::vector is almost the right type. But it is awkward to use with C API
-    in_buffer.resize(capacity(in_message));
     out_message.reset(message_user_capacity, message_audio_capacity);
-    out_buffer.resize(capacity(out_message));
     encoded_audio_in.resize(message_audio_capacity);
     users.encoded_audio_out_size.resize(message_user_capacity);
     users.encoded_audio_out.resize(
@@ -89,8 +82,7 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
     // network
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
-        auto out_buffer = web_sockets.try_prepare(connection.get());
-        if (!out_buffer.empty()) {
+        if (web_sockets.can_write(connection.get())) {
             out_message.users.size = 1;
 
             auto &p = out_message.users.position;
@@ -111,17 +103,16 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
             );
             encoded_audio_in_size = 0;
 
-            write(out_message, out_buffer);
+            write(out_message, web_sockets.write_buffer(connection.get()));
 
-            web_sockets.write(connection, std::move(out_buffer));
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
         }
     }
 
-    if (message_in_readable) {
-        read(in_message, in_buffer);
+    if (web_sockets.can_read(connection.get())) {
+        read(in_message, web_sockets.read_buffer(connection.get()));
         std::size_t user_count = in_message.users.size;
 
         if (user_count != users.position.size()) {
@@ -149,7 +140,5 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
                 std::views::all(users.encoded_audio_out[index])
             );
         }
-
-        message_in_readable = false;
     }
 }

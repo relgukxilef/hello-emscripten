@@ -149,6 +149,7 @@ boost::asio::awaitable<void> accept(
         co_return;
     }
 
+    // TODO: async_accept is thread-safe and can be called from multiple strands
     co_await session->stream.async_accept(session->request, completion_token);
 
     printf(

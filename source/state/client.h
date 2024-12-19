@@ -51,13 +51,10 @@ struct client {
 
     // out-going
     message out_message;
-    std::vector<std::uint8_t> out_buffer;
 
     // in-coming
     // TODO: might need a queue for delta compression
     message in_message;
-    std::vector<std::uint8_t> in_buffer;
-    std::atomic_bool message_in_readable;
 
     std::vector<web_socket> socket_free_list;
 
