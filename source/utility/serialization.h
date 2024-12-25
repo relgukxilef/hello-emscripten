@@ -51,6 +51,8 @@ void apply(T &, capacity_tag_t size) {
 
 template<class T, class F>
 void apply(size_t size, unique_span<T> &b, F f) {
+    if (b.capacity < size)
+        throw std::overflow_error("message truncated");
     for (size_t i = 0; i < size; i++)
         apply(b.values[i], f);
 }
@@ -71,6 +73,8 @@ void apply_fixed_point(size_t size, unique_span<F> &span, write_tag_t write) {
 
 template<std::integral T, unsigned mantissa_bits, std::floating_point F>
 void apply_fixed_point(size_t size, unique_span<F> &span, read_tag_t read) {
+    if (span.capacity < size)
+        throw std::overflow_error("message truncated");
     for (size_t i = 0; i < size; i++) {
         T integral;
         apply(integral, read);

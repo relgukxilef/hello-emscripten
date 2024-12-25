@@ -20,6 +20,11 @@ if (EMSCRIPTEN)
     add_compile_options(-fdeclspec)
 endif()
 
+if(MSVC)
+    # Needs to be applied to all libraries
+    add_compile_options(/fsanitize=address)
+endif()
+
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
 add_subdirectory(submodules/SPIRV-Cross EXCLUDE_FROM_ALL)
@@ -33,6 +38,7 @@ if (NOT EMSCRIPTEN)
     # Can't figure out how to keep libpng from using the system library for
     # generated sources
     set(ZLIB_COMPAT ON)
+    set(ZLIB_ENABLE_TESTS OFF)
     add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
     add_library(ZLIB::ZLIB ALIAS zlib)
 
@@ -41,6 +47,7 @@ if (NOT EMSCRIPTEN)
     set(ZLIBINC "${ZLIB_ROOT}")
     set(ZLIB_INCLUDE_DIR "${ZLIB_ROOT}")
 
+    set(PNG_TESTS OFF)
     add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
     target_include_directories(
         png_static PUBLIC
@@ -72,5 +79,7 @@ else()
 endif()
 
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
+
+enable_testing()
 
 add_subdirectory(source)

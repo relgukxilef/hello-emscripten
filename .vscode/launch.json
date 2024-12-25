@@ -1,22 +1,16 @@
 {
-    // Verwendet IntelliSense zum Ermitteln möglicher Attribute.
-    // Zeigen Sie auf vorhandene Attribute, um die zugehörigen Beschreibungen anzuzeigen.
-    // Weitere Informationen finden Sie unter https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+        // https://github.com/microsoft/vscode-cmake-tools/blob/main/docs/debug-launch.md
         {
-            "type": "gdb",
+            "name": "(msvc) Launch",
+            "type": "cppvsdbg",
             "request": "launch",
-            "name": "Launch Program",
-            "target": "./build/source/hello-gl",
-            "cwd": "${workspaceRoot}",
-            "valuesFormatting": "parseText"
-        },
-        {
-            "command": "http-server ${workspaceFolder}/build/source",
-            "name": "Serve",
-            "request": "launch",
-            "type": "node-terminal"
+            // Resolved by CMake Tools:
+            "program": "${cmake.testProgram}",
+            "args": [ "${cmake.testArgs}" ],
+            "stopAtEntry": false,
+            "cwd": "${cmake.testWorkingDirectory}"
         }
     ]
 }

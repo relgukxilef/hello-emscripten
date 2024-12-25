@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 include(utility.cmake)
 
 add_library(
@@ -28,6 +30,7 @@ add_library(
     utility/trace.h utility/trace.cpp
     utility/vulkan_memory_allocator_resource.h
     utility/vulkan_memory_allocator_resource.cpp
+    test/testing.h test/testing.cpp
 )
 
 target_shader(hello visuals/shaders/solid_vertex.glsl)
@@ -95,7 +98,7 @@ if (EMSCRIPTEN)
 
 else()
     target_sources(
-        hello PUBLIC
+        hello PRIVATE
         state/model-native.cpp
     )
     target_link_libraries(
@@ -190,14 +193,14 @@ else()
 
 
     add_executable(
-        test
+        start_test
         test-main.cpp
     )
 
-    add_dependencies(test hello-gl hello-vk server)
+    add_dependencies(start_test hello-gl hello-vk server)
 
     target_link_libraries(
-        test PRIVATE 
+        start_test PRIVATE 
         ${Boost_LIBRARIES}
         Boost::process
     )
@@ -228,8 +231,16 @@ endif()
 
 target_compile_features(hello PUBLIC cxx_std_20)
 
-if (MSVC)
+if(MSVC)
     add_definitions(/bigobj)
-    add_compile_options(/fsanitize=address)
-    add_link_options(/fsanitize=address)
-endif ()
+    target_compile_options(hello PUBLIC /fsanitize=fuzzer)
+endif()
+
+add_executable(fuzzer test/fuzzer-main.cpp)
+target_link_libraries(fuzzer PUBLIC hello)
+target_link_options(fuzzer PUBLIC /WHOLEARCHIVE:hello)
+
+add_test(
+    NAME fuzzer 
+    COMMAND fuzzer -max_total_time=1
+)

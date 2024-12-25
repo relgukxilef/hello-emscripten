@@ -83,8 +83,10 @@ std::size_t capacity(initial_message &m) {
     return size;
 }
 
-void write(message& m, std::span<uint8_t> b) {
+std::size_t write(message& m, std::span<uint8_t> b) {
+    auto capacity = b.size();
     apply(m, write_tag_t{b});
+    return capacity - b.size();
 }
 
 void read(message& m, std::span<uint8_t> b) {

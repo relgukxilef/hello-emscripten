@@ -19,6 +19,8 @@ struct client {
     // TODO: maybe this function should not be in this struct
     void update(::input &input, ::web_sockets &web_sockets);
 
+    std::string server;
+
     glm::vec3 user_position {0, 0, 0};
     float user_pitch = glm::radians(90.f), user_yaw = 0;
     glm::quat user_orientation {0, 0, 0, 1};

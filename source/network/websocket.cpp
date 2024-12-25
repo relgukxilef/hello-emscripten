@@ -5,7 +5,7 @@ web_sockets::web_sockets(
     unsigned write_capacity, unsigned read_capacity
 ) {
     connections.resize(connection_capacity);
-    for (auto c : connections) {
+    for (auto &c : connections) {
         c.url.reserve(url_capacity);
         c.read.reserve(read_capacity);
         c.write.reserve(write_capacity);
@@ -47,7 +47,7 @@ std::vector<uint8_t> &web_sockets::write_buffer(web_socket socket) {
 }
 
 bool web_sockets::can_read(web_socket socket) {
-    return socket && read_buffer(socket).empty();
+    return socket && !read_buffer(socket).empty();
 }
 
 std::vector<uint8_t> &web_sockets::read_buffer(web_socket socket) {

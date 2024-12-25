@@ -4,16 +4,20 @@
 #include "../network/network_message.h"
 #include "../utility/serialization.h"
 
+#include "../test/testing.h"
+
 // These may differ between server and client
+// TODO: read from a configuration file or command line
 unsigned message_user_capacity = 16;
 unsigned message_audio_capacity = 200;
 
 client::client(std::string_view server) {
-    auto test_file = read_file("test_files/AvatarSample_B.vrm");
-    test_model = model({test_file.data(), test_file.data() + test_file.size()});
-    auto world_file = read_file("test_files/white_modern_living_room.glb");
-    world_model = 
-        model({world_file.data(), world_file.data() + world_file.size()});
+    this->server = server;
+    //auto test_file = read_file("test_files/AvatarSample_B.vrm");
+    //test_model = model({test_file.data(), test_file.data() + test_file.size()});
+    //auto world_file = read_file("test_files/white_modern_living_room.glb");
+    //world_model = 
+    //    model({world_file.data(), world_file.data() + world_file.size()});
 
     next_network_update = std::chrono::steady_clock::now();
     in_message.reset(message_user_capacity, message_audio_capacity);
@@ -80,6 +84,11 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
     input.prefer_pointer_locked = true;
 
     // network
+    if (!connection) {
+        connection = web_sockets.try_connect(server, socket_free_list);
+    }
+
+    // TODO: read time from function arguments
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
         if (web_sockets.can_write(connection.get())) {
@@ -103,7 +112,10 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
             );
             encoded_audio_in_size = 0;
 
-            write(out_message, web_sockets.write_buffer(connection.get()));
+            // TODO: how to communicate desired buffer capacity to caller?
+            auto &buffer = web_sockets.write_buffer(connection.get());
+            buffer.resize(buffer.capacity());
+            buffer.resize(write(out_message, buffer));
 
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
@@ -112,33 +124,58 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
     }
 
     if (web_sockets.can_read(connection.get())) {
-        read(in_message, web_sockets.read_buffer(connection.get()));
-        std::size_t user_count = in_message.users.size;
+        auto &buffer = web_sockets.read_buffer(connection.get());
+        try {
+            read(in_message, buffer);
+            buffer.clear();
+            std::size_t user_count = in_message.users.size;
 
-        if (user_count != users.position.size()) {
-            users.position.resize(user_count);
-            users.orientation.resize(user_count);
-            update_number++;
-        }
+            if (user_count != users.position.size()) {
+                users.position.resize(user_count);
+                users.orientation.resize(user_count);
+                update_number++;
+            }
 
-        for (size_t index = 0; index < user_count; index++) {
-            auto &p = in_message.users.position;
-            users.position[index].x = p[index * 3 + 0];
-            users.position[index].y = p[index * 3 + 1];
-            users.position[index].z = p[index * 3 + 2];
+            for (size_t index = 0; index < user_count; index++) {
+                auto &p = in_message.users.position;
+                users.position[index].x = p[index * 3 + 0];
+                users.position[index].y = p[index * 3 + 1];
+                users.position[index].z = p[index * 3 + 2];
 
-            auto &o = in_message.users.orientation;
-            users.orientation[index].x = o[index * 4 + 0];
-            users.orientation[index].y = o[index * 4 + 1];
-            users.orientation[index].z = o[index * 4 + 2];
-            users.orientation[index].w = o[index * 4 + 3];
+                auto &o = in_message.users.orientation;
+                users.orientation[index].x = o[index * 4 + 0];
+                users.orientation[index].y = o[index * 4 + 1];
+                users.orientation[index].z = o[index * 4 + 2];
+                users.orientation[index].w = o[index * 4 + 3];
 
-            users.encoded_audio_out_size[index] = 
-                in_message.users.voice[index].first;
-            copy(
-                in_message.users.voice[index].second, 
-                std::views::all(users.encoded_audio_out[index])
-            );
-        }
+                users.encoded_audio_out_size[index] = 
+                    in_message.users.voice[index].first;
+                copy(
+                    in_message.users.voice[index].second, 
+                    std::views::all(users.encoded_audio_out[index])
+                );
+            }
+        } catch(...) {}
     }
 }
+
+using namespace testing;
+
+test client_test([] {
+    auto url = "wss://example.org";
+    client c(url);
+
+    ::input input;
+    ::web_sockets web_sockets(4, 64, 4096, 4096);
+
+    while (any<bool>()) {
+        for (auto &connection : web_sockets.connections) {
+            auto &read = connection.read;
+            read.resize(std::min(read.capacity(), any<size_t>()));
+            for (auto &byte : read)
+                byte = any<uint8_t>();
+        }
+
+        c.update(input, web_sockets);
+    }
+});
