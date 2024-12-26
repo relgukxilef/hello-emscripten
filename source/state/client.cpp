@@ -160,6 +160,7 @@ void client::update(::input &input, ::web_sockets &web_sockets) {
 }
 
 using namespace testing;
+using namespace std;
 
 test client_test([] {
     auto url = "wss://example.org";
@@ -169,12 +170,8 @@ test client_test([] {
     ::web_sockets web_sockets(4, 64, 4096, 4096);
 
     while (any<bool>()) {
-        for (auto &connection : web_sockets.connections) {
-            auto &read = connection.read;
-            read.resize(std::min(read.capacity(), any<size_t>()));
-            for (auto &byte : read)
-                byte = any<uint8_t>();
-        }
+        for (auto &connection : web_sockets.connections)
+            connection.read = many<uint8_t>(4096);
 
         c.update(input, web_sockets);
     }
