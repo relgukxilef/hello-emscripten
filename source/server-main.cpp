@@ -244,7 +244,11 @@ int main() {
 
     tick();
 
-    // signal_set does not work on Windows
+    boost::asio::signal_set signals(context, SIGINT, SIGTERM);
+    signals.async_wait([&](const boost::system::error_code&, int) {
+        printf("Exiting.\n");
+        context.stop();
+    });
 
     printf("Running.\n");
 

@@ -4,6 +4,7 @@
 #include <boost/process/v2.hpp>
 #include <boost/asio.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/process/v2/windows/creation_flags.hpp>
 
 using namespace std;
 using namespace boost::asio;
@@ -29,8 +30,8 @@ awaitable<void> run(io_context &context) {
         auto result = co_await client.async_wait(use_awaitable);
         cout << "Client exited with " << result << endl;
 
-        // TODO: call request_exit instead
-        server.terminate();
+        // request_exit is not supported on Windows
+        server.interrupt();
         result = co_await server.async_wait(use_awaitable);
         cout << "Server exited with " << result << endl;
 
@@ -41,6 +42,11 @@ awaitable<void> run(io_context &context) {
 
 int main(int argc, char *argv[]) {
     io_context context;
+
+    // process::interrupt is sent to all processes, so this will trigger when 
+    // the client exits.
+    boost::asio::signal_set signals(context, SIGINT, SIGTERM);
+    signals.async_wait([&](const boost::system::error_code&, int) {});
 
     co_spawn(context, run(context), detached);
 
