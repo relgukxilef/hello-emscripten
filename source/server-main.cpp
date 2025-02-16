@@ -251,6 +251,10 @@ int main() {
     });
 
     printf("Running.\n");
+    
+    // stdout is buffered if it is piped, so we need to flush it to get
+    // waiting processes to see the message.
+    fflush(stdout);
 
     context.run();
 
