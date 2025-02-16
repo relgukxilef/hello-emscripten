@@ -194,6 +194,8 @@ else()
         test-main.cpp
     )
 
+    target_compile_features(test PUBLIC cxx_std_20)
+
     add_dependencies(test hello-gl hello-vk server)
 
     target_link_libraries(
