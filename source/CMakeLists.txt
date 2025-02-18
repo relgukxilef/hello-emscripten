@@ -79,8 +79,8 @@ if (EMSCRIPTEN)
 
     target_link_options(
         hello PUBLIC
-        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/visuals@visuals"
-        "SHELL:--preload-file ${CMAKE_CURRENT_BINARY_DIR}/test_files@test_files"
+        "SHELL:--preload-file ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/visuals@visuals"
+        "SHELL:--preload-file ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_files@test_files"
         -sINITIAL_MEMORY=1073741824
         -sALLOW_MEMORY_GROWTH
         -sMAXIMUM_MEMORY=4294967296
@@ -209,10 +209,10 @@ add_custom_command(
     TARGET hello POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/test_files/AvatarSample_B.vrm
-        ${CMAKE_CURRENT_BINARY_DIR}/test_files/AvatarSample_B.vrm
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_files/AvatarSample_B.vrm
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_CURRENT_SOURCE_DIR}/test_files/white_modern_living_room.glb
-        ${CMAKE_CURRENT_BINARY_DIR}/test_files/white_modern_living_room.glb
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/test_files/white_modern_living_room.glb
 )
 
 if(OpenGL_FOUND OR EMSCRIPTEN)
