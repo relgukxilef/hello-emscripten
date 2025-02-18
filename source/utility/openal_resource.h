@@ -75,13 +75,21 @@ inline void openalc_check(ALCenum error) {
 }
 
 inline void check(unique_openal_capture_device &device) {
+    if (!device) {
+        throw std::runtime_error("No capture device");
+    }
     openalc_check(alcGetError(device.get()));
 }
 
 inline void check(unique_openal_playback_device &device) {
+    if (!device) {
+        throw std::runtime_error("No playback device");
+    }
     openalc_check(alcGetError(device.get()));
 }
 
 inline void openal_check() {
+    // This function only works after a context has been created
+    // If context creation fails there is no way to find out why
     openal_check(alGetError());
 }

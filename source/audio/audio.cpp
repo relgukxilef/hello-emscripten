@@ -23,27 +23,25 @@ audio::audio() {
         opus_check(error);
     }
 
-    const char *device_name = alcGetString(NULL, ALC_DEVICE_SPECIFIER);
-    printf("Audio out: %s\n", device_name);
-    playback_device = alcOpenDevice(device_name);
+    playback_device = alcOpenDevice(NULL);
     check(playback_device);
 
-    device_name = alcGetString(NULL, ALC_CAPTURE_DEVICE_SPECIFIER);
+    const char *device_name = alcGetString(NULL, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
     printf("Audio in: %s\n", device_name);
     capture_device = alcCaptureOpenDevice(
         device_name, 48000, AL_FORMAT_MONO16, buffer_count * buffer_size
     );
     error = alcGetError(capture_device.get());
-    if (error != ALC_OUT_OF_MEMORY) {
+    if (error == ALC_OUT_OF_MEMORY) {
         // This error also indicates that the user hasn't interacted with the
         // page yet. 
+        // TODO: create device on unmute
+        capture_device.reset();
+    } else {
         openalc_check(error);
 
         alcCaptureStart(capture_device.get());
         check(capture_device);
-    } else {
-        // TODO: create device on unmute
-        capture_device.reset();
     }
 
     context = alcCreateContext(playback_device.get(), nullptr);
@@ -52,7 +50,7 @@ audio::audio() {
     alcMakeContextCurrent(context.get());
     check(playback_device);
 
-    alGenBuffers(std::size(buffers.get()), buffers->data());
+    alGenBuffers(ALsizei(std::size(buffers.get())), buffers->data());
     openal_check();
 
     std::fill(std::begin(buffer_data), std::end(buffer_data), 0.0f);
@@ -95,30 +93,31 @@ void audio::update(::client& client) {
     static unsigned sample_count = 0;
     static unsigned frequency = 220 + std::time(nullptr) % 220;
 
-    if (client.encoded_audio_in_size == 0) {
-        while (true) {
-            if (!capture_device)
-                break;
-            alcCaptureSamples(
-                capture_device.get(), (ALCvoid *)capture_data, 
-                std::size(capture_data)
-            );
-            error = alcGetError(capture_device.get());
-
-            if (error == ALC_INVALID_DEVICE)
-                // On web this means user has not given permission
-                break;
-            if (error == ALC_INVALID_VALUE)
-                // No more audio available
-                break;
-
-            openalc_check(error);
-
-            audio_available = true;
-
-            // For now only read one buffer per frame
+    while (client.encoded_audio_in_size == 0) {
+        if (!capture_device)
             break;
-        }
+
+        ALint samples = 0;
+        alcGetIntegerv(capture_device.get(), ALC_CAPTURE_SAMPLES, 1, &samples);
+        if (samples < std::size(capture_data))
+            break;
+        
+        alcCaptureSamples(
+            capture_device.get(), (ALCvoid *)capture_data, 
+            std::size(capture_data)
+        );
+        error = alcGetError(capture_device.get());
+
+        if (error == ALC_INVALID_DEVICE)
+            // On web this means user has not given permission
+            break;
+            
+        openalc_check(error);
+
+        audio_available = true;
+
+        // For now only read one buffer per frame
+        break;
     }
 
     if (audio_available) {
@@ -158,12 +157,14 @@ void audio::update(::client& client) {
             capture_data, std::size(capture_data), 0
         ));
         client.users.encoded_audio_out_size[i] = 0;
-        ALuint unqueued_buffer = 0;
-        alSourceUnqueueBuffers(sources.get()[i], 1, &unqueued_buffer);
-        error = alGetError();
-        if (error != AL_INVALID_VALUE) {
-            // drop samples if not ready to play them
-            openal_check(error);
+        ALint processed = 0;
+        alGetSourcei(sources.get()[i], AL_BUFFERS_PROCESSED, &processed);
+        openal_check();
+        // drop samples if not ready to play them
+        if (processed > 0) {
+            ALuint unqueued_buffer = 0;
+            alSourceUnqueueBuffers(sources.get()[i], 1, &unqueued_buffer);
+            openal_check();
 
             alBufferData(
                 unqueued_buffer, AL_FORMAT_MONO16, std::begin(capture_data),
