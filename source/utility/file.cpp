@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <exception>
+#include <stdexcept>
 
 #include "trace.h"
 
@@ -11,7 +12,7 @@ std::vector<uint8_t> read_file(const char* name) {
     scope_trace trace;
     std::unique_ptr<FILE, file_deleter> file(fopen(name, "rb"));
     if (!file.get())
-        throw std::exception();
+        throw std::runtime_error("Couldn't file.");
     fseek(file.get(), 0, SEEK_END);
     auto size = ftell(file.get());
     std::vector<uint8_t> content(size);
