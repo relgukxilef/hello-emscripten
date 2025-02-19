@@ -58,7 +58,7 @@ jobs:
       id: upload-build
       with:
         name: build-${{matrix.type}}-${{matrix.platform.name}}
-        path: build/source
+        path: build/bin
         if-no-files-found: error
         compression-level: 9
     
