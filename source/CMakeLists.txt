@@ -59,7 +59,7 @@ if (EMSCRIPTEN)
         COMMAND 
         ${CMAKE_COMMAND} -E copy
         ${CMAKE_CURRENT_SOURCE_DIR}/html/index.html
-        ${CMAKE_CURRENT_BINARY_DIR}/index.html
+        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/index.html
     )
 
     if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
