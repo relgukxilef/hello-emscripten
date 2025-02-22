@@ -44,6 +44,8 @@ if (NOT EMSCRIPTEN)
     set(ZLIBINC "${ZLIB_ROOT}")
     set(ZLIB_INCLUDE_DIR "${ZLIB_ROOT}")
 
+    set(AWK "")
+
     add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
     target_include_directories(
         png_static PUBLIC
