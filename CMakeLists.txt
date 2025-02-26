@@ -9,6 +9,9 @@ set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option() honors normal variables
 cmake_policy(SET CMP0074 NEW) # Enable find_package uses of <>_ROOT variables
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 if(NOT CMAKE_SIZEOF_VOID_P)
     # Set a default value for CMAKE_SIZEOF_VOID_P
     # It is not set when building with emscripten
@@ -44,6 +47,8 @@ if (NOT EMSCRIPTEN)
     set(ZLIB_LIBRARY "${CMAKE_CURRENT_BINARY_DIR}/submodules/zlib-ng/zlib")
     set(ZLIBINC "${ZLIB_ROOT}")
     set(ZLIB_INCLUDE_DIR "${ZLIB_ROOT}")
+
+    set(AWK "")
 
     add_subdirectory(submodules/libpng EXCLUDE_FROM_ALL)
     target_include_directories(
