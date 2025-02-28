@@ -166,6 +166,9 @@ boost::asio::awaitable<void> accept(
             {"password", &password},
         });
 
+        if (name.empty() || password.empty())
+            co_return;
+
         boost::beast::http::response<boost::beast::http::string_body> response {
             boost::beast::http::status::created, session->request.version()
         };
