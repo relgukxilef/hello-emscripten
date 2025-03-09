@@ -2,33 +2,36 @@
 
 #include <cinttypes>
 #include <memory>
-#include <span>
-#include <string_view>
-#include <atomic>
+#include <string>
+#include <vector>
 
-struct client;
+struct websocket_pipe {
+    std::string url;
+    std::vector<uint8_t> buffer;
+    bool closed = false;
+    bool readable = false;
+};
 
-struct event_loop {
-    struct data;
-
-    event_loop();
-    ~event_loop();
-
-    std::unique_ptr<data> d;
+struct websocket_duplex {
+    std::shared_ptr<websocket_pipe> send, receive;
+    std::vector<std::uint8_t> *writable();
+    std::vector<std::uint8_t> *readable();
 };
 
 struct websocket {
-    struct data;
-
-    websocket(client& client, event_loop& loop, std::string_view url_string);
+    websocket() = default;
+    websocket(websocket_duplex duplex);
+    websocket(const websocket &) = delete;
+    websocket(websocket &&) = default;
+    websocket &operator=(const websocket &) = delete;
+    websocket &operator=(websocket &&) = default;
     ~websocket();
+    void close();
 
-    // buffer needs to stay valid until is_write_completed returns true
-    bool try_write_message(std::span<std::uint8_t> buffer);
-    bool is_write_completed();
+    websocket_duplex duplex;
+};
 
-    event_loop& loop;
-    std::unique_ptr<data> d;
-
-    std::span<std::uint8_t> next_message;
+struct websockets {
+    websocket connect(std::string url);
+    std::vector<websocket_duplex> websockets;
 };

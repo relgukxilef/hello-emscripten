@@ -8,23 +8,20 @@
 unsigned message_user_capacity = 16;
 unsigned message_audio_capacity = 200;
 
-client::client(std::string_view server) {
+client::client(std::string_view server, ::websockets *websockets) {
+    this->websockets = websockets;
     auto test_file = read_file("test_files/AvatarSample_B.vrm");
     test_model = model({test_file.data(), test_file.data() + test_file.size()});
     auto world_file = read_file("test_files/white_modern_living_room.glb");
     world_model = model({world_file.data(), world_file.data() + world_file.size()});
 
-    connection.reset(
-        new websocket(*this, event_loop, server)
-    );
+    connection = websockets->connect(std::string(server));
     next_network_update = std::chrono::steady_clock::now();
     in_message.reset(message_user_capacity, message_audio_capacity);
     message_in_readable = false;
     // TODO: Either use vector::reserve or use a different type.
     // std::vector is almost the right type. But it is awkward to use with C API
-    in_buffer.resize(capacity(in_message));
     out_message.reset(message_user_capacity, message_audio_capacity);
-    out_buffer.resize(capacity(out_message));
     encoded_audio_in.resize(message_audio_capacity);
     users.encoded_audio_out_size.resize(message_user_capacity);
     users.encoded_audio_out.resize(
@@ -89,38 +86,40 @@ void client::update(::input &input) {
     // network
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
-        if (connection->is_write_completed()) {
+        if (auto buffer = connection.duplex.writable()) {
+            buffer->resize(capacity(out_message));
             out_message.users.size = 1;
 
             auto &p = out_message.users.position;
             p[0] = user_position.x;
             p[1] = user_position.y;
             p[2] = user_position.z;
-
+            
             auto &o = out_message.users.orientation;
             o[0] = user_orientation.x;
             o[1] = user_orientation.y;
             o[2] = user_orientation.z;
             o[3] = user_orientation.w;
-
+            
             out_message.users.voice[0].first = encoded_audio_in_size;
             copy(
                 encoded_audio_in, 
                 std::views::all(out_message.users.voice[0].second)
             );
             encoded_audio_in_size = 0;
-
-            write(out_message, out_buffer);
-
-            connection->try_write_message(out_buffer);
+            
+            write(out_message, *buffer);
+            connection.duplex.send->readable = true;
+            
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
             );
         }
     }
-
-    if (message_in_readable) {
-        read(in_message, in_buffer);
+    
+    if (auto buffer = connection.duplex.readable()) {
+        read(in_message, *buffer);
+        connection.duplex.receive->readable = false;
         std::size_t user_count = in_message.users.size;
 
         if (user_count != users.position.size()) {

@@ -25,7 +25,7 @@ hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
         }
     }
 
-    client.reset(new ::client(server));
+    client.reset(new ::client(server, &websockets.websockets));
     visuals.reset(new ::visuals(*client, instance, surface));
 
     std::printf("Running.\n");
@@ -49,6 +49,7 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
 void hello::update(input& input) {
     scope_trace trace;
     client->update(input);
+    websockets.update();
 
     try {
         audio->update(*client);

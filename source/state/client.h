@@ -15,7 +15,7 @@
 #include "model.h"
 
 struct client {
-    client(std::string_view server);
+    client(std::string_view server, websockets *websockets);
     // TODO: maybe this function should not be in this struct
     void update(::input& input);
 
@@ -51,16 +51,13 @@ struct client {
 
     // out-going
     message out_message;
-    std::vector<std::uint8_t> out_buffer;
 
     // in-comming
     // TODO: might need a queue for delta compression
     message in_message;
-    std::vector<std::uint8_t> in_buffer;
     std::atomic_bool message_in_readable;
 
-    // TODO: maybe should be in another struct
-    ::event_loop event_loop;
+    ::websockets *websockets;
 
-    std::unique_ptr<websocket> connection;
+    websocket connection;
 };
