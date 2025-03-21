@@ -86,7 +86,7 @@ void client::update(::input &input) {
     // network
     auto now = std::chrono::steady_clock::now();
     if (now > next_network_update) {
-        if (auto buffer = connection.duplex.writable()) {
+        if (auto buffer = connection.writable()) {
             buffer->resize(capacity(out_message));
             out_message.users.size = 1;
 
@@ -109,7 +109,6 @@ void client::update(::input &input) {
             encoded_audio_in_size = 0;
             
             write(out_message, *buffer);
-            connection.duplex.send->readable = true;
             
             next_network_update = std::max(
                 now, next_network_update + std::chrono::milliseconds{50}
@@ -117,9 +116,8 @@ void client::update(::input &input) {
         }
     }
     
-    if (auto buffer = connection.duplex.readable()) {
+    if (auto buffer = connection.readable()) {
         read(in_message, *buffer);
-        connection.duplex.receive->readable = false;
         std::size_t user_count = in_message.users.size;
 
         if (user_count != users.position.size()) {

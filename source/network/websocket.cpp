@@ -7,31 +7,31 @@ websocket::~websocket() {
     close();
 }
 
-websocket::websocket(websocket_duplex duplex) {
-    this->duplex = std::move(duplex);
+websocket::websocket(std::shared_ptr<websocket_data> data) {
+    this->data = std::move(data);
 }
 
-std::vector<std::uint8_t> *websocket_duplex::writable()
-{
-    if (send->readable)
+std::vector<std::uint8_t> *websocket::writable() {
+    if (data->up.readable)
         return nullptr;
-    return &send->buffer;
+    data->up.readable = true;
+    return &data->up.buffer;
 }
 
-std::vector<std::uint8_t> *websocket_duplex::readable() {
-    if (!receive->readable)
+std::vector<std::uint8_t> *websocket::readable() {
+    if (!data->down.readable)
         return nullptr;
-    return &receive->buffer;
+    data->down.readable = false;
+    return &data->down.buffer;
 }
 
 void websocket::close() {
-    if (duplex.send)
-        duplex.send->closed = true;
+    if (data)
+        data->up.closed = true;
 }
 
 websocket websockets::connect(std::string url) {
-    auto send = make_shared<websocket_pipe>(url);
-    auto receive = make_shared<websocket_pipe>();
-    websockets.push_back({receive, send});
-    return websocket_duplex{send, receive};
+    auto socket = make_shared<websocket_data>(url);
+    connections.push_back(socket);
+    return socket;
 }

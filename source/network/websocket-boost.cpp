@@ -48,104 +48,110 @@ bool check(
 }
 
 struct boost_insecure_websocket {
-    boost_insecure_websocket(io_context &context, websocket_duplex duplex) : 
-        stream(context), duplex(duplex) {}
+    boost_insecure_websocket(
+        io_context &context, std::shared_ptr<websocket_data> data
+    ) : 
+        stream(context), data(data) {}
     boost::beast::websocket::stream<ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
-    websocket_duplex duplex;
-    bool reading = false, writing = false, closing = false;
+    std::shared_ptr<websocket_data> data;
 };
 
-boost_websockets::boost_websockets() : resolver(context) {
+boost_websockets::boost_websockets() : 
+    resolver(make_shared<ip::tcp::resolver>(context)) 
+{
+}
+
+boost_websockets::~boost_websockets() {
+    resolver->cancel();
+    for (auto &socket : sockets) {
+        socket->data->up.closed = true;
+        // TODO: maybe cancel socket
+    }
+    context.run();
+}
+
+awaitable<void> read(
+    io_context &context,
+    std::shared_ptr<boost_insecure_websocket> data,
+    fence &update
+) {
+    while (true) {
+        co_await update.async_wait(use_awaitable);
+        if (data->data->up.closed) {
+            co_return;
+        }
+        if (!data->data->down.readable) {
+            continue;
+        }
+        co_await data->stream.async_read(
+            data->buffer,
+            use_awaitable
+        );
+        data->data->down.buffer.assign(
+            (const uint8_t*)data->buffer.data().data(),
+            (const uint8_t*)data->buffer.data().data() + data->buffer.size()
+        );
+        data->data->down.readable = true;
+    }
+}
+
+awaitable<void> write(
+    io_context &context,
+    std::shared_ptr<boost_insecure_websocket> data,
+    fence &update
+) {
+    while (true) {
+        co_await update.async_wait(use_awaitable);
+        if (data->data->up.closed) {
+            co_return;
+        }
+        if (!data->data->up.readable) {
+            continue;
+        }
+        co_await data->stream.async_write(
+            boost::asio::buffer(data->data->up.buffer),
+            use_awaitable
+        );
+        data->data->up.readable = false;
+    }
+}
+
+awaitable<void> connect(
+    io_context &context,
+    std::shared_ptr<boost_insecure_websocket> data,
+    std::shared_ptr<ip::tcp::resolver> resolver,
+    fence &update
+) {
+    auto c = use_awaitable;
+    url_view url(data->data->url);
+    auto results = 
+        co_await resolver->async_resolve(url.host, url.port, c);
+    co_await async_connect(data->stream.next_layer(), results, c);
+    data->stream.binary(true);
+    co_await data->stream.async_handshake(url.host, url.path, c);
+
+    co_spawn(context, read(context, data, update), detached);
+    co_await write(context, data, update);
+
+    co_await data->stream.async_close(
+        boost::beast::websocket::close_code::going_away, c
+    );
 }
 
 void boost_websockets::update() {
+    update_fence.signal();
     context.poll();
 
-    for (auto &websocket : websockets.websockets) {
+    for (auto &websocket : websockets.connections) {
         auto data = 
-            std::make_shared<boost_insecure_websocket>(context, websocket);
-        auto connect = [data, this]() -> awaitable<void> {
-            auto c = use_awaitable;
-            url_view url(data->duplex.receive->url);
-            auto results = 
-                co_await resolver.async_resolve(url.host, url.port, c);
-            co_await async_connect(data->stream.next_layer(), results, c);
-            data->stream.binary(true);
-            co_await data->stream.async_handshake(url.host, url.path, c);
-            readable.push_back(data);
-            writable.push_back(data);
-            closable.push_back(data);
-        };
-        co_spawn(context, std::move(connect), [](exception_ptr e) {
-            if (e)
-                rethrow_exception(e);
-        });
-    }
-    websockets.websockets.clear();
-
-    for (auto &data : closable) {
-        if (!data->duplex.receive->closed)
-            continue;
-
-        if (data->closing)
-            continue;
-
-        data->closing = true;
-
-        data->stream.async_close(
-            boost::beast::websocket::close_code::normal,
-            [data](auto ec) {
-                data->duplex.send->closed = true;
-                data->closing = false;
-            }
+            make_shared<boost_insecure_websocket>(context, websocket);
+        sockets.push_back(data);
+        co_spawn(
+            context, connect(context, data, resolver, update_fence), detached
         );
     }
-
-    for (auto &data : readable) {
-        auto buffer = data->duplex.writable();
-        if (!buffer)
-            continue;
-
-        if (data->reading)
-            continue;
-
-        data->reading = true;
-
-        data->stream.async_read(
-            data->buffer,
-            [data, this](boost::beast::error_code, std::size_t size) {
-                data->duplex.send->buffer.assign(
-                    (const uint8_t*)data->buffer.data().data(),
-                    (const uint8_t*)data->buffer.data().data() + size
-                );
-                data->buffer.consume(size);
-                readable.push_back(data);
-                data->duplex.send->readable = true;
-                data->reading = false;
-            }
-        );
-    }
-
-    for (auto &data : writable) {
-        auto buffer = data->duplex.readable();
-        if (!buffer)
-            continue;
-
-        if (data->writing)
-            continue;
-
-        data->writing = true;
-        
-        data->stream.async_write(
-            boost::asio::buffer(*buffer),
-            [data, this](boost::beast::error_code, std::size_t) {
-                writable.push_back(data);
-                data->duplex.receive->readable = false;
-                data->writing = false;
-            }
-        );
-    }
+    websockets.connections.clear();
 }
 
 websockets boost_websockets::get_websockets() {
