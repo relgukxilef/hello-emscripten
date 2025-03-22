@@ -23,6 +23,7 @@ awaitable<void> forward_output(boost::asio::readable_pipe pipe) {
     while (true) {
         char c;
         co_await async_read(pipe, buffer(&c, 1), use_awaitable);
+        // For reasons unknown to me, the server output seems to not be flushed
         cout << c << flush;
     }
 }

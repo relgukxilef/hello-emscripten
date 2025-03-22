@@ -71,6 +71,14 @@ boost_websockets::~boost_websockets() {
     context.run();
 }
 
+struct {
+    void operator()(std::exception_ptr e) {
+        if (e) {
+            std::rethrow_exception(e);
+        }
+    }
+} checked;
+
 awaitable<void> read(
     io_context &context,
     std::shared_ptr<boost_insecure_websocket> data,
@@ -81,17 +89,18 @@ awaitable<void> read(
         if (data->data->up.closed) {
             co_return;
         }
-        if (!data->data->down.readable) {
+        if (data->data->down.readable) {
             continue;
         }
-        co_await data->stream.async_read(
+        auto size = co_await data->stream.async_read(
             data->buffer,
             use_awaitable
         );
         data->data->down.buffer.assign(
             (const uint8_t*)data->buffer.data().data(),
-            (const uint8_t*)data->buffer.data().data() + data->buffer.size()
+            (const uint8_t*)data->buffer.data().data() + size
         );
+        data->buffer.consume(size);
         data->data->down.readable = true;
     }
 }
@@ -131,7 +140,7 @@ awaitable<void> connect(
     data->stream.binary(true);
     co_await data->stream.async_handshake(url.host, url.path, c);
 
-    co_spawn(context, read(context, data, update), detached);
+    co_spawn(context, read(context, data, update), checked);
     co_await write(context, data, update);
 
     co_await data->stream.async_close(
@@ -148,7 +157,7 @@ void boost_websockets::update() {
             make_shared<boost_insecure_websocket>(context, websocket);
         sockets.push_back(data);
         co_spawn(
-            context, connect(context, data, resolver, update_fence), detached
+            context, connect(context, data, resolver, update_fence), checked
         );
     }
     websockets.connections.clear();
