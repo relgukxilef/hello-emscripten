@@ -10,7 +10,10 @@
 #include "utility/openal_resource.h"
 #include "utility/vulkan_resource.h"
 
-hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
+hello::hello(
+    char *arguments[], VkInstance instance, VkSurfaceKHR surface,
+    ::websockets *websockets
+) :
     audio(new ::audio())
 {
     std::string_view server = "wss://hellovr.at:443/";
@@ -25,7 +28,7 @@ hello::hello(char *arguments[], VkInstance instance, VkSurfaceKHR surface) :
         }
     }
 
-    client.reset(new ::client(server, &websockets.websockets));
+    client.reset(new ::client(server, websockets));
     visuals.reset(new ::visuals(*client, instance, surface));
 
     std::printf("Running.\n");
@@ -49,7 +52,6 @@ void hello::draw(VkInstance instance, VkSurfaceKHR surface) {
 void hello::update(input& input) {
     scope_trace trace;
     client->update(input);
-    websockets.update();
 
     try {
         audio->update(*client);

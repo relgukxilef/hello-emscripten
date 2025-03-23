@@ -65,9 +65,8 @@ struct boost_websockets {
     boost_websockets();
     ~boost_websockets();
     void update();
-    websockets get_websockets();
 
-    websockets websockets;
+    ::websockets websockets;
     boost::asio::io_context context;
     std::shared_ptr<boost::asio::ip::tcp::resolver> resolver;
     std::vector<std::shared_ptr<boost_insecure_websocket>> sockets;

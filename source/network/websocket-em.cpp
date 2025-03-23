@@ -1,4 +1,3 @@
-#include "network_client.h"
 #include "websocket.h"
 
 #include <thread>
@@ -7,83 +6,77 @@
 #include <emscripten/websocket.h>
 
 #include "../state/client.h"
+#include "websocket-em.h"
 
-struct websocket::data {
-    client &c;
+using namespace std;
+
+struct em_websocket {
     EMSCRIPTEN_WEBSOCKET_T websocket;
-    bool open = false;
+    shared_ptr<websocket_data> data;
+    em_websockets *websockets;
 };
 
-EM_BOOL message_callback(
-    int eventType, const EmscriptenWebSocketMessageEvent *websocketEvent, 
-    void* userData
-) {
-    put_message(
-        ((websocket*)userData)->d->c,
-        (const char*)websocketEvent->data, websocketEvent->numBytes
-    );
-    return EM_TRUE;
-}
+em_websockets::em_websockets() = default;
 
-EM_BOOL open_callback(
-    int eventType, const EmscriptenWebSocketOpenEvent *websocketEvent, 
-    void* userData
-) {
-    ((websocket*)userData)->d->open = true;
-    return EM_TRUE;
-}
+em_websockets::~em_websockets() = default;
 
-EM_BOOL close_callback(
-    int eventType, const EmscriptenWebSocketCloseEvent *websocketEvent, 
-    void* userData
-) {
-    set_disconnected(((websocket*)userData)->d->c);
-    return EM_TRUE;
-}
-
-struct event_loop::data {};
-
-event_loop::event_loop() {
-}
-
-event_loop::~event_loop() {
-}
-
-websocket::websocket(::client& c, event_loop& loop, std::string_view url) :
-    loop(loop),
-    d(new data{c})
-{
-    EmscriptenWebSocketCreateAttributes websocket_attributes = {
-        url.data(), nullptr, EM_FALSE
-    };
-    auto websocket = emscripten_websocket_new(&websocket_attributes);
-    emscripten_websocket_set_onmessage_callback(
-        websocket, this, message_callback
-    );
-    emscripten_websocket_set_onclose_callback(
-        websocket, this, close_callback
-    );
-    emscripten_websocket_set_onopen_callback(
-        websocket, this, open_callback
-    );
-    d->websocket = websocket;
-}
-
-websocket::~websocket() {
-    emscripten_websocket_set_onmessage_callback(d->websocket, this, nullptr);
-    emscripten_websocket_set_onclose_callback(d->websocket, this, nullptr);
-}
-
-bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
-    if (d->open) {
-        emscripten_websocket_send_binary(
-            d->websocket, buffer.data(), buffer.size()
+void em_websockets::update() {
+    for (auto &websocket : websockets.connections) {
+        auto data = make_unique<em_websocket>();
+        EmscriptenWebSocketCreateAttributes websocket_attributes = {
+            websocket->url.data(), nullptr, EM_FALSE
+        };
+        data->websocket = emscripten_websocket_new(&websocket_attributes);
+        emscripten_websocket_set_onmessage_callback(
+            data->websocket, data.get(), 
+            [](
+                int, const EmscriptenWebSocketMessageEvent *websocketEvent, 
+                void *userData
+            ) {
+                auto data = ((em_websocket *)userData);
+                auto &down = data->data->down;
+                if (down.readable) {
+                    return EM_TRUE;
+                }
+                down.buffer.assign(
+                    (const uint8_t*)websocketEvent->data,
+                    (const uint8_t*)websocketEvent->data + 
+                    websocketEvent->numBytes
+                );
+                down.readable = true;
+                return EM_TRUE;
+            }
         );
-        return true;
+        emscripten_websocket_set_onclose_callback(
+            data->websocket, data.get(),
+            [](int, const EmscriptenWebSocketCloseEvent *, void *userData) {
+                auto data = ((em_websocket *)userData);
+                data->data->down.closed = true;
+                return EM_TRUE;
+            }
+        );
+        emscripten_websocket_set_onopen_callback(
+            data->websocket, data.get(), 
+            [](int, const EmscriptenWebSocketOpenEvent *, void *userData) {
+                auto data = ((em_websocket *)userData);
+                data->websockets->data.push_back(
+                    unique_ptr<em_websocket>(data)
+                );
+                return EM_TRUE;
+            }
+        );
+        data.release();
     }
-    return false;
-}
 
-bool websocket::is_write_completed() {
-    return true;
+    websockets.connections.clear();
+    
+    for (auto &websocket : data) {
+        if (websocket->data->up.readable) {
+            auto &buffer = websocket->data->up.buffer;
+            emscripten_websocket_send_binary(
+                websocket->websocket, buffer.data(), buffer.size()
+            );
+            websocket->data->up.readable = false;
+        }
+    }
 }

@@ -52,6 +52,7 @@ struct boost_insecure_websocket {
         io_context &context, std::shared_ptr<websocket_data> data
     ) : 
         stream(context), data(data) {}
+    // TODO: ssl support
     boost::beast::websocket::stream<ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
     std::shared_ptr<websocket_data> data;
@@ -140,7 +141,7 @@ awaitable<void> connect(
     data->stream.binary(true);
     co_await data->stream.async_handshake(url.host, url.path, c);
 
-    co_spawn(context, read(context, data, update), checked);
+    co_spawn(context, read(context, data, update), detached);
     co_await write(context, data, update);
 
     co_await data->stream.async_close(
@@ -161,8 +162,4 @@ void boost_websockets::update() {
         );
     }
     websockets.connections.clear();
-}
-
-websockets boost_websockets::get_websockets() {
-    return websockets;
 }

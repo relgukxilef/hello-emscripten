@@ -12,6 +12,7 @@
 #include "hello.h"
 #include "utility/resource.h"
 #include "utility/trace.h"
+#include "network/websocket-boost.h"
 
 struct glfw_error : public std::exception {
     glfw_error() noexcept {};
@@ -71,10 +72,15 @@ int main(int argc, char *argv[]) {
         { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
     );
 
-    hello h(argv, vglCreateInstanceForGL(), vglCreateSurfaceForGL());
+    boost_websockets websockets;
+
+    hello h(
+        argv, vglCreateInstanceForGL(), vglCreateSurfaceForGL(), 
+        &websockets.websockets
+    );
 
     ::input input {};
-
+    
     double previous_time = glfwGetTime();
 
     while (!glfwWindowShouldClose(window.get())) {
@@ -90,6 +96,8 @@ int main(int argc, char *argv[]) {
         update(input, window.get(), delta);
 
         h.update(input);
+        websockets.update();
+
         h.draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
         glfwSwapBuffers(window.get());

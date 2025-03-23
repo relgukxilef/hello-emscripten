@@ -8,8 +8,11 @@
 
 #include "hello.h"
 #include "state/input.h"
+#include "network/websocket-em.h"
 
 EMSCRIPTEN_WEBGL_CONTEXT_HANDLE context;
+
+em_websockets websockets;
 
 std::unique_ptr<hello> h;
 ::input input;
@@ -211,6 +214,8 @@ EM_BOOL request_animation_frame(double time, void* userData) {
     }
 
     h->update(input);
+    websockets.update();
+
     h->draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
 
     return EM_TRUE;
@@ -224,6 +229,7 @@ int main() {
     EmscriptenWebGLContextAttributes attr;
     emscripten_webgl_init_context_attributes(&attr);
     attr.antialias = false;
+    attr.majorVersion = 2;
 
     context = emscripten_webgl_create_context("#canvas", &attr);
     emscripten_webgl_make_context_current(context);
@@ -231,9 +237,10 @@ int main() {
     update_canvas_size();
 
     char *arguments = nullptr;
-    h.reset(
-        new hello(&arguments, vglCreateInstanceForGL(), vglCreateSurfaceForGL())
-    );
+    h.reset(new hello(
+        &arguments, vglCreateInstanceForGL(), vglCreateSurfaceForGL(),
+        &websockets.websockets
+    ));
 
     EM_ASM(document.getElementById("canvas").focus(););
 

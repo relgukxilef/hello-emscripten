@@ -12,6 +12,7 @@
 #include "utility/resource.h"
 #include "utility/vulkan_resource.h"
 #include "utility/out_ptr.h"
+#include "network/websocket-boost.h"
 
 struct glfw_error : public std::exception {
     glfw_error() noexcept {};
@@ -135,7 +136,9 @@ int main(int argc, char *argv[]) {
         instance.get(), window.get(), nullptr, out_ptr(surface))
     );
 
-    hello h(argv, instance.get(), surface.get());
+    boost_websockets websockets;
+
+    hello h(argv, instance.get(), surface.get(), &websockets.websockets);
 
     ::input input{};
 
@@ -149,6 +152,8 @@ int main(int argc, char *argv[]) {
         update(input, window.get(), delta);
 
         h.update(input);
+        websockets.update();
+
         h.draw(instance.get(), surface.get());
 
         glfwPollEvents();

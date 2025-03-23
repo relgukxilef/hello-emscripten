@@ -1,5 +1,6 @@
 #pragma once
 
+// TODO: Try replacing this with std::unique_ptr
 template<typename T, auto Deleter, auto Null = T{}>
 struct unique_resource {
     typedef T pointer;

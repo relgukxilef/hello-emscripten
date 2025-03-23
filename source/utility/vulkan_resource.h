@@ -60,11 +60,10 @@ inline void vulkan_wait_and_delete_fence(VkFence* fence) {
     // fence needs to be cleaned up regardless of whether waiting succeeded
     vkDestroyFence(current_device, *fence, nullptr);
     if (std::uncaught_exceptions())
-       // Destructor was called during stack unwinding, throwing a new expcetion
+       // Destructor was called during stack unwinding, throwing a new exception
        // would terminate the application.
        return;
-    if (result != VK_TIMEOUT)
-        check(result);
+    check(result);
 }
 
 template<typename T, auto Deleter>
