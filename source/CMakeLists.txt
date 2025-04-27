@@ -58,7 +58,7 @@ if (EMSCRIPTEN)
         TARGET hello-gl POST_BUILD
         COMMAND 
         ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_SOURCE_DIR}/html/index.html
+        ${CMAKE_CURRENT_SOURCE_DIR}/web/index.html
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/index.html
     )
 
@@ -117,7 +117,7 @@ else()
     target_link_libraries(
         hello PRIVATE
         ${CMAKE_DL_LIBS}
-        OpenSSL::SSL
+        OpenSSL
         Boost::beast
         $<$<BOOL:${WIN32}>:wsock32>
         $<$<BOOL:${WIN32}>:ws2_32>
@@ -161,55 +161,56 @@ else()
         )
     endif()
 
-
-    add_executable(
-        server
-        server-main.cpp
-        # TODO: put these in a separate library
-        network/network_message.h network/network_message.cpp
-        network/utility.h network/utility.cpp
-        server/login.h server/login.cpp
-    )
-
-    target_compile_features(server PUBLIC cxx_std_20)
-
-    target_link_libraries(
-        server PRIVATE -static-libgcc -static-libstdc++ -static
-    )
-
-    target_link_libraries(
-        server PRIVATE
-        ${Boost_LIBRARIES}
-        OpenSSL::SSL
-        Boost::lexical_cast
-        Boost::beast
-        Boost::log
-        Boost::serialization
-        Boost::iostreams
-        glm 
-        $<$<BOOL:${UNIX}>:pthread>
-        $<$<BOOL:${WIN32}>:wsock32>
-        $<$<BOOL:${WIN32}>:ws2_32>
-    )
-
-    target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
-
-
     add_executable(
         test
         test-main.cpp
     )
-
+    
     target_compile_features(test PUBLIC cxx_std_20)
-
+    
     add_dependencies(test hello-gl hello-vk server)
-
+    
     target_link_libraries(
         test PRIVATE 
         ${Boost_LIBRARIES}
         Boost::process
     )
 endif()
+
+add_executable(
+    server
+    server-main.cpp
+    # TODO: put these in a separate library
+    network/network_message.h network/network_message.cpp
+    network/utility.h network/utility.cpp
+    server/login.h server/login.cpp
+)
+
+target_compile_features(server PUBLIC cxx_std_20)
+
+target_link_libraries(
+    server PRIVATE -static-libgcc -static-libstdc++ -static
+)
+
+target_link_libraries(
+    server PRIVATE
+    ${Boost_LIBRARIES}
+    ssl
+    Boost::lexical_cast
+    Boost::beast
+    Boost::log
+    Boost::serialization
+    Boost::iostreams
+    glm 
+    $<$<BOOL:${UNIX}>:pthread>
+    $<$<BOOL:${WIN32}>:wsock32>
+    $<$<BOOL:${WIN32}>:ws2_32>
+)
+
+target_include_directories(server PRIVATE ${Boost_INCLUDE_DIRS})
+
+set_target_properties(server PROPERTIES LINK_FLAGS "-sENVIRONMENT=node")
+
 
 add_custom_command(
     TARGET hello POST_BUILD

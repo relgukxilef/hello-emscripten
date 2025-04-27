@@ -1,10 +1,7 @@
 [
     {
         "name": "Emscripten",
-        "compilers": {
-            "C": "emcc",
-            "CXX": "em++"
-        },
-        "cmakeSettings": {"EMSCRIPTEN": "ON"}
+        "toolchainFile": "${workspaceFolder}/submodules/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "environmentSetupScript": "${workspaceFolder}/submodules/emsdk/emsdk_env.sh"
     }
 ]

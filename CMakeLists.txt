@@ -82,4 +82,14 @@ endif()
 
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
 
+include(ExternalProject)
+
+ExternalProject_Add(
+    OpenSSL
+    SOURCE_DIR ${CMAKE_SOURCE_DIR}/submodules/openssl
+    CONFIGURE_COMMAND ./config no-asm no-shared --prefix=${CMAKE_BINARY_DIR}/openssl
+    BUILD_COMMAND make
+    INSTALL_COMMAND make install_sw
+)
+
 add_subdirectory(source)
