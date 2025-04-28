@@ -21,14 +21,16 @@ struct url_view
 struct websocket::data {
     data(client &c) : c(c) {}
     virtual ~data() = default;
-    virtual void read() = 0;
+    virtual void read(std::shared_ptr<std::promise<void>> promise) = 0;
     virtual void try_write_message(websocket &s) = 0;
     std::atomic_bool write_completed = false;
     client &c;
+    std::future<void> completion;
+    std::weak_ptr<std::promise<void>> completion_promise;
 };
 
 struct insecure_websocket : public websocket::data {
-    void read() override;
+    void read(std::shared_ptr<std::promise<void>> promise) override;
     void try_write_message(websocket& s) override;
 
     insecure_websocket(client &c, event_loop &loop, url_view url);
@@ -39,7 +41,7 @@ struct insecure_websocket : public websocket::data {
 };
 
 struct secure_websocket : public websocket::data {
-    void read() override;
+    void read(std::shared_ptr<std::promise<void>> promise) override;
     void try_write_message(websocket& s) override;
 
     secure_websocket(client& c, event_loop& loop, url_view url);
@@ -86,10 +88,6 @@ event_loop::event_loop() : d(new data()) {
 event_loop::~event_loop() {
     d->guard.reset();
     d->thread.join();
-}
-
-void read(websocket& websocket) {
-    websocket.d->read();
 }
 
 websocket::websocket(
@@ -156,25 +154,26 @@ url_view::url_view(std::string_view url) {
     path = url;
 }
 
-void insecure_websocket::read() {
+void insecure_websocket::read(std::shared_ptr<std::promise<void>> promise) {
     stream.async_read(
         buffer,
-        [&](boost::beast::error_code error, size_t size) {
+        [this, promise](boost::beast::error_code error, size_t size) {
             if (check(error)) return;
             put_message(
                 c,
                 (const char*)buffer.cdata().data(), size
             );
             buffer.consume(buffer.size());
-            read();
+            read(promise);
         }
     );
 }
 
 void insecure_websocket::try_write_message(websocket& s) {
+    auto promise = completion_promise.lock();
     stream.async_write(
         boost::asio::buffer(s.next_message.data(), s.next_message.size()),
-        [&s](boost::beast::error_code error, size_t) {
+        [&s, promise](boost::beast::error_code error, size_t) {
             if (check(error)) return;
             s.d->write_completed = true;
         }
@@ -186,8 +185,10 @@ insecure_websocket::insecure_websocket(
 ) :
     websocket::data(c), stream(loop.d->context), context(loop.d->context)
 {
+    auto promise = std::make_shared<std::promise<void>>();
+    completion_promise = promise;
     // post because resolver is not thread-safe
-    context.post([url, &loop, this] () {
+    context.post([url, &loop, this, promise] () {
         loop.d->resolver.async_resolve(
             url.host,
             url.port,
@@ -195,7 +196,7 @@ insecure_websocket::insecure_websocket(
                 if (check(error)) return;
                 boost::asio::async_connect(
                     stream.next_layer(), results,
-                    [this, url](
+                    [this, url, promise] (
                         boost::system::error_code error,
                         boost::asio::ip::tcp::endpoint
                     ) {
@@ -208,11 +209,11 @@ insecure_websocket::insecure_websocket(
                             boost::string_view(
                                 url.path.data(), url.path.size()
                             ),
-                            [this](boost::beast::error_code error) {
+                            [this, promise] (boost::beast::error_code error) {
                                 if (check(error)) return;
                                 // allow writing now
                                 write_completed = true;
-                                read();
+                                read(promise);
                             }
                         );
                     }
@@ -223,28 +224,35 @@ insecure_websocket::insecure_websocket(
 }
 
 insecure_websocket::~insecure_websocket() {
-    
+    context.post([this, promise = completion_promise.lock()](){
+        stream.async_close(
+            boost::beast::websocket::close_code::going_away,
+            [this, promise](boost::beast::error_code error) {}
+        );
+    });
+    completion.wait();
 }
 
-void secure_websocket::read() {
+void secure_websocket::read(std::shared_ptr<std::promise<void>> promise) {
     stream.async_read(
         buffer,
-        [&](boost::beast::error_code error, size_t size) {
+        [this, promise](boost::beast::error_code error, size_t size) {
             if (check(error)) return;
             put_message(
                 c,
                 (const char*)buffer.cdata().data(), size
             );
             buffer.consume(buffer.size());
-            read();
+            read(promise);
         }
     );
 }
 
 void secure_websocket::try_write_message(websocket& s) {
+    auto promise = completion_promise.lock();
     stream.async_write(
         boost::asio::buffer(s.next_message.data(), s.next_message.size()),
-        [&s](boost::beast::error_code error, size_t) {
+        [&s, promise] (boost::beast::error_code error, size_t) {
             if (check(error)) return;
             s.d->write_completed = true;
         }
@@ -257,6 +265,9 @@ secure_websocket::secure_websocket(
     websocket::data(c), ssl_context{boost::asio::ssl::context::tlsv12_client},
     stream(loop.d->context, ssl_context), context(loop.d->context)
 {
+    auto promise = std::make_shared<std::promise<void>>();
+    completion_promise = promise;
+    completion = promise->get_future();
     ssl_context.set_default_verify_paths();
     ssl_context.set_verify_mode(boost::asio::ssl::verify_peer);
     ssl_context.set_verify_callback(
@@ -266,7 +277,7 @@ secure_websocket::secure_websocket(
         }
     );
     // post because resolver is not thread-safe
-    context.post([url, &loop, this] () {
+    context.post([url, &loop, this, promise] () {
         loop.d->resolver.async_resolve(
             url.host,
             url.port,
@@ -274,7 +285,7 @@ secure_websocket::secure_websocket(
                 if (check(error)) return;
                 boost::asio::async_connect(
                     get_lowest_layer(stream), results,
-                    [this, url](
+                    [this, url, promise](
                         boost::system::error_code error,
                         boost::asio::ip::tcp::endpoint
                     ) {
@@ -282,7 +293,8 @@ secure_websocket::secure_websocket(
                         stream.binary(true);
                         stream.next_layer().async_handshake(
                             boost::asio::ssl::stream_base::client,
-                            [this, url](boost::beast::error_code error) {
+                            [this, url, promise]
+                            (boost::beast::error_code error) {
                                 if (check(error)) return;
                                 stream.async_handshake(
                                     boost::string_view(
@@ -291,11 +303,12 @@ secure_websocket::secure_websocket(
                                     boost::string_view(
                                         url.path.data(), url.path.size()
                                     ),
-                                    [this](boost::beast::error_code error) {
+                                    [this, promise]
+                                    (boost::beast::error_code error) {
                                         if (check(error)) return;
                                         // allow writing now
                                         write_completed = true;
-                                        read();
+                                        read(promise);
                                     }
                                 );
                             }
@@ -308,5 +321,11 @@ secure_websocket::secure_websocket(
 }
 
 secure_websocket::~secure_websocket() {
-    
+    context.post([this, promise = completion_promise.lock()](){
+        stream.async_close(
+            boost::beast::websocket::close_code::going_away,
+            [this, promise](boost::beast::error_code error) {}
+        );
+    });
+    completion.wait();
 }
