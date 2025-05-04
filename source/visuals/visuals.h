@@ -13,6 +13,7 @@
 #include "../state/client.h"
 
 #include "view.h"
+#include "reality.h"
 
 struct a2b10g10r10 {
     std::uint32_t a : 2, b : 10, g : 10, r : 10;
@@ -38,7 +39,7 @@ struct meshes {
 struct visuals {
     visuals(::client& client, VkInstance instance, VkSurfaceKHR surface);
 
-    void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
+    void draw(::client& client);
 
     // TODO: let vma handle memory limits
     std::uint32_t vertex_memory_size = 128 * 1024 * 1024;
@@ -46,6 +47,9 @@ struct visuals {
     std::uint32_t pixel_memory_size = 1024 * 1024 * 1024;
 
     unique_debug_utils_messenger debug_utils_messenger;
+
+    VkInstance instance;
+    VkSurfaceKHR surface;
 
     VkPhysicalDevice physical_device;
 

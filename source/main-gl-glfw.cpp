@@ -10,6 +10,7 @@
 
 #include "main-glfw.h"
 #include "hello.h"
+#include "visuals/visuals.h"
 #include "utility/resource.h"
 #include "utility/trace.h"
 
@@ -71,7 +72,10 @@ int main(int argc, char *argv[]) {
         { static_cast<uint32_t>(width), static_cast<uint32_t>(height) }
     );
 
-    hello h(argv, vglCreateInstanceForGL(), vglCreateSurfaceForGL());
+    hello h(argv);
+    auto visuals = std::make_unique<::visuals>(
+        *h.client, vglCreateInstanceForGL(), vglCreateSurfaceForGL()
+    );
 
     ::input input {};
 
@@ -90,7 +94,7 @@ int main(int argc, char *argv[]) {
         update(input, window.get(), delta);
 
         h.update(input);
-        h.draw(vglCreateInstanceForGL(), vglCreateSurfaceForGL());
+        visuals->draw(*h.client);
 
         glfwSwapBuffers(window.get());
 

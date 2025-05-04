@@ -36,6 +36,7 @@ if (NOT EMSCRIPTEN)
     # Can't figure out how to keep libpng from using the system library for
     # generated sources
     set(ZLIB_COMPAT ON)
+    set(WITH_GTEST OFF)
     add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
     add_library(ZLIB::ZLIB ALIAS zlib)
 
@@ -77,5 +78,6 @@ else()
 endif()
 
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/OpenXR-SDK EXCLUDE_FROM_ALL)
 
 add_subdirectory(source)

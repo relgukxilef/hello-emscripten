@@ -31,6 +31,8 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
 }
 
 visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
+    this->instance = instance;
+    this->surface = surface;
     // create debug utils messenger
     VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
         .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -557,11 +559,12 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     ));
 
     view.reset(new ::view(client, *this, instance, surface));
+
+    // TODO
+    //reality.reset(new ::reality(xr_instance));
 }
 
-void visuals::draw(
-    ::client& client, VkInstance instance, VkSurfaceKHR surface
-) {
+void visuals::draw(::client& client) {
     scope_trace trace;
     if (view) {
         if (view->draw(*this, client) != VK_SUCCESS) {

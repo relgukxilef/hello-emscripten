@@ -386,7 +386,8 @@ struct handler {
         double d, std::string_view s, boost::system::error_code& ec
     ) {
         if (state == state::nodes_n_matrix && array_index < 16) {
-            nodes.back().matrix[array_index / 4][array_index % 4] = d;
+            nodes.back().matrix[array_index / 4][array_index % 4] = 
+                static_cast<float>(d);
             array_index++;
         }
         key.clear();

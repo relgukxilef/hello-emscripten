@@ -6,11 +6,15 @@
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 
 #include "main-glfw.h"
 #include "hello.h"
+#include "visuals/visuals.h"
 #include "utility/resource.h"
 #include "utility/vulkan_resource.h"
+#include "utility/xr_resource.h"
 #include "utility/out_ptr.h"
 
 struct glfw_error : public std::exception {
@@ -107,7 +111,7 @@ int main(int argc, char *argv[]) {
         extensions.get() + glfw_extension_count
     );
 
-    unique_instance instance;
+    unique_instance vk_instance;
     VkApplicationInfo application_info{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .applicationVersion = 0,
@@ -122,8 +126,62 @@ int main(int argc, char *argv[]) {
         .enabledExtensionCount = static_cast<uint32_t>(extension_count),
         .ppEnabledExtensionNames = extensions.get(),
     };
-    check(vkCreateInstance(&create_info, nullptr, out_ptr(instance)));
-    current_instance = instance.get();
+
+    unique_xr_instance xr_instance;
+    const char* xr_extensions[]{
+        XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME,
+    };
+    // TODO: check xrEnumerateInstanceExtensionProperties
+    XrInstanceCreateInfo xr_create_info{
+        .type = XR_TYPE_INSTANCE_CREATE_INFO,
+        .next = nullptr,
+        .applicationInfo = {
+            .applicationName = "HelloVR",
+            .applicationVersion = 1,
+            .engineName = "HelloVR",
+            .engineVersion = 1,
+            .apiVersion = XR_API_VERSION_1_0,
+        },
+        .enabledExtensionCount = std::size(xr_extensions),
+        .enabledExtensionNames = xr_extensions,
+    };
+    XrSystemGetInfo system_get_info {
+        .type = XR_TYPE_SYSTEM_GET_INFO,
+        .next = nullptr,
+        .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
+    };
+    XrSystemId system_id;
+    try {
+        check(xrCreateInstance(
+            &xr_create_info, out_ptr(xr_instance)
+        ));
+        check(xrGetSystem(xr_instance.get(), &system_get_info, &system_id));
+
+        XrVulkanInstanceCreateInfoKHR xr_vulkan_create_info{
+            .type = XR_TYPE_VULKAN_INSTANCE_CREATE_INFO_KHR,
+            .next = nullptr,
+            .systemId = system_id,
+            .pfnGetInstanceProcAddr = &vkGetInstanceProcAddr,
+            .vulkanCreateInfo = &create_info,
+        };
+        VkResult vk_result;
+        PFN_xrCreateVulkanInstanceKHR xrCreateVulkanInstanceKHR;
+        check(xrGetInstanceProcAddr(
+            xr_instance.get(), "xrCreateVulkanInstanceKHR",
+            (PFN_xrVoidFunction*)&xrCreateVulkanInstanceKHR
+        ));
+        check(xrCreateVulkanInstanceKHR(
+            xr_instance.get(), &xr_vulkan_create_info, out_ptr(vk_instance), 
+            &vk_result
+        ));
+        check(vk_result);
+
+    } catch (xr_error& e) {
+        std::printf("Starting without VR support.\n");
+        check(vkCreateInstance(&create_info, nullptr, out_ptr(vk_instance)));
+    }
+    
+    current_instance = vk_instance.get();
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     unique_window window(check(glfwCreateWindow(
@@ -132,10 +190,13 @@ int main(int argc, char *argv[]) {
 
     unique_surface surface;
     check(glfwCreateWindowSurface(
-        instance.get(), window.get(), nullptr, out_ptr(surface))
+        vk_instance.get(), window.get(), nullptr, out_ptr(surface))
     );
 
-    hello h(argv, instance.get(), surface.get());
+    hello h(argv);
+    auto visuals = std::make_unique<::visuals>(
+        *h.client, vk_instance.get(), surface.get()
+    );
 
     ::input input{};
 
@@ -149,7 +210,7 @@ int main(int argc, char *argv[]) {
         update(input, window.get(), delta);
 
         h.update(input);
-        h.draw(instance.get(), surface.get());
+        visuals->draw(*h.client);
 
         glfwPollEvents();
     }
