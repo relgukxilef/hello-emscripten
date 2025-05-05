@@ -37,7 +37,12 @@ struct meshes {
 };
 
 struct visuals {
-    visuals(::client& client, VkInstance instance, VkSurfaceKHR surface);
+    visuals(
+        ::client& client, VkInstance instance, VkSurfaceKHR surface, 
+        VkPhysicalDevice physical_device, VkDevice device, XrSession session, 
+        VkPhysicalDeviceMemoryProperties properties,
+        uint32_t graphics_queue_family, uint32_t present_queue_family
+    );
 
     void draw(::client& client);
 
@@ -46,19 +51,14 @@ struct visuals {
     std::uint32_t index_memory_size = 128 * 1024 * 1024;
     std::uint32_t pixel_memory_size = 1024 * 1024 * 1024;
 
-    unique_debug_utils_messenger debug_utils_messenger;
-
     VkInstance instance;
     VkSurfaceKHR surface;
-
     VkPhysicalDevice physical_device;
-
+    VkDevice device;
+    XrSession session;
     VkPhysicalDeviceMemoryProperties properties;
-
-    uint32_t graphics_queue_family = 0;
-    uint32_t present_queue_family = 0;
-
-    unique_device device;
+    uint32_t graphics_queue_family = ~0u;
+    uint32_t present_queue_family = ~0u;
 
     unique_allocator allocator;
 

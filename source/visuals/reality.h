@@ -2,12 +2,8 @@
 
 #include "../utility/xr_resource.h"
 
-enum struct platform {
-    opengl, opengl_es, vulkan,
-};
-
 struct reality {
-    reality(XrInstance instance, platform platform);
+    reality(XrInstance instance, XrSession xr_session);
 
-    unique_xr_session xr_session;
+    XrSession xr_session;
 };

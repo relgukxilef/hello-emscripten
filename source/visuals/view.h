@@ -32,9 +32,7 @@ struct image {
 };
 
 struct view {
-    view(
-        client& c, struct visuals& v, VkInstance instance, VkSurfaceKHR surface
-    );
+    view(client& c, struct visuals& v);
 
     VkResult draw(struct visuals& v, ::client& client);
 

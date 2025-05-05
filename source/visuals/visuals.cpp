@@ -11,138 +11,20 @@
 #include "../utility/math.h"
 #include "../utility/trace.h"
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-    VkDebugUtilsMessageTypeFlagsEXT,
-    const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-    void*
-) noexcept {
-    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        std::fprintf(
-            stderr, "Validation layer error: %s\n", callback_data->pMessage
-        );
-    } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        std::fprintf(
-            stderr, "Validation layer warning: %s\n", callback_data->pMessage
-        );
-    }
-
-    return VK_FALSE;
-}
-
-visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
+visuals::visuals(
+    ::client& client, VkInstance instance, VkSurfaceKHR surface, 
+    VkPhysicalDevice physical_device, VkDevice device, XrSession session,
+    VkPhysicalDeviceMemoryProperties properties,
+    uint32_t graphics_queue_family, uint32_t present_queue_family
+) {
     this->instance = instance;
     this->surface = surface;
-    // create debug utils messenger
-    VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
-        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-        .messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-        .messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-        .pfnUserCallback = debug_callback,
-        .pUserData = nullptr
-    };
-    auto vkCreateDebugUtilsMessengerEXT =
-        (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(
-            instance, "vkCreateDebugUtilsMessengerEXT"
-        );
-    {
-        check(vkCreateDebugUtilsMessengerEXT(
-            instance, &debug_utils_messenger_create_info, nullptr,
-            out_ptr(debug_utils_messenger)
-        ));
-    }
-
-    uint32_t device_count = 0;
-    vkEnumeratePhysicalDevices(instance, &device_count, nullptr);
-    {
-        auto devices = std::make_unique<VkPhysicalDevice[]>(device_count);
-        check(vkEnumeratePhysicalDevices(
-            instance, &device_count, devices.get()
-        ));
-
-        physical_device = devices[0]; // just pick the first one
-    }
-
-    // find memory types
-    vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
-
-    uint32_t queue_family_count = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        physical_device, &queue_family_count, nullptr
-    );
-    auto queue_families =
-        std::make_unique<VkQueueFamilyProperties[]>(queue_family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(
-        physical_device, &queue_family_count, queue_families.get()
-    );
-
-    for (auto i = 0u; i < queue_family_count; i++) {
-        const auto& queueFamily = queue_families[i];
-        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            graphics_queue_family = i;
-        }
-
-        VkBool32 present_support = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(
-            physical_device, i, surface, &present_support
-        );
-        if (present_support) {
-            present_queue_family = i;
-        }
-    }
-    if (graphics_queue_family == ~0u) {
-        throw std::runtime_error("no suitable queue found");
-    }
-
-    // create logical device
-    {
-        float priority = 1.0f;
-        VkDeviceQueueCreateInfo queue_create_infos[]{
-            {
-                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                .queueFamilyIndex = graphics_queue_family,
-                .queueCount = 1,
-                .pQueuePriorities = &priority,
-            }, {
-                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                .queueFamilyIndex = present_queue_family,
-                .queueCount = 1,
-                .pQueuePriorities = &priority,
-            }
-        };
-
-        // Vulkan doesn't allow asking for multiple queues of the same family
-        std::uint32_t queue_count = 
-            1 + (graphics_queue_family != present_queue_family);
-
-        const char* enabled_extension_names[] = {
-            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        };
-
-        VkPhysicalDeviceFeatures device_features{
-            .alphaToOne = VK_TRUE,
-        };
-        VkDeviceCreateInfo create_info{
-            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .queueCreateInfoCount = queue_count,
-            .pQueueCreateInfos = queue_create_infos,
-            .enabledExtensionCount =
-                static_cast<uint32_t>(std::size(enabled_extension_names)),
-            .ppEnabledExtensionNames = enabled_extension_names,
-            .pEnabledFeatures = &device_features,
-        };
-
-        check(vkCreateDevice(
-            physical_device, &create_info, nullptr, out_ptr(device)
-        ));
-    }
-    current_device = device.get();
+    this->physical_device = physical_device;
+    this->device = device;
+    this->session = session;
+    this->properties = properties;
+    this->graphics_queue_family = graphics_queue_family;
+    this->present_queue_family = present_queue_family;
 
     {
         VmaVulkanFunctions vulkanFunctions = {
@@ -152,7 +34,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
 
         VmaAllocatorCreateInfo allocatorCreateInfo = {
             .physicalDevice = physical_device,
-            .device = device.get(),
+            .device = device,
             .pVulkanFunctions = &vulkanFunctions,
             .instance = instance,
             .vulkanApiVersion = VK_API_VERSION_1_0,
@@ -163,15 +45,15 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
     current_allocator = allocator.get();
 
     // retreive queues
-    vkGetDeviceQueue(device.get(), graphics_queue_family, 0, &graphics_queue);
-    vkGetDeviceQueue(device.get(), present_queue_family, 0, &present_queue);
+    vkGetDeviceQueue(device, graphics_queue_family, 0, &graphics_queue);
+    vkGetDeviceQueue(device, present_queue_family, 0, &present_queue);
 
     {
         VkSemaphoreCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         };
         check(vkCreateSemaphore(
-            device.get(), &create_info, nullptr,
+            device, &create_info, nullptr,
             out_ptr(swapchain_image_ready_semaphore)
         ));
     }
@@ -185,7 +67,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .pCode = reinterpret_cast<uint32_t*>(code.data()),
         };
         check(vkCreateShaderModule(
-            device.get(), &create_info, nullptr, out_ptr(vertex_shader_module)
+            device, &create_info, nullptr, out_ptr(vertex_shader_module)
         ));
     }
     {
@@ -196,7 +78,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .pCode = reinterpret_cast<uint32_t*>(code.data()),
         };
         check(vkCreateShaderModule(
-            device.get(), &create_info, nullptr, out_ptr(fragment_shader_module)
+            device, &create_info, nullptr, out_ptr(fragment_shader_module)
         ));
     }
 
@@ -224,7 +106,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .pBindings = descriptor_set_layout_binding.begin(),
         };
         check(vkCreateDescriptorSetLayout(
-            device.get(), &create_info,
+            device, &create_info,
             nullptr, out_ptr(descriptor_set_layout)
         ));
     }
@@ -241,7 +123,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .pSetLayouts = set_layouts
         };
         check(vkCreatePipelineLayout(
-            device.get(), &create_info, nullptr, out_ptr(pipeline_layout)
+            device, &create_info, nullptr, out_ptr(pipeline_layout)
         ));
     }
 
@@ -252,7 +134,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
             .queueFamilyIndex = graphics_queue_family,
         };
         check(vkCreateCommandPool(
-            device.get(), &create_info, nullptr, out_ptr(command_pool)
+            device, &create_info, nullptr, out_ptr(command_pool)
         ));
     }
 
@@ -293,7 +175,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         };
 
         check(vkCreateSampler(
-            device.get(), &create_info, nullptr, out_ptr(default_sampler)
+            device, &create_info, nullptr, out_ptr(default_sampler)
         ));
     }
 
@@ -438,7 +320,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                 };
 
                 check(vkCreateImageView(
-                    device.get(), &create_info, nullptr,
+                    device, &create_info, nullptr,
                     out_ptr(images.back().view)
                 ));
             }
@@ -452,7 +334,7 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
                     .commandBufferCount = 1,
                 };
                 check(vkAllocateCommandBuffers(
-                    device.get(), &allocate_info, &copy_command
+                    device, &allocate_info, &copy_command
                 ));
 
                 VkCommandBufferBeginInfo begin_info = {
@@ -558,18 +440,13 @@ visuals::visuals(::client& client, VkInstance instance, VkSurfaceKHR surface) {
         allocations, nullptr, nullptr
     ));
 
-    view.reset(new ::view(client, *this, instance, surface));
-
-    // TODO
-    //reality.reset(new ::reality(xr_instance));
+    view.reset(new ::view(client, *this));
 }
 
 void visuals::draw(::client& client) {
     scope_trace trace;
-    if (view) {
-        if (view->draw(*this, client) != VK_SUCCESS) {
-            view.reset(); // delete first
-            view.reset(new ::view(client, *this, instance, surface));
-        }
+    if (view->draw(*this, client) != VK_SUCCESS) {
+        view.reset(); // delete first
+        view.reset(new ::view(client, *this));
     }
 }

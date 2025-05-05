@@ -73,8 +73,20 @@ int main(int argc, char *argv[]) {
     );
 
     hello h(argv);
+
+    VkInstance vk_instance = vglCreateInstanceForGL();
+    VkPhysicalDevice vk_physical_device;
+    uint32_t device_count = 1;
+    vkEnumeratePhysicalDevices(vk_instance, &device_count, &vk_physical_device);
+    VkPhysicalDeviceMemoryProperties properties;
+    vkGetPhysicalDeviceMemoryProperties(vk_physical_device, &properties);
+    VkDevice vk_device;
+    vkCreateDevice(
+        vk_physical_device, nullptr, nullptr, &vk_device
+    );
     auto visuals = std::make_unique<::visuals>(
-        *h.client, vglCreateInstanceForGL(), vglCreateSurfaceForGL()
+        *h.client, vk_instance, vglCreateSurfaceForGL(),
+        vk_physical_device, vk_device, nullptr, properties, 0, 0
     );
 
     ::input input {};

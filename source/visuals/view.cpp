@@ -81,7 +81,7 @@ void record_command_buffer(
     }
 
     vkUpdateDescriptorSets(
-        visuals.device.get(), primitive,
+        visuals.device, primitive,
         write_descriptor_sets.get(), 0, nullptr
     );
 
@@ -246,14 +246,14 @@ void record_command_buffer(
     check(vkEndCommandBuffer(image.draw_command_buffer));
 }
 
-view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
+view::view(client& c, visuals &v) {
     // create swap chains
     uint32_t format_count = 0, present_mode_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(
-        v.physical_device, surface, &format_count, nullptr
+        v.physical_device, v.surface, &format_count, nullptr
     );
     vkGetPhysicalDeviceSurfacePresentModesKHR(
-        v.physical_device, surface, &present_mode_count, nullptr
+        v.physical_device, v.surface, &present_mode_count, nullptr
     );
     if (format_count == 0) {
         throw std::runtime_error("no surface formats supported");
@@ -266,10 +266,10 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         std::make_unique<VkPresentModeKHR[]>(present_mode_count);
 
     vkGetPhysicalDeviceSurfaceFormatsKHR(
-        v.physical_device, surface, &format_count, formats.get()
+        v.physical_device, v.surface, &format_count, formats.get()
     );
     vkGetPhysicalDeviceSurfacePresentModesKHR(
-        v.physical_device, surface, &present_mode_count, present_modes.get()
+        v.physical_device, v.surface, &present_mode_count, present_modes.get()
     );
 
     VkSurfaceFormatKHR surface_format;
@@ -287,7 +287,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
 
     // view-specific resources
     check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
-        v.physical_device, surface, &capabilities
+        v.physical_device, v.surface, &capabilities
     ));
 
     unsigned width = capabilities.currentExtent.width;
@@ -311,7 +311,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         };
         VkSwapchainCreateInfoKHR create_info{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-            .surface = surface,
+            .surface = v.surface,
             .minImageCount = capabilities.minImageCount,
             .imageFormat = surface_format.format,
             .imageColorSpace = surface_format.colorSpace,
@@ -330,19 +330,19 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .oldSwapchain = VK_NULL_HANDLE,
         };
         check(vkCreateSwapchainKHR(
-            v.device.get(), &create_info, nullptr, out_ptr(swapchain)
+            v.device, &create_info, nullptr, out_ptr(swapchain)
         ));
     }
 
     uint32_t image_count;
     check(vkGetSwapchainImagesKHR(
-        v.device.get(), swapchain.get(), &image_count, nullptr
+        v.device, swapchain.get(), &image_count, nullptr
     ));
 
     auto swapchain_images = std::make_unique<VkImage[]>(image_count);
 
     check(vkGetSwapchainImagesKHR(
-        v.device.get(), swapchain.get(), &image_count, swapchain_images.get()
+        v.device, swapchain.get(), &image_count, swapchain_images.get()
     ));
 
     // create descriptor pool
@@ -364,7 +364,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .pPoolSizes = pool_sizes,
         };
         check(vkCreateDescriptorPool(
-            v.device.get(), &create_info, nullptr, out_ptr(descriptor_pool))
+            v.device, &create_info, nullptr, out_ptr(descriptor_pool))
         );
     }
 
@@ -453,7 +453,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .pDependencies = subpass_dependencies.begin(),
         };
         check(vkCreateRenderPass(
-            v.device.get(), &create_info, nullptr, out_ptr(render_pass)
+            v.device, &create_info, nullptr, out_ptr(render_pass)
         ));
     }
 
@@ -595,7 +595,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .subpass = 0,
         };
         check(vkCreateGraphicsPipelines(
-            v.device.get(), VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr,
+            v.device, VK_NULL_HANDLE, 1, &pipeline_create_info, nullptr,
             out_ptr(pipeline)
         ));
     }
@@ -626,7 +626,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .pSetLayouts = descriptor_set_layouts.get(),
         };
         check(vkAllocateDescriptorSets(
-            v.device.get(), &descriptor_set_allocate_info, descriptor_sets.get()
+            v.device, &descriptor_set_allocate_info, descriptor_sets.get()
         ));
 
         // TODO: double buffer
@@ -676,7 +676,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
         }
 
         vkUpdateDescriptorSets(
-            v.device.get(), image_count * descriptor_set_count * 2,
+            v.device, image_count * descriptor_set_count * 2,
             write_descriptor_sets.get(), 0, nullptr
         );
 
@@ -695,7 +695,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
         };
         check(vkCreateSemaphore(
-            v.device.get(), &semaphore_info, nullptr,
+            v.device, &semaphore_info, nullptr,
             out_ptr(image.draw_finished_semaphore)
         ));
 
@@ -704,7 +704,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .flags = VK_FENCE_CREATE_SIGNALED_BIT,
         };
         check(vkCreateFence(
-            v.device.get(), &fence_info, nullptr,
+            v.device, &fence_info, nullptr,
             out_ptr(image.draw_finished_fence)
         ));
 
@@ -729,13 +729,13 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             };
             check(vkCreateImage(
-                v.device.get(), &create_info, nullptr,
+                v.device, &create_info, nullptr,
                 out_ptr(image.color_image)
             ));
 
             VkMemoryRequirements memory_requirements;
             vkGetImageMemoryRequirements(
-                v.device.get(), image.color_image.get(), &memory_requirements
+                v.device, image.color_image.get(), &memory_requirements
             );
 
             uint32_t color_memory_type_index = 0;
@@ -759,12 +759,12 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             };
 
             check(vkAllocateMemory(
-                v.device.get(), &allocate_info, nullptr,
+                v.device, &allocate_info, nullptr,
                 out_ptr(image.color_memory)
             ));
 
             check(vkBindImageMemory(
-                v.device.get(), image.color_image.get(),
+                v.device, image.color_image.get(),
                 image.color_memory.get(), 0
             ));
         }
@@ -784,7 +784,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 },
             };
             check(vkCreateImageView(
-                v.device.get(), &create_info, nullptr,
+                v.device, &create_info, nullptr,
                 out_ptr(image.color_view)
             ));
         }
@@ -808,13 +808,13 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
             };
             check(vkCreateImage(
-                v.device.get(), &create_info, nullptr,
+                v.device, &create_info, nullptr,
                 out_ptr(image.depth_image)
             ));
 
             VkMemoryRequirements memory_requirements;
             vkGetImageMemoryRequirements(
-                v.device.get(), image.depth_image.get(), &memory_requirements
+                v.device, image.depth_image.get(), &memory_requirements
             );
 
             uint32_t depth_memory_type_index = 0;
@@ -838,12 +838,12 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             };
 
             check(vkAllocateMemory(
-                v.device.get(), &allocate_info, nullptr,
+                v.device, &allocate_info, nullptr,
                 out_ptr(image.depth_memory)
             ));
 
             check(vkBindImageMemory(
-                v.device.get(), image.depth_image.get(),
+                v.device, image.depth_image.get(),
                 image.depth_memory.get(), 0
             ));
         }
@@ -864,7 +864,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 },
             };
             check(vkCreateImageView(
-                v.device.get(), &create_info, nullptr,
+                v.device, &create_info, nullptr,
                 out_ptr(image.depth_view)
             ));
         }
@@ -884,7 +884,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 },
             };
             check(vkCreateImageView(
-                v.device.get(), &create_info, nullptr,
+                v.device, &create_info, nullptr,
                 out_ptr(image.image_view)
             ));
         }
@@ -905,7 +905,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
                 .layers = 1,
             };
             check(vkCreateFramebuffer(
-                v.device.get(), &create_info, nullptr,
+                v.device, &create_info, nullptr,
                 out_ptr(image.framebuffer)
             ));
         }
@@ -917,7 +917,7 @@ view::view(client& c, visuals &v, VkInstance instance, VkSurfaceKHR surface) {
             .commandBufferCount = 1,
         };
         check(vkAllocateCommandBuffers(
-            v.device.get(), &command_buffer_info, &image.draw_command_buffer
+            v.device, &command_buffer_info, &image.draw_command_buffer
         ));
 
         record_command_buffer(
@@ -931,7 +931,7 @@ VkResult view::draw(visuals &v, ::client& client) {
     scope_trace trace;
     uint32_t image_index;
     VkResult result = vkAcquireNextImageKHR(
-        v.device.get(), swapchain.get(), ~0ul,
+        v.device, swapchain.get(), ~0ul,
         v.swapchain_image_ready_semaphore.get(),
         VK_NULL_HANDLE, &image_index
     );
@@ -947,12 +947,12 @@ VkResult view::draw(visuals &v, ::client& client) {
     {
         scope_trace trace;
         check(vkWaitForFences(
-            v.device.get(), 1, fences,
+            v.device, 1, fences,
             VK_TRUE, ~0ul
         ));
     }
     check(vkResetFences(
-        v.device.get(), 1, fences
+        v.device, 1, fences
     ));
 
     {
