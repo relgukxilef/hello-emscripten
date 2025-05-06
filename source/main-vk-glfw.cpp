@@ -65,7 +65,6 @@ struct vk_glfw_visuals {
 };
 
 vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
-    
     uint32_t glfw_extension_count = 0;
     auto glfw_extensions =
         glfwGetRequiredInstanceExtensions(&glfw_extension_count);
@@ -373,7 +372,16 @@ int main(int argc, char *argv[]) {
 
         update(input, window.get(), delta);
 
-        h.update(input);
+        try {
+            h.update(
+                input, visuals->xr_instance.get(), visuals->xr_session.get()
+            );
+        } catch (xr_error& e) {
+            std::printf("XR error: %s\n", e.what());
+            visuals.reset();
+            visuals = 
+                std::make_unique<vk_glfw_visuals>(window.get(), *h.client);
+        }
         visuals->visuals->draw(*h.client);
 
         glfwPollEvents();

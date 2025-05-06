@@ -445,6 +445,7 @@ visuals::visuals(
 
 void visuals::draw(::client& client) {
     scope_trace trace;
+
     if (view->draw(*this, client) != VK_SUCCESS) {
         view.reset(); // delete first
         view.reset(new ::view(client, *this));
