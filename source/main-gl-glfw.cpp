@@ -86,7 +86,9 @@ int main(int argc, char *argv[]) {
     );
     auto visuals = std::make_unique<::visuals>(
         *h.client, vk_instance, vglCreateSurfaceForGL(),
-        vk_physical_device, vk_device, nullptr, properties, 0, 0
+        vk_physical_device, vk_device, 
+        XR_NULL_HANDLE, 0, XR_NULL_HANDLE, 
+        properties, 0, 0
     );
 
     ::input input {};

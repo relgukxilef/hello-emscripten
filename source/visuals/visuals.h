@@ -39,7 +39,8 @@ struct meshes {
 struct visuals {
     visuals(
         ::client& client, VkInstance instance, VkSurfaceKHR surface, 
-        VkPhysicalDevice physical_device, VkDevice device, XrSession session, 
+        VkPhysicalDevice physical_device, VkDevice device, 
+        XrInstance xr_instance, XrSystemId system_id, XrSession session, 
         VkPhysicalDeviceMemoryProperties properties,
         uint32_t graphics_queue_family, uint32_t present_queue_family
     );
@@ -55,10 +56,15 @@ struct visuals {
     VkSurfaceKHR surface;
     VkPhysicalDevice physical_device;
     VkDevice device;
+    XrInstance xr_instance;
+    XrSystemId system_id;
     XrSession session;
     VkPhysicalDeviceMemoryProperties properties;
     uint32_t graphics_queue_family = ~0u;
     uint32_t present_queue_family = ~0u;
+
+    XrViewConfigurationView view_configuration_view;
+
 
     unique_allocator allocator;
 

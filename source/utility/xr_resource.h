@@ -21,23 +21,20 @@ inline void check(XrResult result) {
     }
 }
 
-struct xr_instance_deleter {
-    typedef XrInstance pointer;
-    void operator()(XrInstance instance) {
-        if (instance != XR_NULL_HANDLE) {
-            xrDestroyInstance(instance);
+template<typename T, auto Deleter>
+struct xr_deleter {
+    typedef T pointer;
+    void operator()(pointer object) {
+        if (object != XR_NULL_HANDLE) {
+            Deleter(object);
         }
     }
 };
 
-struct xr_session_deleter {
-    typedef XrSession pointer;
-    void operator()(XrSession session) {
-        if (session != XR_NULL_HANDLE) {
-            xrDestroySession(session);
-        }
-    }
-};
+template<typename T, auto Deleter>
+using unique_xr_resource =
+    std::unique_ptr<T, xr_deleter<T, Deleter>>;
 
-using unique_xr_instance = std::unique_ptr<XrInstance, xr_instance_deleter>;
-using unique_xr_session = std::unique_ptr<XrSession, xr_session_deleter>;
+using unique_xr_instance = unique_xr_resource<XrInstance, xrDestroyInstance>;
+using unique_xr_session = unique_xr_resource<XrSession, xrDestroySession>;
+using unique_xr_swapchain = unique_xr_resource<XrSwapchain, xrDestroySwapchain>;

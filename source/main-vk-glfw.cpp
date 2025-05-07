@@ -61,6 +61,7 @@ struct vk_glfw_visuals {
     unique_surface surface;
     unique_device vk_device;
     unique_xr_session xr_session;
+    unique_xr_swapchain color_swapchain, depth_swapchain;
     std::unique_ptr<::visuals> visuals;
 };
 
@@ -336,12 +337,95 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         check(xrCreateSession(
             xr_instance.get(), &session_create_info, out_ptr(xr_session)
         ));
+     
+        uint32_t view_configuration_view_count = 0;
+        check(xrEnumerateViewConfigurationViews(
+            xr_instance.get(), system_id, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            0, &view_configuration_view_count, nullptr
+        ));
+        std::vector<XrViewConfigurationView> view_configuration_views(
+            view_configuration_view_count
+        );
+        check(xrEnumerateViewConfigurationViews(
+            xr_instance.get(), system_id, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            view_configuration_view_count, &view_configuration_view_count,
+            view_configuration_views.data()
+        ));
+
+        uint32_t format_count = 0;
+        check(xrEnumerateSwapchainFormats(
+            xr_session.get(), system_id, &format_count, nullptr
+        ));
+        std::vector<int64_t> swapchain_formats(format_count);
+        check(xrEnumerateSwapchainFormats(
+            xr_session.get(), system_id, &format_count, 
+            swapchain_formats.data()
+        ));
+        // TODO: check supported formats
+
+        XrSwapchainCreateInfo swapchain_create_info {
+            .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
+            .usageFlags = 
+                XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
+                XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+            .format = VK_FORMAT_B8G8R8A8_SRGB,
+            .sampleCount = 1,
+            .width = view_configuration_views[0].recommendedImageRectWidth,
+            .height = view_configuration_views[0].recommendedImageRectHeight,
+            .faceCount = 1,
+            .arraySize = 1,
+            .mipCount = 1,
+        };
+        check(xrCreateSwapchain(
+            xr_session.get(), &swapchain_create_info, out_ptr(color_swapchain)
+        ));
+
+        uint32_t swapchain_image_count = 0;
+        check(xrEnumerateSwapchainImages(
+            color_swapchain.get(), 0, &swapchain_image_count, nullptr
+        ));
+        std::vector<XrSwapchainImageBaseHeader> swapchain_images(
+            swapchain_image_count
+        );
+        check(xrEnumerateSwapchainImages(
+            color_swapchain.get(), swapchain_image_count, 
+            &swapchain_image_count, swapchain_images.data()
+        ));
+        
+
+        swapchain_create_info = {
+            .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
+            .usageFlags = 
+                XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+            .format = VK_FORMAT_D24_UNORM_S8_UINT,
+            .sampleCount = 1,
+            .width = view_configuration_views[0].recommendedImageRectWidth,
+            .height = view_configuration_views[0].recommendedImageRectHeight,
+            .faceCount = 1,
+            .arraySize = 1,
+            .mipCount = 1,
+        };
+        check(xrCreateSwapchain(
+            xr_session.get(), &swapchain_create_info, out_ptr(depth_swapchain)
+        ));
+
+        swapchain_image_count = 0;
+        check(xrEnumerateSwapchainImages(
+            depth_swapchain.get(), 0, &swapchain_image_count, nullptr
+        ));
+        swapchain_images.resize(swapchain_image_count);
+        check(xrEnumerateSwapchainImages(
+            depth_swapchain.get(), swapchain_image_count, 
+            &swapchain_image_count, swapchain_images.data()
+        ));
     }
 
     
     visuals = std::make_unique<::visuals>(
         client, vk_instance.get(), surface.get(), 
-        physical_device, vk_device.get(), xr_session.get(), properties,
+        physical_device, vk_device.get(), xr_instance.get(), 
+        system_id, xr_session.get(), properties,
         graphics_queue_family, present_queue_family
     );
 }
