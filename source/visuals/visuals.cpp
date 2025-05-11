@@ -12,22 +12,20 @@
 #include "../utility/trace.h"
 
 visuals::visuals(
-    ::client& client, VkInstance instance, VkSurfaceKHR surface, 
-    VkPhysicalDevice physical_device, VkDevice device, 
-    XrInstance xr_instance, XrSystemId system_id, XrSession session,
-    VkPhysicalDeviceMemoryProperties properties,
-    uint32_t graphics_queue_family, uint32_t present_queue_family
+    ::client& client, platform create_info
 ) {
-    this->instance = instance;
-    this->surface = surface;
-    this->physical_device = physical_device;
-    this->device = device;
-    this->xr_instance = xr_instance;
-    this->system_id = system_id;
-    this->session = session;
-    this->properties = properties;
-    this->graphics_queue_family = graphics_queue_family;
-    this->present_queue_family = present_queue_family;
+    instance = create_info.instance;
+    surface = create_info.surface;
+    physical_device = create_info.physical_device;
+    device = create_info.device;
+    xr_instance = create_info.xr_instance;
+    system_id = create_info.system_id;
+    session = create_info.session;
+    properties = create_info.properties;
+    graphics_queue_family = create_info.graphics_queue_family;
+    present_queue_family = create_info.present_queue_family;
+    color_images = create_info.color_images;
+    depth_images = create_info.depth_images;
 
     {
         VmaVulkanFunctions vulkanFunctions = {

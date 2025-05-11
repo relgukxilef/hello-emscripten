@@ -36,13 +36,23 @@ struct meshes {
     std::uint16_t faces_vertices[1024];
 };
 
+struct platform {
+    VkInstance instance;
+    VkSurfaceKHR surface;
+    VkPhysicalDevice physical_device;
+    VkDevice device;
+    VkPhysicalDeviceMemoryProperties properties;
+    uint32_t graphics_queue_family, present_queue_family;
+
+    XrInstance xr_instance;
+    XrSystemId system_id;
+    XrSession session;
+    std::vector<VkImage> color_images, depth_images;
+};
+
 struct visuals {
     visuals(
-        ::client& client, VkInstance instance, VkSurfaceKHR surface, 
-        VkPhysicalDevice physical_device, VkDevice device, 
-        XrInstance xr_instance, XrSystemId system_id, XrSession session, 
-        VkPhysicalDeviceMemoryProperties properties,
-        uint32_t graphics_queue_family, uint32_t present_queue_family
+        ::client& client, platform create_info
     );
 
     void draw(::client& client);
@@ -62,6 +72,7 @@ struct visuals {
     VkPhysicalDeviceMemoryProperties properties;
     uint32_t graphics_queue_family = ~0u;
     uint32_t present_queue_family = ~0u;
+    std::vector<VkImage> color_images, depth_images;
 
     XrViewConfigurationView view_configuration_view;
 

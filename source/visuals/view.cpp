@@ -246,7 +246,7 @@ void record_command_buffer(
     check(vkEndCommandBuffer(image.draw_command_buffer));
 }
 
-view::view(client& c, visuals &v) {
+view::view(client& c, struct visuals& v) {
     // create swap chains
     uint32_t format_count = 0, present_mode_count = 0;
     vkGetPhysicalDeviceSurfaceFormatsKHR(
@@ -335,15 +335,27 @@ view::view(client& c, visuals &v) {
     }
 
     uint32_t image_count;
-    check(vkGetSwapchainImagesKHR(
-        v.device, swapchain.get(), &image_count, nullptr
-    ));
+    std::unique_ptr<VkImage[]> swapchain_images;
+    if (v.session) {
+        image_count = v.color_images.size();
+        
+        swapchain_images = std::make_unique<VkImage[]>(image_count);
 
-    auto swapchain_images = std::make_unique<VkImage[]>(image_count);
+        for (auto i = 0u; i < image_count; i++) {
+            swapchain_images[i] = v.color_images[i];
+        }
 
-    check(vkGetSwapchainImagesKHR(
-        v.device, swapchain.get(), &image_count, swapchain_images.get()
-    ));
+    } else {
+        check(vkGetSwapchainImagesKHR(
+            v.device, swapchain.get(), &image_count, nullptr
+        ));
+
+        swapchain_images = std::make_unique<VkImage[]>(image_count);
+
+        check(vkGetSwapchainImagesKHR(
+            v.device, swapchain.get(), &image_count, swapchain_images.get()
+        ));
+    }
 
     // create descriptor pool
     {

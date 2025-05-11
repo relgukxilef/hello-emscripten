@@ -125,6 +125,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
     };
     XrSystemId system_id;
+    std::vector<VkImage> color_images, depth_images;
 
     try {
         check(xrCreateInstance(
@@ -346,6 +347,9 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         std::vector<XrViewConfigurationView> view_configuration_views(
             view_configuration_view_count
         );
+        for (auto& v : view_configuration_views) {
+            v.type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
+        }
         check(xrEnumerateViewConfigurationViews(
             xr_instance.get(), system_id, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
             view_configuration_view_count, &view_configuration_view_count,
@@ -354,11 +358,11 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
 
         uint32_t format_count = 0;
         check(xrEnumerateSwapchainFormats(
-            xr_session.get(), system_id, &format_count, nullptr
+            xr_session.get(), 0, &format_count, nullptr
         ));
         std::vector<int64_t> swapchain_formats(format_count);
         check(xrEnumerateSwapchainFormats(
-            xr_session.get(), system_id, &format_count, 
+            xr_session.get(), format_count, &format_count, 
             swapchain_formats.data()
         ));
         // TODO: check supported formats
@@ -384,13 +388,21 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         check(xrEnumerateSwapchainImages(
             color_swapchain.get(), 0, &swapchain_image_count, nullptr
         ));
-        std::vector<XrSwapchainImageBaseHeader> swapchain_images(
+        std::vector<XrSwapchainImageVulkan2KHR> swapchain_images(
             swapchain_image_count
         );
         check(xrEnumerateSwapchainImages(
             color_swapchain.get(), swapchain_image_count, 
-            &swapchain_image_count, swapchain_images.data()
+            &swapchain_image_count, 
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(
+                swapchain_images.data()
+            )
         ));
+        color_images.resize(swapchain_image_count);
+        for (auto i = 0u; i < swapchain_image_count; i++) {
+            auto& swapchain_image = swapchain_images[i];
+            color_images[i] = swapchain_image.image;
+        }
         
 
         swapchain_create_info = {
@@ -417,16 +429,29 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         swapchain_images.resize(swapchain_image_count);
         check(xrEnumerateSwapchainImages(
             depth_swapchain.get(), swapchain_image_count, 
-            &swapchain_image_count, swapchain_images.data()
+            &swapchain_image_count, 
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(
+                swapchain_images.data()
+            )
         ));
+        depth_images.resize(swapchain_image_count);
+        for (auto i = 0u; i < swapchain_image_count; i++) {
+            auto& swapchain_image = swapchain_images[i];
+            depth_images[i] = swapchain_image.image;
+        }
     }
 
     
     visuals = std::make_unique<::visuals>(
-        client, vk_instance.get(), surface.get(), 
-        physical_device, vk_device.get(), xr_instance.get(), 
-        system_id, xr_session.get(), properties,
-        graphics_queue_family, present_queue_family
+        client, platform{
+            vk_instance.get(), surface.get(), 
+            physical_device, vk_device.get(), 
+            properties, graphics_queue_family, present_queue_family,
+            
+            xr_instance.get(), 
+            system_id, xr_session.get(), 
+            std::move(color_images), std::move(depth_images)
+        }
     );
 }
 
