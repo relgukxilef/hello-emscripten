@@ -942,15 +942,34 @@ view::view(client& c, struct visuals& v) {
 VkResult view::draw(visuals &v, ::client& client) {
     scope_trace trace;
     uint32_t image_index;
-    VkResult result = vkAcquireNextImageKHR(
-        v.device, swapchain.get(), ~0ul,
-        v.swapchain_image_ready_semaphore.get(),
-        VK_NULL_HANDLE, &image_index
-    );
-    if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
-        return result;
+    XrFrameState frame_state;
+    XrSpace view_space;
+
+    if (v.session) {
+        XrFrameWaitInfo frame_wait_info{
+            .type = XR_TYPE_FRAME_WAIT_INFO,
+            .next = nullptr,
+        };
+        check(xrWaitFrame(v.session, &frame_wait_info, &frame_state));
+        XrFrameBeginInfo frame_begin_info{
+            .type = XR_TYPE_FRAME_BEGIN_INFO,
+            .next = nullptr,
+        };
+        check(xrBeginFrame(v.session, &frame_begin_info));
+
+        // TODO: get pose, get swapchain image
+
+    } else {
+        VkResult result = vkAcquireNextImageKHR(
+            v.device, swapchain.get(), ~0ul,
+            v.swapchain_image_ready_semaphore.get(),
+            VK_NULL_HANDLE, &image_index
+        );
+        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
+            return result;
+        }
+        check(result);
     }
-    check(result);
 
     auto& image = images[image_index];
 
@@ -1057,20 +1076,50 @@ VkResult view::draw(visuals &v, ::client& client) {
         images[image_index].draw_finished_fence.get()
     ));
 
-    VkPresentInfoKHR present_info{
-        .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-        .waitSemaphoreCount = 1,
-        .pWaitSemaphores =
-            &images[image_index].draw_finished_semaphore.get(),
-        .swapchainCount = 1,
-        .pSwapchains = &swapchain.get(),
-        .pImageIndices = &image_index,
-    };
-    result = vkQueuePresentKHR(v.present_queue, &present_info);
-    if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
-        return result;
+    if (v.session) {
+        XrCompositionLayerProjectionView view{
+            .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+            
+            .subImage = {
+                .swapchain = swapchain.get(),
+                .imageArrayIndex = image_index,
+                .imageRect = {
+                    {0, 0},
+                    {surface_extent.width, surface_extent.height},
+                },
+            },
+        };
+        XrCompositionLayerProjection layer{
+            .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
+            .space = view_space,
+            .viewCount = 1,
+            .views = &view,
+        };
+        XrFrameEndInfo frame_end_info{
+            .type = XR_TYPE_FRAME_END_INFO,
+            .displayTime = frame_state.predictedDisplayTime,
+            .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
+            .layerCount = 1,
+            .layers = &layer,
+        };
+        check(xrEndFrame(v.session, &frame_end_info));
+
+    } else {
+        VkPresentInfoKHR present_info{
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores =
+                &images[image_index].draw_finished_semaphore.get(),
+            .swapchainCount = 1,
+            .pSwapchains = &swapchain.get(),
+            .pImageIndices = &image_index,
+        };
+        result = vkQueuePresentKHR(v.present_queue, &present_info);
+        if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
+            return result;
+        }
+        check(result);
     }
-    check(result);
 
     return VK_SUCCESS;
 }
