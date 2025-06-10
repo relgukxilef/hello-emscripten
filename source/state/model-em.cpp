@@ -22,7 +22,7 @@ EM_ASYNC_JS(
         });
 
         image.src = URL.createObjectURL(
-            new Blob([Module.HEAP8.slice(begin, end)], {type: 'image/png'})
+            new Blob([Module.HEAPU8.slice(begin, end)], {type: 'image/png'})
         );
 
         await promise;
@@ -41,8 +41,8 @@ EM_ASYNC_JS(
 
         const pixels_pointer = Module._malloc(pixels.length);
         Module.HEAPU8.set(pixels, pixels_pointer);
-        Module.HEAP32.set([image.width], width >> 2);
-        Module.HEAP32.set([image.height], height >> 2);
+        Module.HEAPU32.set([image.width], width >> 2);
+        Module.HEAPU32.set([image.height], height >> 2);
 
         return pixels_pointer;
     }

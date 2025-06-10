@@ -75,6 +75,7 @@ if (EMSCRIPTEN)
         -lopenal
         -sASYNCIFY
         -sEXPORTED_FUNCTIONS=['_main','_malloc']
+        -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU16,HEAPU32
     )
 
     target_link_options(
