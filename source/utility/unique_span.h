@@ -18,6 +18,10 @@ struct unique_span {
     unique_span(const unique_span &other) : capacity(other.capacity) {
         copy(other, std::views::all(*this));
     }
+    unique_span(unique_span &&other) {
+        std::swap(capacity, other.capacity);
+        std::swap(values, other.values);
+    }
     void reset(unsigned capacity) {
         this->capacity = capacity;
         values = std::make_unique<T[]>(capacity);
