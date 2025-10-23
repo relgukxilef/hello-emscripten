@@ -98,7 +98,7 @@ if (EMSCRIPTEN)
     add_custom_command(
         TARGET hello-gl POST_BUILD
         COMMAND 
-        ${CMAKE_COMMAND} -E copy_directory_if_different
+        ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/source
         COMMENT "copying sources"
