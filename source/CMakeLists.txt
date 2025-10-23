@@ -87,11 +87,13 @@ if (EMSCRIPTEN)
         -sMAXIMUM_MEMORY=4294967296
         #-fwasm-exceptions 
         -gsource-map
+        --source-map-base .
     )
     target_compile_options(
         hello PUBLIC
         #-fwasm-exceptions 
         -gsource-map
+        --source-map-base .
     )
 
     # copy sources for debugging
