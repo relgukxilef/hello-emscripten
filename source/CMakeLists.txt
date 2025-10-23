@@ -86,22 +86,12 @@ if (EMSCRIPTEN)
         -sALLOW_MEMORY_GROWTH
         -sMAXIMUM_MEMORY=4294967296
         #-fwasm-exceptions 
-        -gsource-map
+        -gsource-map=inline
     )
     target_compile_options(
         hello PUBLIC
         #-fwasm-exceptions 
-        -gsource-map
-    )
-
-    # copy sources for debugging
-    add_custom_command(
-        TARGET hello-gl POST_BUILD
-        COMMAND 
-        ${CMAKE_COMMAND} -E copy_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/source
-        COMMENT "copying sources"
+        -gsource-map=inline
     )
 
 else()
