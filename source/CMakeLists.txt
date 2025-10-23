@@ -86,14 +86,12 @@ if (EMSCRIPTEN)
         -sALLOW_MEMORY_GROWTH
         -sMAXIMUM_MEMORY=4294967296
         #-fwasm-exceptions 
-        -gsource-map
-        --source-map-base .
+        -gsource-map=inline
     )
     target_compile_options(
         hello PUBLIC
         #-fwasm-exceptions 
-        -gsource-map
-        --source-map-base .
+        -gsource-map=inline
     )
 
     # copy sources for debugging
