@@ -34,9 +34,6 @@ jobs:
      image: emscripten/emsdk
      
     steps:
-    - name: Install Dependencies
-      run: wget -r -nd https://storage.googleapis.com/shaderc/badges/build_link_linux_gcc_release.html && sudo tar -xzv -f install.tgz --strip-components=2 -C /usr/bin install/bin
-    
     - name: Checkout
       uses: actions/checkout@v3
       with:

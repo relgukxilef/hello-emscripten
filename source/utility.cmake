@@ -1,6 +1,6 @@
 
 function(target_shader TARGET SHADER)
-    find_program(GLSLC glslc)
+    find_program(GLSLC glslc_exe)
 
     set(input_path ${CMAKE_CURRENT_SOURCE_DIR}/${SHADER})
     set(output_path ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${SHADER})
