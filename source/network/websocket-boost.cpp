@@ -187,6 +187,7 @@ insecure_websocket::insecure_websocket(
 {
     auto promise = std::make_shared<std::promise<void>>();
     completion_promise = promise;
+    completion = promise->get_future();
     // post because resolver is not thread-safe
     context.post([url, &loop, this, promise] () {
         loop.d->resolver.async_resolve(
