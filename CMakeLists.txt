@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option() honors normal variables
 cmake_policy(SET CMP0074 NEW) # Enable find_package uses of <>_ROOT variables
 set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -79,3 +80,13 @@ endif()
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
 
 add_subdirectory(source)
+
+if (EMSCRIPTEN)
+    # add globally for better debugging
+    add_link_options(
+        -gsource-map=inline
+    )
+    add_compile_options(
+        -gsource-map=inline
+    )
+endif()
