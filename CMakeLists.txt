@@ -95,7 +95,7 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
     GIT_TAG 16.2.0
 )
-set(SHADERC_ENABLE_TESTS OFF)
+set(SHADERC_SKIP_TESTS ON)
 FetchContent_Declare(
     glslc
     GIT_REPOSITORY https://github.com/google/shaderc.git
