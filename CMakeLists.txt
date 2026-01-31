@@ -88,17 +88,18 @@ FetchContent_Declare(
 FetchContent_Declare(
     SPIRV-Tools
     GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Tools.git
-    GIT_TAG v2026.1
+    GIT_TAG v2025.5
 )
 FetchContent_Declare(
     glslang
     GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
     GIT_TAG 16.2.0
 )
+set(SHADERC_ENABLE_TESTS OFF)
 FetchContent_Declare(
     glslc
     GIT_REPOSITORY https://github.com/google/shaderc.git
-    GIT_TAG v2026.1
+    GIT_TAG v2025.5
 )
 FetchContent_MakeAvailable(SPIRV-Headers SPIRV-Tools glslang glslc)
 
