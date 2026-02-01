@@ -102,6 +102,9 @@ FetchContent_Declare(
     GIT_TAG v2025.5
 )
 FetchContent_MakeAvailable(SPIRV-Headers SPIRV-Tools glslang glslc)
+target_link_options(
+    glslc_exe PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=8MB
+)
 
 add_subdirectory(source)
 
