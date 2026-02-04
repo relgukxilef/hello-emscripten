@@ -28,7 +28,7 @@
 	shallow = true
 [submodule "submodules/opus"]
 	path = submodules/opus
-	url = https://gitlab.xiph.org/xiph/opus.git
+	url = https://github.com/xiph/opus.git
 	shallow = true
 [submodule "submodules/openal-soft"]
 	path = submodules/openal-soft

@@ -19,12 +19,37 @@ boost::filesystem::path executable(string_view name) {
     return current_path() / name;
 }
 
-awaitable<void> forward_output(boost::asio::readable_pipe pipe) {
+boost::asio::awaitable<void> forward(
+    boost::asio::readable_pipe pipe
+) {
     while (true) {
-        char c;
-        co_await async_read(pipe, buffer(&c, 1), use_awaitable);
-        cout << c << flush;
+        char b[64];
+        int size = co_await pipe.async_read_some(
+            boost::asio::buffer(b), boost::asio::use_awaitable
+        );
+        cout << string_view(b, size) << flush;
     }
+}
+
+awaitable<void> forward_until(
+    boost::asio::readable_pipe &pipe, string_view text
+) {
+    string line;
+    do {
+        line.clear();
+        char c;
+        do {
+            // only byte-wise reading ensures read doesn't block
+            co_await async_read(pipe, buffer(&c, 1), use_awaitable);
+            line += c;
+        } while (c != '\n');
+        cout << line << flush;
+    } while (!line.starts_with(text));
+}
+
+void throw_on_error(exception_ptr exception) {
+    if (exception)
+        rethrow_exception(exception);
 }
 
 awaitable<void> run(io_context &context) {
@@ -33,18 +58,9 @@ awaitable<void> run(io_context &context) {
         context, executable("server"), {}, process_stdio{.out = pipe}
     );
     
-    string line;
-    do {
-        line.clear();
-        char c;
-        do {
-            co_await async_read(pipe, buffer(&c, 1), use_awaitable);
-            line += c;
-        } while (c != '\n');
-        cout << line << flush;
-    } while (!line.starts_with("Running."));
+    co_await forward_until(pipe, "Running.");
 
-    co_spawn(context, forward_output(move(pipe)), rethrow_exception);
+    co_spawn(context, forward(move(pipe)), throw_on_error);
 
     process client(
         context, executable("hello-vk"), 
@@ -70,7 +86,7 @@ int main(int argc, char *argv[]) {
         signals.clear();
     });
 
-    co_spawn(context, run(context), rethrow_exception);
+    co_spawn(context, run(context), throw_on_error);
 
     try {
         context.run();

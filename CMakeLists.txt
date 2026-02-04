@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_POLICY_DEFAULT_CMP0077 NEW) # option() honors normal variables
 cmake_policy(SET CMP0074 NEW) # Enable find_package uses of <>_ROOT variables
 set(CMAKE_VERBOSE_MAKEFILE ON)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -80,4 +81,41 @@ endif()
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
 add_subdirectory(submodules/OpenXR-SDK EXCLUDE_FROM_ALL)
 
+include(FetchContent)
+FetchContent_Declare(
+    SPIRV-Headers
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Headers.git
+    GIT_TAG vulkan-sdk-1.4.335.0
+)
+FetchContent_Declare(
+    SPIRV-Tools
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Tools.git
+    GIT_TAG v2025.5
+)
+FetchContent_Declare(
+    glslang
+    GIT_REPOSITORY https://github.com/KhronosGroup/glslang.git
+    GIT_TAG 16.2.0
+)
+set(SHADERC_SKIP_TESTS ON)
+FetchContent_Declare(
+    glslc
+    GIT_REPOSITORY https://github.com/google/shaderc.git
+    GIT_TAG v2025.5
+)
+FetchContent_MakeAvailable(SPIRV-Headers SPIRV-Tools glslang glslc)
+
 add_subdirectory(source)
+
+if (EMSCRIPTEN)
+    target_link_options(
+        glslc_exe PRIVATE -sNODERAWFS=1 -sALLOW_MEMORY_GROWTH=1 -sSTACK_SIZE=8MB
+    )
+    # add globally for better debugging
+    add_link_options(
+        -gsource-map=inline
+    )
+    add_compile_options(
+        -gsource-map=inline
+    )
+endif()

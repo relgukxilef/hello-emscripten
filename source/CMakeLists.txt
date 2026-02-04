@@ -76,6 +76,7 @@ if (EMSCRIPTEN)
         -lopenal
         -sASYNCIFY
         -sEXPORTED_FUNCTIONS=['_main','_malloc']
+        -sEXPORTED_RUNTIME_METHODS=HEAPU8,HEAPU16,HEAPU32
     )
 
     target_link_options(
@@ -86,12 +87,6 @@ if (EMSCRIPTEN)
         -sALLOW_MEMORY_GROWTH
         -sMAXIMUM_MEMORY=4294967296
         #-fwasm-exceptions 
-        -gsource-map
-    )
-    target_compile_options(
-        hello PUBLIC
-        #-fwasm-exceptions 
-        -gsource-map
     )
 
 else()

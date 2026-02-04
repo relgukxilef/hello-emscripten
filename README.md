@@ -10,5 +10,3 @@
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/relgukxilef/hello-emscripten/pages.yml?label=pages)
 
 Experimenting with Emscripten. Run in your browser at https://relgukxilef.github.io/hello-emscripten/.
-
-[![Open in Gitpod](https://gitpod.io/button/open-in-gitpod.svg)](https://gitpod.io/#https://github.com/relgukxilef/hello-emscripten)
