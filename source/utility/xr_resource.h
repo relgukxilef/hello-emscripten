@@ -38,3 +38,4 @@ using unique_xr_resource =
 using unique_xr_instance = unique_xr_resource<XrInstance, xrDestroyInstance>;
 using unique_xr_session = unique_xr_resource<XrSession, xrDestroySession>;
 using unique_xr_swapchain = unique_xr_resource<XrSwapchain, xrDestroySwapchain>;
+using unique_xr_space = unique_xr_resource<XrSpace, xrDestroySpace>;

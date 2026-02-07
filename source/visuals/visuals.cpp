@@ -10,6 +10,7 @@
 #include "../utility/file.h"
 #include "../utility/math.h"
 #include "../utility/trace.h"
+#include "openxr/openxr.h"
 
 visuals::visuals(
     ::client& client, platform create_info
@@ -26,6 +27,9 @@ visuals::visuals(
     present_queue_family = create_info.present_queue_family;
     color_images = create_info.color_images;
     depth_images = create_info.depth_images;
+    
+    // TODO: don't unpack the platform
+    this->create_info = create_info;
 
     {
         VmaVulkanFunctions vulkanFunctions = {
@@ -442,6 +446,15 @@ visuals::visuals(
     ));
 
     view.reset(new ::view(client, *this));
+
+    if (session) {
+        XrReferenceSpaceCreateInfo create_info {
+            .type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO,
+            .referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL,
+            .poseInReferenceSpace = { .orientation = { 0, 0, 0, 1 } }
+        };
+        check(xrCreateReferenceSpace(session, &create_info, out_ptr(space)));
+    }
 }
 
 void visuals::draw(::client& client) {

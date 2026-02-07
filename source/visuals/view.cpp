@@ -2,11 +2,13 @@
 
 #include <algorithm>
 #include <cinttypes>
+#include <cstdint>
 #include <cstdio>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <memory>
 
+#include "openxr/openxr.h"
 #include "visuals.h"
 
 #include "../utility/out_ptr.h"
@@ -107,7 +109,7 @@ void record_command_buffer(
         .framebuffer = image.framebuffer.get(),
         .renderArea{
             .offset = {0, 0},
-            .extent = view.surface_extent,
+            .extent = view.extent,
         },
         .clearValueCount =
             static_cast<uint32_t>(std::size(clearValue)),
@@ -294,7 +296,7 @@ view::view(client& c, struct visuals& v) {
     unsigned height = capabilities.currentExtent.height;
     printf("Set up view of size %ix%i\n", width, height);
 
-    surface_extent = {
+    extent = {
         std::max(
             std::min<uint32_t>(width, capabilities.maxImageExtent.width),
             capabilities.minImageExtent.width
@@ -304,6 +306,12 @@ view::view(client& c, struct visuals& v) {
             capabilities.minImageExtent.height
         )
     };
+    if (v.session) {
+        extent = { 
+            .width = uint32_t(v.create_info.xr_extent.width),
+            .height = uint32_t(v.create_info.xr_extent.height),
+        };
+    }
 
     {
         uint32_t queue_family_indices[]{
@@ -315,7 +323,7 @@ view::view(client& c, struct visuals& v) {
             .minImageCount = capabilities.minImageCount,
             .imageFormat = surface_format.format,
             .imageColorSpace = surface_format.colorSpace,
-            .imageExtent = surface_extent,
+            .imageExtent = extent,
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
             .imageSharingMode = VK_SHARING_MODE_CONCURRENT,
@@ -726,8 +734,8 @@ view::view(client& c, struct visuals& v) {
                 .imageType = VK_IMAGE_TYPE_2D,
                 .format = surface_format.format,
                 .extent = {
-                    .width = surface_extent.width,
-                    .height = surface_extent.height,
+                    .width = extent.width,
+                    .height = extent.height,
                     .depth = 1
                 },
                 .mipLevels = 1,
@@ -807,8 +815,8 @@ view::view(client& c, struct visuals& v) {
                 .imageType = VK_IMAGE_TYPE_2D,
                 .format = VK_FORMAT_D24_UNORM_S8_UINT,
                 .extent = {
-                    .width = surface_extent.width,
-                    .height = surface_extent.height,
+                    .width = extent.width,
+                    .height = extent.height,
                     .depth = 1
                 },
                 .mipLevels = 1,
@@ -912,8 +920,8 @@ view::view(client& c, struct visuals& v) {
                 .renderPass = render_pass.get(),
                 .attachmentCount = static_cast<uint32_t>(attachments.size()),
                 .pAttachments = attachments.begin(),
-                .width = surface_extent.width,
-                .height = surface_extent.height,
+                .width = extent.width,
+                .height = extent.height,
                 .layers = 1,
             };
             check(vkCreateFramebuffer(
@@ -941,19 +949,16 @@ view::view(client& c, struct visuals& v) {
 
 VkResult view::draw(visuals &v, ::client& client) {
     scope_trace trace;
-    uint32_t image_index;
-    XrFrameState frame_state;
-    XrSpace view_space;
+    uint32_t image_index = 0;
+    XrFrameState frame_state{};
 
     if (v.session) {
         XrFrameWaitInfo frame_wait_info{
             .type = XR_TYPE_FRAME_WAIT_INFO,
-            .next = nullptr,
         };
         check(xrWaitFrame(v.session, &frame_wait_info, &frame_state));
         XrFrameBeginInfo frame_begin_info{
             .type = XR_TYPE_FRAME_BEGIN_INFO,
-            .next = nullptr,
         };
         check(xrBeginFrame(v.session, &frame_begin_info));
 
@@ -998,7 +1003,7 @@ VkResult view::draw(visuals &v, ::client& client) {
 
         glm::mat4 projection = glm::infinitePerspective(
             glm::radians(60.0f),
-            (float)surface_extent.width / surface_extent.height,
+            (float)extent.width / extent.height,
             0.01f
         );
 
@@ -1081,26 +1086,24 @@ VkResult view::draw(visuals &v, ::client& client) {
             .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
             
             .subImage = {
-                .swapchain = swapchain.get(),
+                .swapchain = v.create_info.color_swapchain,
+                .imageRect = { .extent = v.create_info.xr_extent, },
                 .imageArrayIndex = image_index,
-                .imageRect = {
-                    {0, 0},
-                    {surface_extent.width, surface_extent.height},
-                },
             },
         };
         XrCompositionLayerProjection layer{
             .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
-            .space = view_space,
+            .space = v.space.get(),
             .viewCount = 1,
             .views = &view,
         };
+        auto layers = (XrCompositionLayerBaseHeader*)&layer;
         XrFrameEndInfo frame_end_info{
             .type = XR_TYPE_FRAME_END_INFO,
             .displayTime = frame_state.predictedDisplayTime,
             .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
-            .layerCount = 1,
-            .layers = &layer,
+            .layerCount = 0,
+            .layers = &layers,
         };
         check(xrEndFrame(v.session, &frame_end_info));
 
@@ -1114,7 +1117,7 @@ VkResult view::draw(visuals &v, ::client& client) {
             .pSwapchains = &swapchain.get(),
             .pImageIndices = &image_index,
         };
-        result = vkQueuePresentKHR(v.present_queue, &present_info);
+        auto result = vkQueuePresentKHR(v.present_queue, &present_info);
         if (result == VK_SUBOPTIMAL_KHR || result == VK_ERROR_OUT_OF_DATE_KHR) {
             return result;
         }

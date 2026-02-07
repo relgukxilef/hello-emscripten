@@ -47,7 +47,9 @@ struct platform {
     XrInstance xr_instance;
     XrSystemId system_id;
     XrSession session;
+    XrSwapchain color_swapchain;
     std::vector<VkImage> color_images, depth_images;
+    XrExtent2Di xr_extent;
 };
 
 struct visuals {
@@ -73,9 +75,11 @@ struct visuals {
     uint32_t graphics_queue_family = ~0u;
     uint32_t present_queue_family = ~0u;
     std::vector<VkImage> color_images, depth_images;
+    platform create_info;
 
     XrViewConfigurationView view_configuration_view;
 
+    unique_xr_space space;
 
     unique_allocator allocator;
 

@@ -89,7 +89,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
     VkApplicationInfo application_info{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .applicationVersion = 0,
-        .apiVersion = VK_MAKE_VERSION(1, 1, 0),
+        .apiVersion = VK_API_VERSION_1_0,
     };
     VkInstanceCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -121,10 +121,9 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
     };
     XrSystemGetInfo system_get_info {
         .type = XR_TYPE_SYSTEM_GET_INFO,
-        .next = nullptr,
         .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
     };
-    XrSystemId system_id;
+    XrSystemId system_id = {};
     std::vector<VkImage> color_images, depth_images;
 
     try {
@@ -200,6 +199,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
 
     } catch (std::exception& e) {
         std::printf("Starting without VR support. (%s)\n", e.what());
+        xr_instance.reset();
         check(vkCreateInstance(&create_info, nullptr, out_ptr(vk_instance)));
     
         uint32_t device_count = 0;
@@ -278,6 +278,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
 
         VkPhysicalDeviceFeatures device_features{
             .alphaToOne = VK_TRUE,
+            .shaderStorageImageMultisample = VK_TRUE,
         };
         VkDeviceCreateInfo create_info{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -389,7 +390,10 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             color_swapchain.get(), 0, &swapchain_image_count, nullptr
         ));
         std::vector<XrSwapchainImageVulkan2KHR> swapchain_images(
-            swapchain_image_count
+            swapchain_image_count, 
+            XrSwapchainImageVulkan2KHR { 
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR 
+            }
         );
         check(xrEnumerateSwapchainImages(
             color_swapchain.get(), swapchain_image_count, 
@@ -449,7 +453,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             properties, graphics_queue_family, present_queue_family,
             
             xr_instance.get(), 
-            system_id, xr_session.get(), 
+            system_id, xr_session.get(), color_swapchain.get(),
             std::move(color_images), std::move(depth_images)
         }
     );

@@ -6,6 +6,7 @@
 #include <vulkan/vulkan_core.h>
 
 #include "../utility/vulkan_resource.h"
+#include "../utility/xr_resource.h"
 #include "../state/client.h"
 
 struct image {
@@ -41,8 +42,9 @@ struct view {
     unique_descriptor_pool descriptor_pool;
 
     unique_swapchain swapchain;
+    XrSwapchain xr_swapchain;
 
-    VkExtent2D surface_extent;
+    VkExtent2D extent;
 
     unsigned descriptor_set_count = 256; // per image
 
