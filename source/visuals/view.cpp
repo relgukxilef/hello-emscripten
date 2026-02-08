@@ -8,12 +8,14 @@
 #include <glm/gtc/quaternion.hpp>
 #include <memory>
 
+#include "glm/ext/matrix_clip_space.hpp"
 #include "openxr/openxr.h"
 #include "visuals.h"
 
 #include "../utility/out_ptr.h"
 #include "../utility/math.h"
 #include "../utility/trace.h"
+#include "vulkan/vulkan_core.h"
 
 void record_command_buffer(
     client& client, visuals& visuals, view& view, image& image,
@@ -90,8 +92,8 @@ void record_command_buffer(
 
     VkSurfaceCapabilitiesKHR capabilities = view.capabilities;
     unsigned
-        width = capabilities.currentExtent.width,
-        height = capabilities.currentExtent.height;
+        width = view.extent.width,
+        height = view.extent.height;
 
     VkCommandBufferBeginInfo begin_info = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -137,7 +139,7 @@ void record_command_buffer(
 
     VkRect2D scissors{
         .offset = {0, 0},
-        .extent = capabilities.currentExtent,
+        .extent = view.extent,
     };
     vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
 
@@ -263,20 +265,19 @@ view::view(client& c, struct visuals& v) {
     if (present_mode_count == 0) {
         throw std::runtime_error("no surface present modes supported");
     }
-    auto formats = std::make_unique<VkSurfaceFormatKHR[]>(format_count);
+
     auto present_modes =
         std::make_unique<VkPresentModeKHR[]>(present_mode_count);
-
-    vkGetPhysicalDeviceSurfaceFormatsKHR(
-        v.physical_device, v.surface, &format_count, formats.get()
-    );
     vkGetPhysicalDeviceSurfacePresentModesKHR(
         v.physical_device, v.surface, &present_mode_count, present_modes.get()
     );
 
-    VkSurfaceFormatKHR surface_format;
+    auto formats = std::make_unique<VkSurfaceFormatKHR[]>(format_count);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(
+        v.physical_device, v.surface, &format_count, formats.get()
+    );
 
-    surface_format = formats[0];
+    VkSurfaceFormatKHR surface_format = formats[0];
     for (auto i = 0u; i < format_count; i++) {
         auto format = formats[i];
         if (
@@ -287,7 +288,6 @@ view::view(client& c, struct visuals& v) {
         }
     }
 
-    // view-specific resources
     check(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
         v.physical_device, v.surface, &capabilities
     ));
@@ -306,14 +306,31 @@ view::view(client& c, struct visuals& v) {
             capabilities.minImageExtent.height
         )
     };
+
     if (v.session) {
+        surface_format = { 
+            .format = v.create_info.xr_color_format, 
+            .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR 
+        };
         extent = { 
             .width = uint32_t(v.create_info.xr_extent.width),
             .height = uint32_t(v.create_info.xr_extent.height),
         };
     }
 
-    {
+    uint32_t image_count;
+    std::unique_ptr<VkImage[]> swapchain_images;
+    if (v.session) {
+        // TODO: set surface_format to what is supported by XR
+        image_count = v.color_images.size();
+        
+        swapchain_images = std::make_unique<VkImage[]>(image_count);
+
+        for (auto i = 0u; i < image_count; i++) {
+            swapchain_images[i] = v.color_images[i];
+        }
+
+    } else {
         uint32_t queue_family_indices[]{
             v.graphics_queue_family, v.present_queue_family
         };
@@ -340,20 +357,7 @@ view::view(client& c, struct visuals& v) {
         check(vkCreateSwapchainKHR(
             v.device, &create_info, nullptr, out_ptr(swapchain)
         ));
-    }
 
-    uint32_t image_count;
-    std::unique_ptr<VkImage[]> swapchain_images;
-    if (v.session) {
-        image_count = v.color_images.size();
-        
-        swapchain_images = std::make_unique<VkImage[]>(image_count);
-
-        for (auto i = 0u; i < image_count; i++) {
-            swapchain_images[i] = v.color_images[i];
-        }
-
-    } else {
         check(vkGetSwapchainImagesKHR(
             v.device, swapchain.get(), &image_count, nullptr
         ));
@@ -419,7 +423,10 @@ view::view(client& c, struct visuals& v) {
                 .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
                 .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                 .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                .finalLayout = 
+                    v.session ? 
+                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : 
+                    VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
             },
         };
         auto color_attachment_references = {
@@ -950,20 +957,46 @@ view::view(client& c, struct visuals& v) {
 VkResult view::draw(visuals &v, ::client& client) {
     scope_trace trace;
     uint32_t image_index = 0;
-    XrFrameState frame_state{};
+    XrFrameState frame_state {
+        .type = XR_TYPE_FRAME_STATE,
+    };
+    uint32_t view_size = 0;
+    XrView views[2] { { .type = XR_TYPE_VIEW }, { .type = XR_TYPE_VIEW } };
 
     if (v.session) {
         XrFrameWaitInfo frame_wait_info{
             .type = XR_TYPE_FRAME_WAIT_INFO,
         };
         check(xrWaitFrame(v.session, &frame_wait_info, &frame_state));
+        if (!frame_state.shouldRender)
+            return VK_SUCCESS;
         XrFrameBeginInfo frame_begin_info{
             .type = XR_TYPE_FRAME_BEGIN_INFO,
         };
         check(xrBeginFrame(v.session, &frame_begin_info));
 
-        // TODO: get pose, get swapchain image
+        XrViewLocateInfo locate_info {
+            .type = XR_TYPE_VIEW_LOCATE_INFO,
+            .viewConfigurationType = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            .displayTime = frame_state.predictedDisplayTime,
+            .space = v.space.get()
+        };
+        XrViewState view_state { .type = XR_TYPE_VIEW_STATE, };
+        check(xrLocateViews(
+            v.session, &locate_info, &view_state, 
+            uint32_t(std::size(views)), &view_size, views
+        ));
 
+        XrSwapchainImageAcquireInfo acquire_info {
+            .type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO,
+        };
+        check(xrAcquireSwapchainImage(
+            v.create_info.color_swapchain, &acquire_info, &image_index
+        ));
+        XrSwapchainImageWaitInfo wait_info {
+            .type = XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO,
+        };
+        check(xrWaitSwapchainImage(v.create_info.color_swapchain, &wait_info));
     } else {
         VkResult result = vkAcquireNextImageKHR(
             v.device, swapchain.get(), ~0ul,
@@ -978,7 +1011,7 @@ VkResult view::draw(visuals &v, ::client& client) {
 
     auto& image = images[image_index];
 
-    VkFence fences[] = {image.draw_finished_fence.get()};
+    VkFence fences[] = { image.draw_finished_fence.get() };
     
     {
         scope_trace trace;
@@ -1006,8 +1039,35 @@ VkResult view::draw(visuals &v, ::client& client) {
             (float)extent.width / extent.height,
             0.01f
         );
-
         glm::mat4 view = glm::mat4_cast(glm::inverse(client.user_orientation));
+
+        if (v.session) {
+            projection = glm::frustum(
+                tan(views[0].fov.angleLeft), 
+                tan(views[0].fov.angleRight), 
+                tan(views[0].fov.angleUp), 
+                tan(views[0].fov.angleDown), 
+                1.0f,
+                -1.0f 
+            );
+            projection = projection * glm::infinitePerspective(
+                glm::radians(90.0f), 1.0f, 0.01f
+            );
+
+            view = glm::mat4_cast(glm::inverse(glm::quat{
+                -views[0].pose.orientation.w, 
+                views[0].pose.orientation.x, 
+                views[0].pose.orientation.y, 
+                -views[0].pose.orientation.z,
+            }));
+            view = glm::translate(view, -glm::vec3{
+                views[0].pose.position.x, 
+                views[0].pose.position.y, 
+                -views[0].pose.position.z,
+            });
+            view = view * glm::mat4(glm::mat3(-1, 0, 0, 0, 0, 1, 0, 1, 0));
+        }
+
         view = glm::translate(view, -client.user_position);
 
 
@@ -1068,7 +1128,7 @@ VkResult view::draw(visuals &v, ::client& client) {
         {VK_PIPELINE_STAGE_ALL_COMMANDS_BIT};
     VkSubmitInfo submit_info = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-        .waitSemaphoreCount = 1,
+        .waitSemaphoreCount = uint32_t(v.session ? 0 : 1),
         .pWaitSemaphores = wait_semaphores,
         .pWaitDstStageMask = wait_stage,
         .commandBufferCount = 1,
@@ -1082,27 +1142,38 @@ VkResult view::draw(visuals &v, ::client& client) {
     ));
 
     if (v.session) {
-        XrCompositionLayerProjectionView view{
-            .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
-            
-            .subImage = {
-                .swapchain = v.create_info.color_swapchain,
-                .imageRect = { .extent = v.create_info.xr_extent, },
-                .imageArrayIndex = image_index,
-            },
+        XrSwapchainImageReleaseInfo release_info {
+            .type = XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO
         };
+        check(xrReleaseSwapchainImage(
+            v.create_info.color_swapchain, &release_info
+        ));
+
+        XrCompositionLayerProjectionView layer_views[2];
+        for (auto i = 0u; i < view_size; i++) {
+            layer_views[i] = {
+                .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION_VIEW,
+                .pose = views[i].pose,
+                .fov = views[i].fov,
+                .subImage = {
+                    .swapchain = v.create_info.color_swapchain,
+                    .imageRect = { .extent = v.create_info.xr_extent, },
+                    .imageArrayIndex = 0,
+                },
+            };
+        }
         XrCompositionLayerProjection layer{
             .type = XR_TYPE_COMPOSITION_LAYER_PROJECTION,
             .space = v.space.get(),
-            .viewCount = 1,
-            .views = &view,
+            .viewCount = view_size,
+            .views = layer_views,
         };
         auto layers = (XrCompositionLayerBaseHeader*)&layer;
         XrFrameEndInfo frame_end_info{
             .type = XR_TYPE_FRAME_END_INFO,
             .displayTime = frame_state.predictedDisplayTime,
             .environmentBlendMode = XR_ENVIRONMENT_BLEND_MODE_OPAQUE,
-            .layerCount = 0,
+            .layerCount = 1,
             .layers = &layers,
         };
         check(xrEndFrame(v.session, &frame_end_info));

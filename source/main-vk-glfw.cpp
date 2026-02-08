@@ -1,4 +1,5 @@
 #include "utility/trace.h"
+#include <cstdint>
 #include <cstdio>
 #include <stdexcept>
 #include <cstring>
@@ -318,7 +319,9 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         }
         current_device = vk_device.get();
     }
-    
+
+    XrExtent2Di xr_extent {};
+    VkFormat surface_format {};
 
     if (xr_instance) {
         XrGraphicsBindingVulkan2KHR vulkan_graphics_binding {
@@ -341,8 +344,10 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         ));
      
         uint32_t view_configuration_view_count = 0;
+        // TODO: recommended size can change, should be called each frame
         check(xrEnumerateViewConfigurationViews(
-            xr_instance.get(), system_id, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            xr_instance.get(), system_id, 
+            XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
             0, &view_configuration_view_count, nullptr
         ));
         std::vector<XrViewConfigurationView> view_configuration_views(
@@ -352,28 +357,44 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             v.type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
         }
         check(xrEnumerateViewConfigurationViews(
-            xr_instance.get(), system_id, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            xr_instance.get(), system_id, 
+            XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
             view_configuration_view_count, &view_configuration_view_count,
             view_configuration_views.data()
         ));
+        // TODO: views could have different size
+        xr_extent = {
+            .width = 
+                int32_t(view_configuration_views[0].recommendedImageRectWidth),
+            .height = 
+                int32_t(view_configuration_views[0].recommendedImageRectHeight),
+        };
 
         uint32_t format_count = 0;
         check(xrEnumerateSwapchainFormats(
             xr_session.get(), 0, &format_count, nullptr
         ));
-        std::vector<int64_t> swapchain_formats(format_count);
+        std::vector<int64_t> formats(format_count);
         check(xrEnumerateSwapchainFormats(
             xr_session.get(), format_count, &format_count, 
-            swapchain_formats.data()
+            formats.data()
         ));
-        // TODO: check supported formats
+        // TODO: client should decide format, but swapchain creation is platform
+        // specific
+        surface_format = VkFormat(formats[0]);
+        for (auto i = 0u; i < format_count; i++) {
+            auto format = VkFormat(formats[i]);
+            if (format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) {
+                surface_format = format;
+            }
+        }
 
         XrSwapchainCreateInfo swapchain_create_info {
             .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
             .usageFlags = 
                 XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
                 XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
-            .format = VK_FORMAT_B8G8R8A8_SRGB,
+            .format = int64_t(surface_format),
             .sampleCount = 1,
             .width = view_configuration_views[0].recommendedImageRectWidth,
             .height = view_configuration_views[0].recommendedImageRectHeight,
@@ -454,7 +475,8 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             
             xr_instance.get(), 
             system_id, xr_session.get(), color_swapchain.get(),
-            std::move(color_images), std::move(depth_images)
+            std::move(color_images), std::move(depth_images),
+            xr_extent, surface_format
         }
     );
 }

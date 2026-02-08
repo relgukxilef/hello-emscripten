@@ -50,6 +50,7 @@ struct platform {
     XrSwapchain color_swapchain;
     std::vector<VkImage> color_images, depth_images;
     XrExtent2Di xr_extent;
+    VkFormat xr_color_format;
 };
 
 struct visuals {
