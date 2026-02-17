@@ -73,8 +73,10 @@ void write(initial_message &m, std::span<std::uint8_t> b) {
     apply(m, write_tag_t{b});
 }
 
-void read(initial_message &m, std::span<std::uint8_t> b) {
+std::size_t read(initial_message &m, std::span<std::uint8_t> b) {
+    auto begin = b.data();
     apply(m, read_tag_t{b});
+    return b.data() - begin;
 }
 
 std::size_t capacity(initial_message &m) {
@@ -83,12 +85,16 @@ std::size_t capacity(initial_message &m) {
     return size;
 }
 
-void write(message& m, std::span<uint8_t> b) {
+std::size_t write(message& m, std::span<uint8_t> b) {
+    auto begin = b.data();
     apply(m, write_tag_t{b});
+    return b.data() - begin;
 }
 
-void read(message& m, std::span<uint8_t> b) {
+std::size_t read(message& m, std::span<uint8_t> b) {
+    auto begin = b.data();
     apply(m, read_tag_t{b});
+    return b.data() - begin;
 }
 
 size_t capacity(message& m) {

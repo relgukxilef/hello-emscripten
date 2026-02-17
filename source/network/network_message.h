@@ -46,9 +46,9 @@ struct message {
 };
 
 void write(initial_message &m, std::span<std::uint8_t> b);
-void read(initial_message &m, std::span<std::uint8_t> b);
+std::size_t read(initial_message &m, std::span<std::uint8_t> b);
 std::size_t capacity(initial_message &m);
 
-void write(message &m, std::span<std::uint8_t> b);
-void read(message &m, std::span<std::uint8_t> b);
+std::size_t write(message &m, std::span<std::uint8_t> b);
+std::size_t read(message &m, std::span<std::uint8_t> b);
 std::size_t capacity(message &m);

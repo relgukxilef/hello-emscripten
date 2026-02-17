@@ -26,7 +26,7 @@ void apply(T &value, write_tag_t write) {
     for (size_t i = 0; i < sizeof(T); i++)
         // network byte order is big-endian
         write.b[sizeof(T) - i - 1] = uint8_t(v >> (i * 8));
-    write.b = {write.b.begin() + sizeof(T), write.b.size() - sizeof(T)};
+    write.b = write.b.subspan(sizeof(T));
 }
 
 template<std::integral T>
@@ -41,7 +41,7 @@ void apply(T &value, read_tag_t read) {
     for (size_t i = 0; i < sizeof(T); i++)
         v |= T(bytes[i]) << (i * 8);
     value = v;
-    read.b = {read.b.begin() + sizeof(T), read.b.size() - sizeof(T)};
+    read.b = read.b.subspan(sizeof(T));
 }
 
 template<std::integral T>

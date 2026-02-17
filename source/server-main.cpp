@@ -4,6 +4,7 @@
 #include <atomic>
 #include <optional>
 #include <chrono>
+#include <queue>
 
 #include <boost/lexical_cast.hpp>
 #include <boost/asio.hpp>
@@ -22,7 +23,7 @@ enum { port = 28750 };
 std::chrono::milliseconds tick_time{50};
 
 unsigned message_user_capacity = 16;
-unsigned message_audio_capacity = 200;
+unsigned message_audio_capacity = 300;
 
 std::span<std::uint8_t> to_span(boost::beast::flat_buffer &buffer) {
     return {
@@ -33,14 +34,19 @@ std::span<std::uint8_t> to_span(boost::beast::flat_buffer &buffer) {
 struct session : public boost::intrusive_ref_counter<session> {
     // Need either ref counting or counting the number of outstanding operations
     session(boost::asio::ip::tcp::socket&& socket) :
-        stream(std::move(socket))
+        stream(std::move(socket)), buffer(1024)
     {
-        m.reset(1, message_audio_capacity);
+        for (int i = 0; i < 4; ++i) {
+            free_messages.push(message{});
+            free_messages.back().reset(1, message_audio_capacity);
+        }
     }
     boost::beast::http::request<boost::beast::http::string_body> request;
     boost::beast::websocket::stream<boost::asio::ip::tcp::socket> stream;
     boost::beast::flat_buffer buffer;
-    message m;
+    std::queue<message> messages;
+    std::queue<message> free_messages;
+    // TODO: maybe use thread safe queues
     // TODO: may need a queue for messages because async_write cannot be called
     // before the last async_write completed
 };
@@ -72,6 +78,7 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
         boost::asio::redirect_error(boost::asio::use_awaitable, error);
 
     while (true) {
+        session->buffer.consume(session->buffer.size());
         size_t size = co_await session->stream.async_read(
             session->buffer, completion_token
         );
@@ -81,14 +88,19 @@ boost::asio::awaitable<void> read(boost::intrusive_ptr<session> session) {
             co_return;
         }
 
-        if (size > 0) {
-            read(session->m, to_span(session->buffer));
-            if (session->m.users.size != 1)
-                co_return;
-            // TODO: What if the last frame hasn't been sent yet?
+        if (size == 0) {
+            continue;
         }
 
-        session->buffer.consume(session->buffer.size());
+        if (session->free_messages.empty()) {
+            // skip message if there are too many unprocessed messages
+            continue;
+        }
+
+        message m = std::move(session->free_messages.front());
+        session->free_messages.pop();
+        read(m, to_span(session->buffer));
+        session->messages.push(std::move(m));
     }
 }
 
@@ -192,7 +204,15 @@ void tick(boost::system::error_code error = {}) {
 
         server->m.clear();
         for (auto &session : server->sessions) {
-            server->m.append(session->m);
+            if (session->messages.empty()) {
+                continue;
+            }
+
+            server->m.append(session->messages.front());
+            session->free_messages.push(
+                std::move(session->messages.front())
+            );
+            session->messages.pop();
         }
 
         write(server->m, server->buffer);

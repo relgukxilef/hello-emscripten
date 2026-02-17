@@ -114,16 +114,15 @@ websocket::~websocket() {
 }
 
 bool websocket::try_write_message(std::span<std::uint8_t> buffer) {
-    if (d->write_completed) {
-        next_message = buffer;
-        d->write_completed = false;
-        // need to post because stream is not thread safe
-        loop.d->context.post([this](){
-            d->try_write_message(*this);
-        });
-        return true;
-    }
-    return false;
+    if (!d->write_completed) 
+        return false;
+    next_message = buffer;
+    d->write_completed = false;
+    // need to post because stream is not thread safe
+    loop.d->context.post([this](){
+        d->try_write_message(*this);
+    });
+    return true;
 }
 
 bool websocket::is_write_completed() {
