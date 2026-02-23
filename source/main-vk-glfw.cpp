@@ -342,9 +342,8 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         check(xrCreateSession(
             xr_instance.get(), &session_create_info, out_ptr(xr_session)
         ));
-     
+
         uint32_t view_configuration_view_count = 0;
-        // TODO: recommended size can change, should be called each frame
         check(xrEnumerateViewConfigurationViews(
             xr_instance.get(), system_id, 
             XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
@@ -399,7 +398,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             .width = view_configuration_views[0].recommendedImageRectWidth,
             .height = view_configuration_views[0].recommendedImageRectHeight,
             .faceCount = 1,
-            .arraySize = 1,
+            .arraySize = 2,
             .mipCount = 1,
         };
         check(xrCreateSwapchain(
@@ -428,42 +427,6 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             auto& swapchain_image = swapchain_images[i];
             color_images[i] = swapchain_image.image;
         }
-        
-
-        swapchain_create_info = {
-            .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
-            .usageFlags = 
-                XR_SWAPCHAIN_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
-            .format = VK_FORMAT_D24_UNORM_S8_UINT,
-            .sampleCount = 1,
-            .width = view_configuration_views[0].recommendedImageRectWidth,
-            .height = view_configuration_views[0].recommendedImageRectHeight,
-            .faceCount = 1,
-            .arraySize = 1,
-            .mipCount = 1,
-        };
-        check(xrCreateSwapchain(
-            xr_session.get(), &swapchain_create_info, out_ptr(depth_swapchain)
-        ));
-
-        swapchain_image_count = 0;
-        check(xrEnumerateSwapchainImages(
-            depth_swapchain.get(), 0, &swapchain_image_count, nullptr
-        ));
-        swapchain_images.resize(swapchain_image_count);
-        check(xrEnumerateSwapchainImages(
-            depth_swapchain.get(), swapchain_image_count, 
-            &swapchain_image_count, 
-            reinterpret_cast<XrSwapchainImageBaseHeader*>(
-                swapchain_images.data()
-            )
-        ));
-        depth_images.resize(swapchain_image_count);
-        for (auto i = 0u; i < swapchain_image_count; i++) {
-            auto& swapchain_image = swapchain_images[i];
-            depth_images[i] = swapchain_image.image;
-        }
     }
 
     
@@ -475,7 +438,7 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
             
             xr_instance.get(), 
             system_id, xr_session.get(), color_swapchain.get(),
-            std::move(color_images), std::move(depth_images),
+            std::move(color_images),
             xr_extent, surface_format
         }
     );

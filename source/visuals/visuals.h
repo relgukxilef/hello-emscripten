@@ -9,11 +9,10 @@
 #include <glm/glm.hpp>
 
 #include "../utility/vulkan_resource.h"
+#include "../utility/xr_resource.h"
 #include "../utility/vulkan_memory_allocator_resource.h"
 #include "../state/client.h"
-
 #include "view.h"
-#include "reality.h"
 
 struct a2b10g10r10 {
     std::uint32_t a : 2, b : 10, g : 10, r : 10;
@@ -48,7 +47,7 @@ struct platform {
     XrSystemId system_id;
     XrSession session;
     XrSwapchain color_swapchain;
-    std::vector<VkImage> color_images, depth_images;
+    std::vector<VkImage> color_images;
     XrExtent2Di xr_extent;
     VkFormat xr_color_format;
 };
@@ -75,7 +74,6 @@ struct visuals {
     VkPhysicalDeviceMemoryProperties properties;
     uint32_t graphics_queue_family = ~0u;
     uint32_t present_queue_family = ~0u;
-    std::vector<VkImage> color_images, depth_images;
     platform create_info;
 
     XrViewConfigurationView view_configuration_view;

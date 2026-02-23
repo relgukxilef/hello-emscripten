@@ -5,7 +5,7 @@
 
 #include <openxr/openxr.h>
 
-struct xr_error : public std::exception {
+struct xr_error : std::exception {
     xr_error(XrResult result) noexcept;
 
     const char *what() const noexcept override;

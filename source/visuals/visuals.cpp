@@ -8,7 +8,6 @@
 
 #include "../utility/out_ptr.h"
 #include "../utility/file.h"
-#include "../utility/math.h"
 #include "../utility/trace.h"
 #include "openxr/openxr.h"
 
@@ -25,8 +24,6 @@ visuals::visuals(
     properties = create_info.properties;
     graphics_queue_family = create_info.graphics_queue_family;
     present_queue_family = create_info.present_queue_family;
-    color_images = create_info.color_images;
-    depth_images = create_info.depth_images;
     
     // TODO: don't unpack the platform
     this->create_info = create_info;

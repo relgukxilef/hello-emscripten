@@ -1,7 +1,6 @@
 #include "view.h"
 
 #include <algorithm>
-#include <cinttypes>
 #include <cstdint>
 #include <cstdio>
 #include <glm/gtc/matrix_transform.hpp>
@@ -11,15 +10,16 @@
 #include "glm/ext/matrix_clip_space.hpp"
 #include "openxr/openxr.h"
 #include "visuals.h"
-
+#include "../utility/xr_resource.h"
 #include "../utility/out_ptr.h"
-#include "../utility/math.h"
 #include "../utility/trace.h"
 #include "vulkan/vulkan_core.h"
 
+using namespace std;
+
 void record_command_buffer(
     client& client, visuals& visuals, view& view, image& image,
-    VkPipelineLayout pipeline_layout
+    VkPipelineLayout pipeline_layout, int view_size
 ) {
     scope_trace trace;
     // The old command buffer is reset before this, so writing descriptors is ok
@@ -32,40 +32,16 @@ void record_command_buffer(
     );
 
     auto primitive = 0u;
-    for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
-        if (primitive >= view.descriptor_set_count)
-            break;
-        image_info[primitive] = {
-            .sampler = visuals.default_sampler.get(),
-            .imageView = visuals.images[
-                std::min<unsigned>(
-                    client.test_model.images.size() +
-                    client.world_model.primitives[j].image_index,
-                    visuals.images.size() - 1
-                )
-            ].view.get(),
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-        };
-        write_descriptor_sets[primitive] = {
-            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-            .dstSet = image.descriptor_sets[primitive],
-            .dstBinding = 1,
-            .dstArrayElement = 0,
-            .descriptorCount = 1,
-            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo = &image_info[primitive],
-        };
-        primitive++;
-    }
-    for (auto i = 0u; i < client.users.position.size(); i++) {
-        for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+    for (auto v = 0u; v < view_size; v++) {
+        for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
             if (primitive >= view.descriptor_set_count)
                 break;
             image_info[primitive] = {
                 .sampler = visuals.default_sampler.get(),
                 .imageView = visuals.images[
                     std::min<unsigned>(
-                        client.test_model.primitives[j].image_index,
+                        client.test_model.images.size() +
+                        client.world_model.primitives[j].image_index,
                         visuals.images.size() - 1
                     )
                 ].view.get(),
@@ -81,6 +57,32 @@ void record_command_buffer(
                 .pImageInfo = &image_info[primitive],
             };
             primitive++;
+        }
+        for (auto i = 0u; i < client.users.position.size(); i++) {
+            for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+                if (primitive >= view.descriptor_set_count)
+                    break;
+                image_info[primitive] = {
+                    .sampler = visuals.default_sampler.get(),
+                    .imageView = visuals.images[
+                        std::min<unsigned>(
+                            client.test_model.primitives[j].image_index,
+                            visuals.images.size() - 1
+                        )
+                    ].view.get(),
+                    .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                };
+                write_descriptor_sets[primitive] = {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = image.descriptor_sets[primitive],
+                    .dstBinding = 1,
+                    .dstArrayElement = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                    .pImageInfo = &image_info[primitive],
+                };
+                primitive++;
+            }
         }
     }
 
@@ -105,123 +107,81 @@ void record_command_buffer(
         {.depthStencil{1.0f, 0}},
         {.color{{0.929f, 0.788f, 0.318f, 1.0f}}},
     };
-    VkRenderPassBeginInfo render_pass_begin_info{
-        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-        .renderPass = view.render_pass.get(),
-        .framebuffer = image.framebuffer.get(),
-        .renderArea{
+    
+    primitive = 0u;
+    for (auto v = 0u; v < view_size; v++) {
+        VkRenderPassBeginInfo render_pass_begin_info{
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = view.render_pass.get(),
+            .framebuffer = image.framebuffers[v].get(),
+            .renderArea{
+                .offset = {0, 0},
+                .extent = view.extent,
+            },
+            .clearValueCount =
+                static_cast<uint32_t>(std::size(clearValue)),
+            .pClearValues = clearValue,
+        };
+        vkCmdBeginRenderPass(
+            image.draw_command_buffer, &render_pass_begin_info,
+            VK_SUBPASS_CONTENTS_INLINE
+        );
+
+        vkCmdBindPipeline(
+            image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+            view.pipeline.get()
+        );
+
+        VkViewport viewport{
+            .x = 0,
+            .y = 0,
+            .width = (float)width,
+            .height = (float)height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f,
+        };
+        vkCmdSetViewport(image.draw_command_buffer, 0, 1, &viewport);
+
+        VkRect2D scissors{
             .offset = {0, 0},
             .extent = view.extent,
-        },
-        .clearValueCount =
-            static_cast<uint32_t>(std::size(clearValue)),
-        .pClearValues = clearValue,
-    };
-    vkCmdBeginRenderPass(
-        image.draw_command_buffer, &render_pass_begin_info,
-        VK_SUBPASS_CONTENTS_INLINE
-    );
-
-    vkCmdBindPipeline(
-        image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        view.pipeline.get()
-    );
-
-    VkViewport viewport{
-        .x = 0,
-        .y = 0,
-        .width = (float)width,
-        .height = (float)height,
-        .minDepth = 0.0f,
-        .maxDepth = 1.0f,
-    };
-    vkCmdSetViewport(image.draw_command_buffer, 0, 1, &viewport);
-
-    VkRect2D scissors{
-        .offset = {0, 0},
-        .extent = view.extent,
-    };
-    vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
-
-    VkDescriptorSet descriptor_sets[] {
-        image.descriptor_sets[0],
-    };
-
-    VkBuffer vertex_buffers[] = {
-        visuals.vertex_buffer.get(), visuals.vertex_buffer.get(),
-        visuals.vertex_buffer.get(),
-    };
-
-    vkCmdBindDescriptorSets(
-        image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
-        pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
-    );
-
-    primitive = 0u;
-
-    // draw world
-    {
-        auto& model = visuals.models[1];
-
-        VkDeviceSize offsets[] = {
-            model.position_offset,
-            model.normal_offset,
-            model.texture_coordinate_offset,
         };
-        vkCmdBindVertexBuffers(
-            image.draw_command_buffer, 0, std::size(vertex_buffers),
-            vertex_buffers, offsets
-        );
-        vkCmdBindIndexBuffer(
-            image.draw_command_buffer, visuals.index_buffer.get(),
-            model.indices_offset, VK_INDEX_TYPE_UINT32
-        );
-    }
+        vkCmdSetScissor(image.draw_command_buffer, 0, 1, &scissors);
 
-    for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
-        if (primitive >= view.descriptor_set_count)
-            break;
         VkDescriptorSet descriptor_sets[] {
-            image.descriptor_sets[primitive],
+            image.descriptor_sets[0],
         };
+
+        VkBuffer vertex_buffers[] = {
+            visuals.vertex_buffer.get(), visuals.vertex_buffer.get(),
+            visuals.vertex_buffer.get(),
+        };
+
         vkCmdBindDescriptorSets(
             image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
             pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
         );
 
-        vkCmdDrawIndexed(
-            image.draw_command_buffer,
-            client.world_model.primitives[j].face_size,
-            1,
-            client.world_model.primitives[j].face_begin,
-            client.world_model.primitives[j].vertex_begin,
-            0
-        );
+        // draw world
+        {
+            auto& model = visuals.models[1];
 
-        primitive++;
-    }
+            VkDeviceSize offsets[] = {
+                model.position_offset,
+                model.normal_offset,
+                model.texture_coordinate_offset,
+            };
+            vkCmdBindVertexBuffers(
+                image.draw_command_buffer, 0, std::size(vertex_buffers),
+                vertex_buffers, offsets
+            );
+            vkCmdBindIndexBuffer(
+                image.draw_command_buffer, visuals.index_buffer.get(),
+                model.indices_offset, VK_INDEX_TYPE_UINT32
+            );
+        }
 
-    // draw users
-    {
-        auto& model = visuals.models[0];
-
-        VkDeviceSize offsets[] = {
-            model.position_offset,
-            model.normal_offset,
-            model.texture_coordinate_offset,
-        };
-        vkCmdBindVertexBuffers(
-            image.draw_command_buffer, 0, std::size(vertex_buffers),
-            vertex_buffers, offsets
-        );
-        vkCmdBindIndexBuffer(
-            image.draw_command_buffer, visuals.index_buffer.get(),
-            model.indices_offset, VK_INDEX_TYPE_UINT32
-        );
-    }
-
-    for (auto i = 0u; i < client.users.position.size(); i++) {
-        for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+        for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
             if (primitive >= view.descriptor_set_count)
                 break;
             VkDescriptorSet descriptor_sets[] {
@@ -234,18 +194,62 @@ void record_command_buffer(
 
             vkCmdDrawIndexed(
                 image.draw_command_buffer,
-                client.test_model.primitives[j].face_size,
+                client.world_model.primitives[j].face_size,
                 1,
-                client.test_model.primitives[j].face_begin,
-                client.test_model.primitives[j].vertex_begin,
+                client.world_model.primitives[j].face_begin,
+                client.world_model.primitives[j].vertex_begin,
                 0
             );
 
             primitive++;
         }
-    }
 
-    vkCmdEndRenderPass(image.draw_command_buffer);
+        // draw users
+        {
+            auto& model = visuals.models[0];
+
+            VkDeviceSize offsets[] = {
+                model.position_offset,
+                model.normal_offset,
+                model.texture_coordinate_offset,
+            };
+            vkCmdBindVertexBuffers(
+                image.draw_command_buffer, 0, std::size(vertex_buffers),
+                vertex_buffers, offsets
+            );
+            vkCmdBindIndexBuffer(
+                image.draw_command_buffer, visuals.index_buffer.get(),
+                model.indices_offset, VK_INDEX_TYPE_UINT32
+            );
+        }
+
+        for (auto i = 0u; i < client.users.position.size(); i++) {
+            for (auto j = 0u; j < client.test_model.primitives.size(); j++) {
+                if (primitive >= view.descriptor_set_count)
+                    break;
+                VkDescriptorSet descriptor_sets[] {
+                    image.descriptor_sets[primitive],
+                };
+                vkCmdBindDescriptorSets(
+                    image.draw_command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                    pipeline_layout, 0, 1, descriptor_sets, 0, nullptr
+                );
+
+                vkCmdDrawIndexed(
+                    image.draw_command_buffer,
+                    client.test_model.primitives[j].face_size,
+                    1,
+                    client.test_model.primitives[j].face_begin,
+                    client.test_model.primitives[j].vertex_begin,
+                    0
+                );
+
+                primitive++;
+            }
+        }
+
+        vkCmdEndRenderPass(image.draw_command_buffer);
+    }
 
     check(vkEndCommandBuffer(image.draw_command_buffer));
 }
@@ -321,13 +325,12 @@ view::view(client& c, struct visuals& v) {
     uint32_t image_count;
     std::unique_ptr<VkImage[]> swapchain_images;
     if (v.session) {
-        // TODO: set surface_format to what is supported by XR
-        image_count = v.color_images.size();
+        image_count = v.create_info.color_images.size();        
         
         swapchain_images = std::make_unique<VkImage[]>(image_count);
 
         for (auto i = 0u; i < image_count; i++) {
-            swapchain_images[i] = v.color_images[i];
+            swapchain_images[i] = v.create_info.color_images[i];
         }
 
     } else {
@@ -627,7 +630,16 @@ view::view(client& c, struct visuals& v) {
         ));
     }
 
-    images = std::make_unique<image[]>(image_count);
+    uint32_t view_configuration_view_count = 1;
+    if (v.session) {
+        check(xrEnumerateViewConfigurationViews(
+            v.create_info.xr_instance, v.create_info.system_id, 
+            XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            0, &view_configuration_view_count, nullptr
+        ));
+    }
+
+    images = make_unique<image[]>(image_count);
 
     {
         for (auto i = 0u; i < image_count; i++) {
@@ -746,7 +758,7 @@ view::view(client& c, struct visuals& v) {
                     .depth = 1
                 },
                 .mipLevels = 1,
-                .arrayLayers = 1,
+                .arrayLayers = 2,
                 .samples = VK_SAMPLE_COUNT_2_BIT,
                 .tiling = VK_IMAGE_TILING_OPTIMAL,
                 .usage =
@@ -796,7 +808,7 @@ view::view(client& c, struct visuals& v) {
             ));
         }
 
-        {
+        for (uint32_t j = 0; j < view_configuration_view_count; j++) {
             VkImageViewCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .image = image.color_image.get(),
@@ -806,13 +818,13 @@ view::view(client& c, struct visuals& v) {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel = 0,
                     .levelCount = 1,
-                    .baseArrayLayer = 0,
+                    .baseArrayLayer = j,
                     .layerCount = 1,
                 },
             };
             check(vkCreateImageView(
                 v.device, &create_info, nullptr,
-                out_ptr(image.color_view)
+                out_ptr(image.color_views[j])
             ));
         }
 
@@ -827,7 +839,7 @@ view::view(client& c, struct visuals& v) {
                     .depth = 1
                 },
                 .mipLevels = 1,
-                .arrayLayers = 1,
+                .arrayLayers = 2,
                 .samples = VK_SAMPLE_COUNT_2_BIT,
                 .tiling = VK_IMAGE_TILING_OPTIMAL,
                 .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
@@ -875,7 +887,7 @@ view::view(client& c, struct visuals& v) {
             ));
         }
 
-        {
+        for (uint32_t j = 0; j < view_configuration_view_count; j++) {
             VkImageViewCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .image = image.depth_image.get(),
@@ -886,17 +898,17 @@ view::view(client& c, struct visuals& v) {
                         VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT,
                     .baseMipLevel = 0,
                     .levelCount = 1,
-                    .baseArrayLayer = 0,
+                    .baseArrayLayer = j,
                     .layerCount = 1,
                 },
             };
             check(vkCreateImageView(
                 v.device, &create_info, nullptr,
-                out_ptr(image.depth_view)
+                out_ptr(image.depth_views[j])
             ));
         }
 
-        {
+        for (uint32_t j = 0; j < view_configuration_view_count; j++) {
             VkImageViewCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
                 .image = swapchain_images[i],
@@ -906,21 +918,21 @@ view::view(client& c, struct visuals& v) {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel = 0,
                     .levelCount = 1,
-                    .baseArrayLayer = 0,
+                    .baseArrayLayer = j,
                     .layerCount = 1,
                 },
             };
             check(vkCreateImageView(
                 v.device, &create_info, nullptr,
-                out_ptr(image.image_view)
+                out_ptr(image.image_views[j])
             ));
         }
 
-        {
+        for (uint32_t j = 0; j < view_configuration_view_count; j++) {
             auto attachments = {
-                image.color_view.get(),
-                image.depth_view.get(),
-                image.image_view.get(),
+                image.color_views[j].get(),
+                image.depth_views[j].get(),
+                image.image_views[j].get(),
             };
             VkFramebufferCreateInfo create_info = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -933,7 +945,7 @@ view::view(client& c, struct visuals& v) {
             };
             check(vkCreateFramebuffer(
                 v.device, &create_info, nullptr,
-                out_ptr(image.framebuffer)
+                out_ptr(image.framebuffers[j])
             ));
         }
 
@@ -949,7 +961,7 @@ view::view(client& c, struct visuals& v) {
 
         record_command_buffer(
             c, v, *this, image,
-            v.pipeline_layout.get()
+            v.pipeline_layout.get(), view_configuration_view_count
         );
     }
 }
@@ -960,7 +972,7 @@ VkResult view::draw(visuals &v, ::client& client) {
     XrFrameState frame_state {
         .type = XR_TYPE_FRAME_STATE,
     };
-    uint32_t view_size = 0;
+    uint32_t view_size = 1;
     XrView views[2] { { .type = XR_TYPE_VIEW }, { .type = XR_TYPE_VIEW } };
 
     if (v.session) {
@@ -1024,15 +1036,21 @@ VkResult view::draw(visuals &v, ::client& client) {
         v.device, 1, fences
     ));
 
-    {
+    auto primitive = 0u;
+    mapped_allocation parameter_mapping;
+    vulkan_memory_allocator_map_memory(
+        v.parameter_allocation.get(), out_ptr(parameter_mapping)
+    );
+    ::parameters* parameters = (::parameters*)parameter_mapping->bytes;
+    if (client.update_number != image.update_number) {
+        check(vkResetCommandBuffer(image.draw_command_buffer, 0));
+        record_command_buffer(
+            client, v, *v.view, image, v.pipeline_layout.get(), view_size
+        );
+        image.update_number = client.update_number;
+    }
+    for (auto i = 0u; i < view_size; i++) {
         scope_trace trace;
-        if (client.update_number != image.update_number) {
-            check(vkResetCommandBuffer(image.draw_command_buffer, 0));
-            record_command_buffer(
-                client, v, *v.view, image, v.pipeline_layout.get()
-            );
-            image.update_number = client.update_number;
-        }
 
         glm::mat4 projection = glm::infinitePerspective(
             glm::radians(60.0f),
@@ -1043,10 +1061,10 @@ VkResult view::draw(visuals &v, ::client& client) {
 
         if (v.session) {
             projection = glm::frustum(
-                tan(views[0].fov.angleLeft), 
-                tan(views[0].fov.angleRight), 
-                tan(views[0].fov.angleUp), 
-                tan(views[0].fov.angleDown), 
+                tan(views[i].fov.angleLeft), 
+                tan(views[i].fov.angleRight), 
+                tan(views[i].fov.angleUp), 
+                tan(views[i].fov.angleDown), 
                 1.0f,
                 -1.0f 
             );
@@ -1055,34 +1073,21 @@ VkResult view::draw(visuals &v, ::client& client) {
             );
 
             view = glm::mat4_cast(glm::inverse(glm::quat{
-                -views[0].pose.orientation.w, 
-                views[0].pose.orientation.x, 
-                views[0].pose.orientation.y, 
-                -views[0].pose.orientation.z,
+                -views[i].pose.orientation.w, 
+                views[i].pose.orientation.x, 
+                views[i].pose.orientation.y, 
+                -views[i].pose.orientation.z,
             }));
             view = glm::translate(view, -glm::vec3{
-                views[0].pose.position.x, 
-                views[0].pose.position.y, 
-                -views[0].pose.position.z,
+                views[i].pose.position.x, 
+                views[i].pose.position.y, 
+                -views[i].pose.position.z,
             });
             view = view * glm::mat4(glm::mat3(-1, 0, 0, 0, 0, 1, 0, 1, 0));
         }
 
         view = glm::translate(view, -client.user_position);
 
-
-        // TODO: read VkPhysicalDeviceLimits::nonCoherentAtomSize
-        uint32_t size = round_up(sizeof(::parameters), 128);
-
-        mapped_allocation parameter_mapping;
-        vulkan_memory_allocator_map_memory(
-            v.parameter_allocation.get(), out_ptr(parameter_mapping)
-        );
-        ::parameters* parameters = (::parameters*)parameter_mapping->bytes;
-        parameters->parameters[0].model_view_projection_matrix =
-            projection * view;
-
-        auto primitive = 0u;
         for (auto j = 0u; j < client.world_model.primitives.size(); j++) {
             if (primitive >= std::size(parameters->parameters))
                 break;
@@ -1112,11 +1117,10 @@ VkResult view::draw(visuals &v, ::client& client) {
                 primitive++;
             }
         }
-
-        vmaFlushAllocation(
-            v.allocator.get(), v.parameter_allocation.get(), 0, VK_WHOLE_SIZE
-        );
     }
+    vmaFlushAllocation(
+        v.allocator.get(), v.parameter_allocation.get(), 0, VK_WHOLE_SIZE
+    );
 
 
     VkSemaphore wait_semaphores[] =
@@ -1158,7 +1162,7 @@ VkResult view::draw(visuals &v, ::client& client) {
                 .subImage = {
                     .swapchain = v.create_info.color_swapchain,
                     .imageRect = { .extent = v.create_info.xr_extent, },
-                    .imageArrayIndex = 0,
+                    .imageArrayIndex = i,
                 },
             };
         }
