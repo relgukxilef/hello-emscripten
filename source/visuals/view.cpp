@@ -284,8 +284,9 @@ view::view(client& c, struct visuals& v) {
     VkSurfaceFormatKHR surface_format = formats[0];
     for (auto i = 0u; i < format_count; i++) {
         auto format = formats[i];
+        // Other formats require doing color space transforms manually in shader
         if (
-            format.format == VK_FORMAT_A2B10G10R10_UNORM_PACK32 &&
+            format.format == VK_FORMAT_B8G8R8A8_SRGB &&
             format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
         ) {
             surface_format = format;

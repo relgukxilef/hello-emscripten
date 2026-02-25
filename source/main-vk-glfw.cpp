@@ -383,6 +383,8 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
         surface_format = VkFormat(formats[0]);
         for (auto i = 0u; i < format_count; i++) {
             auto format = VkFormat(formats[i]);
+            // TODO: maybe prefer VK_FORMAT_B10G11R11_UFLOAT_PACK32,
+            // though it is not supported on SteamVR
             if (format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) {
                 surface_format = format;
             }
