@@ -224,8 +224,11 @@ int main(int argc, char *argv[]) {
         ));
         color_images.resize(swapchain_image_count);
         for (auto i = 0u; i < swapchain_image_count; i++) {
+            // TODO: create new swapchain if recommended resolution changes
             auto swapchain_image = vglVkImageFromGL(
-                swapchain_images[i].image, gl_surface_format, width, height, 2
+                swapchain_images[i].image, gl_surface_format, 
+                xr_extent.width, xr_extent.height, 
+                2
             );
             color_images[i] = swapchain_image;
         }
@@ -266,7 +269,7 @@ int main(int argc, char *argv[]) {
 
     while (!glfwWindowShouldClose(window.get())) {
         double time = glfwGetTime();
-        float delta = time - previous_time;
+        float delta = double(time - previous_time);
         previous_time = time;
 
         glfwGetWindowSize(window.get(), &width, &height);
