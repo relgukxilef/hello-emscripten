@@ -4,6 +4,7 @@
 #include <atomic>
 
 #include <vulkan/vulkan_core.h>
+#include <openxr/openxr.h>
 
 #include "../utility/vulkan_resource.h"
 #include "../state/client.h"
@@ -19,10 +20,10 @@ struct image {
     unique_image depth_image;
     unique_device_memory color_memory;
     unique_device_memory depth_memory;
-    unique_image_view color_view;
-    unique_image_view depth_view;
-    unique_image_view image_view;
-    unique_framebuffer framebuffer;
+    unique_image_view color_views[2]; // stereo
+    unique_image_view depth_views[2];
+    unique_image_view image_views[2];
+    unique_framebuffer framebuffers[2];
 
     unique_semaphore draw_finished_semaphore;
     unique_fence draw_finished_fence;
@@ -32,9 +33,7 @@ struct image {
 };
 
 struct view {
-    view(
-        client& c, struct visuals& v, VkInstance instance, VkSurfaceKHR surface
-    );
+    view(client& c, struct visuals& v);
 
     VkResult draw(struct visuals& v, ::client& client);
 
@@ -43,8 +42,9 @@ struct view {
     unique_descriptor_pool descriptor_pool;
 
     unique_swapchain swapchain;
+    XrSwapchain xr_swapchain;
 
-    VkExtent2D surface_extent;
+    VkExtent2D extent;
 
     unsigned descriptor_set_count = 256; // per image
 

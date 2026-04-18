@@ -1,16 +1,20 @@
-#include "utility/trace.h"
+#include <cstdint>
 #include <cstdio>
 #include <stdexcept>
-#include <cstring>
 #include <memory>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <openxr/openxr.h>
+#include <openxr/openxr_platform.h>
 
+#include "utility/trace.h"
 #include "main-glfw.h"
 #include "hello.h"
+#include "visuals/visuals.h"
 #include "utility/resource.h"
 #include "utility/vulkan_resource.h"
+#include "utility/xr_resource.h"
 #include "utility/out_ptr.h"
 
 struct glfw_error : public std::exception {
@@ -47,46 +51,21 @@ void error_callback(int error, const char* description) {
     std::fprintf(stderr, "Error %i: %s\n", error, description);
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-    VkDebugUtilsMessageTypeFlagsEXT,
-    const VkDebugUtilsMessengerCallbackDataEXT* callback_data,
-    void*
-) noexcept {
-    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        std::fprintf(
-            stderr, "Validation layer error: %s\n", callback_data->pMessage
-        );
-    } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        std::fprintf(
-            stderr, "Validation layer warning: %s\n", callback_data->pMessage
-        );
-    }
+struct vk_glfw_visuals {
+    vk_glfw_visuals(GLFWwindow* window, ::client& client);
+    unique_xr_instance xr_instance;
+    unique_instance vk_instance;
+    VkPhysicalDeviceMemoryProperties properties;
+    uint32_t graphics_queue_family = ~0u;
+    uint32_t present_queue_family = ~0u;
+    unique_surface surface;
+    unique_device vk_device;
+    unique_xr_session xr_session;
+    unique_xr_swapchain color_swapchain;
+    std::unique_ptr<::visuals> visuals;
+};
 
-    return VK_FALSE;
-}
-
-int main(int argc, char *argv[]) {
-    start_trace("trace.json", 0);
-    unique_glfw glfw;
-
-    glfwSetErrorCallback(error_callback);
-
-    // set up error handling
-    VkDebugUtilsMessengerCreateInfoEXT debug_utils_messenger_create_info{
-        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-        .messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-        .messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-        .pfnUserCallback = debug_callback,
-        .pUserData = nullptr
-    };
-
+vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
     uint32_t glfw_extension_count = 0;
     auto glfw_extensions =
         glfwGetRequiredInstanceExtensions(&glfw_extension_count);
@@ -107,35 +86,380 @@ int main(int argc, char *argv[]) {
         extensions.get() + glfw_extension_count
     );
 
-    unique_instance instance;
     VkApplicationInfo application_info{
         .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
         .applicationVersion = 0,
-        .apiVersion = VK_MAKE_VERSION(1, 1, 0),
+        .apiVersion = VK_API_VERSION_1_0,
     };
     VkInstanceCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-        .pNext = &debug_utils_messenger_create_info,
+        .pNext = nullptr,
         .pApplicationInfo = &application_info,
         .enabledLayerCount = 0,
         .ppEnabledLayerNames = nullptr,
         .enabledExtensionCount = static_cast<uint32_t>(extension_count),
         .ppEnabledExtensionNames = extensions.get(),
     };
-    check(vkCreateInstance(&create_info, nullptr, out_ptr(instance)));
-    current_instance = instance.get();
+    VkPhysicalDevice physical_device;
+
+    XrSystemId system_id = {};
+    std::vector<VkImage> color_images;
+
+    try {
+        const char* xr_extensions[]{
+            XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME,
+        };
+        // TODO: check xrEnumerateInstanceExtensionProperties
+        XrInstanceCreateInfo xr_create_info{
+            .type = XR_TYPE_INSTANCE_CREATE_INFO,
+            .next = nullptr,
+            .applicationInfo = {
+                .applicationName = "HelloVR",
+                .applicationVersion = 1,
+                .engineName = "HelloVR",
+                .engineVersion = 1,
+                .apiVersion = XR_API_VERSION_1_0,
+            },
+            .enabledExtensionCount = std::size(xr_extensions),
+            .enabledExtensionNames = xr_extensions,
+        };
+        XrSystemGetInfo system_get_info {
+            .type = XR_TYPE_SYSTEM_GET_INFO,
+            .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
+        };
+
+        check(xrCreateInstance(
+            &xr_create_info, out_ptr(xr_instance)
+        ));
+        XrInstanceProperties instance_properties {
+            .type = XR_TYPE_INSTANCE_PROPERTIES,
+        };
+        check(xrGetInstanceProperties(
+            xr_instance.get(), &instance_properties
+        ));
+        check(xrGetSystem(xr_instance.get(), &system_get_info, &system_id));
+
+        XrGraphicsRequirementsVulkanKHR requirements {
+            .type = XR_TYPE_GRAPHICS_REQUIREMENTS_VULKAN_KHR,
+        };
+        PFN_xrGetVulkanGraphicsRequirementsKHR 
+        xrGetVulkanGraphicsRequirements2KHR;
+        check(xrGetInstanceProcAddr(
+            xr_instance.get(), "xrGetVulkanGraphicsRequirements2KHR",
+            (PFN_xrVoidFunction*)&xrGetVulkanGraphicsRequirements2KHR
+        ));
+        check(xrGetVulkanGraphicsRequirements2KHR(
+            xr_instance.get(), system_id, &requirements
+        ));
+
+        XrVersion vulkan_api_version = XR_MAKE_VERSION(
+            VK_API_VERSION_MAJOR(application_info.apiVersion),
+            VK_API_VERSION_MINOR(application_info.apiVersion),
+            0
+        );
+        if (
+            requirements.minApiVersionSupported > vulkan_api_version ||
+            requirements.maxApiVersionSupported < vulkan_api_version
+        ) {
+            throw std::runtime_error("Vulkan version not supported.");
+        }
+
+        XrVulkanInstanceCreateInfoKHR xr_vulkan_create_info{
+            .type = XR_TYPE_VULKAN_INSTANCE_CREATE_INFO_KHR,
+            .next = nullptr,
+            .systemId = system_id,
+            .pfnGetInstanceProcAddr = &vkGetInstanceProcAddr,
+            .vulkanCreateInfo = &create_info,
+        };
+        VkResult vk_result;
+        PFN_xrCreateVulkanInstanceKHR xrCreateVulkanInstanceKHR;
+        check(xrGetInstanceProcAddr(
+            xr_instance.get(), "xrCreateVulkanInstanceKHR",
+            (PFN_xrVoidFunction*)&xrCreateVulkanInstanceKHR
+        ));
+        check(xrCreateVulkanInstanceKHR(
+            xr_instance.get(), &xr_vulkan_create_info, out_ptr(vk_instance), 
+            &vk_result
+        ));
+        check(vk_result);
+
+        XrVulkanGraphicsDeviceGetInfoKHR get_info {
+            .type = XR_TYPE_VULKAN_GRAPHICS_DEVICE_GET_INFO_KHR,
+            .next = nullptr,
+            .systemId = system_id,
+            .vulkanInstance = vk_instance.get(),
+        };
+        PFN_xrGetVulkanGraphicsDevice2KHR xrGetVulkanGraphicsDevice2KHR;
+        check(xrGetInstanceProcAddr(
+            xr_instance.get(), "xrGetVulkanGraphicsDevice2KHR",
+            (PFN_xrVoidFunction*)&xrGetVulkanGraphicsDevice2KHR
+        ));
+        check(xrGetVulkanGraphicsDevice2KHR(
+            xr_instance.get(), &get_info, &physical_device
+        ));
+
+    } catch (std::exception& e) {
+        std::printf("Starting without VR support. (%s)\n", e.what());
+        xr_instance.reset();
+        check(vkCreateInstance(&create_info, nullptr, out_ptr(vk_instance)));
+    
+        uint32_t device_count = 0;
+        vkEnumeratePhysicalDevices(vk_instance.get(), &device_count, nullptr);
+        {
+            auto devices = std::make_unique<VkPhysicalDevice[]>(device_count);
+            check(vkEnumeratePhysicalDevices(
+                vk_instance.get(), &device_count, devices.get()
+            ));
+    
+            physical_device = devices[0]; // just pick the first one
+        }
+    }
+    current_instance = vk_instance.get();
+    
+    check(glfwCreateWindowSurface(
+        vk_instance.get(), window, nullptr, out_ptr(surface))
+    );
+
+    
+    // find memory types
+    vkGetPhysicalDeviceMemoryProperties(physical_device, &properties);
+
+    uint32_t queue_family_count = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        physical_device, &queue_family_count, nullptr
+    );
+    auto queue_families =
+        std::make_unique<VkQueueFamilyProperties[]>(queue_family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(
+        physical_device, &queue_family_count, queue_families.get()
+    );
+
+    for (auto i = 0u; i < queue_family_count; i++) {
+        const auto& queueFamily = queue_families[i];
+        if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            graphics_queue_family = i;
+        }
+
+        VkBool32 present_support = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(
+            physical_device, i, surface.get(), &present_support
+        );
+        if (present_support) {
+            present_queue_family = i;
+        }
+    }
+    if (graphics_queue_family == ~0u) {
+        throw std::runtime_error("no suitable queue found");
+    }
+
+    // create logical device
+    {
+        float priority = 1.0f;
+        VkDeviceQueueCreateInfo queue_create_infos[]{
+            {
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .queueFamilyIndex = graphics_queue_family,
+                .queueCount = 1,
+                .pQueuePriorities = &priority,
+            }, {
+                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                .queueFamilyIndex = present_queue_family,
+                .queueCount = 1,
+                .pQueuePriorities = &priority,
+            }
+        };
+
+        // One queue per family
+        std::uint32_t queue_count = 
+            1 + (graphics_queue_family != present_queue_family);
+
+        const char* enabled_extension_names[] = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        };
+
+        VkPhysicalDeviceFeatures device_features{
+            .alphaToOne = VK_TRUE,
+            .shaderStorageImageMultisample = VK_TRUE,
+        };
+        VkDeviceCreateInfo create_info{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .queueCreateInfoCount = queue_count,
+            .pQueueCreateInfos = queue_create_infos,
+            .enabledExtensionCount =
+                static_cast<uint32_t>(std::size(enabled_extension_names)),
+            .ppEnabledExtensionNames = enabled_extension_names,
+            .pEnabledFeatures = &device_features,
+        };
+
+        if (xr_instance) {
+            PFN_xrCreateVulkanDeviceKHR xrCreateVulkanDeviceKHR;
+            check(xrGetInstanceProcAddr(
+                xr_instance.get(), "xrCreateVulkanDeviceKHR",
+                (PFN_xrVoidFunction*)&xrCreateVulkanDeviceKHR
+            ));
+            VkResult vk_result;
+            XrVulkanDeviceCreateInfoKHR xr_vulkan_device_create_info{
+                .type = XR_TYPE_VULKAN_DEVICE_CREATE_INFO_KHR,
+                .next = nullptr,
+                .systemId = system_id,
+                .pfnGetInstanceProcAddr = &vkGetInstanceProcAddr,
+                .vulkanPhysicalDevice = physical_device,
+                .vulkanCreateInfo = &create_info,
+            };
+            check(xrCreateVulkanDeviceKHR(
+                xr_instance.get(), &xr_vulkan_device_create_info, 
+                out_ptr(vk_device), &vk_result
+            ));
+            check(vk_result);
+
+        } else {
+           check(vkCreateDevice(
+                physical_device, &create_info, nullptr, out_ptr(vk_device)
+            ));
+        }
+        current_device = vk_device.get();
+    }
+
+    XrExtent2Di xr_extent {};
+    VkFormat surface_format {};
+
+    if (xr_instance) {
+        XrGraphicsBindingVulkan2KHR vulkan_graphics_binding {
+            .type = XR_TYPE_GRAPHICS_BINDING_VULKAN2_KHR,
+            .next = nullptr,
+            .instance = vk_instance.get(),
+            .physicalDevice = physical_device,
+            .device = vk_device.get(),
+            .queueFamilyIndex = graphics_queue_family,
+            .queueIndex = 0,
+        };
+
+        XrSessionCreateInfo session_create_info {
+            .type = XR_TYPE_SESSION_CREATE_INFO,
+            .next = &vulkan_graphics_binding,
+            .systemId = system_id,
+        };
+        check(xrCreateSession(
+            xr_instance.get(), &session_create_info, out_ptr(xr_session)
+        ));
+
+        uint32_t view_configuration_view_count = 0;
+        check(xrEnumerateViewConfigurationViews(
+            xr_instance.get(), system_id, 
+            XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            0, &view_configuration_view_count, nullptr
+        ));
+        std::vector<XrViewConfigurationView> view_configuration_views(
+            view_configuration_view_count
+        );
+        for (auto& v : view_configuration_views) {
+            v.type = XR_TYPE_VIEW_CONFIGURATION_VIEW;
+        }
+        check(xrEnumerateViewConfigurationViews(
+            xr_instance.get(), system_id, 
+            XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO,
+            view_configuration_view_count, &view_configuration_view_count,
+            view_configuration_views.data()
+        ));
+        // TODO: views could have different size
+        xr_extent = {
+            .width = 
+                int32_t(view_configuration_views[0].recommendedImageRectWidth),
+            .height = 
+                int32_t(view_configuration_views[0].recommendedImageRectHeight),
+        };
+
+        uint32_t format_count = 0;
+        check(xrEnumerateSwapchainFormats(
+            xr_session.get(), 0, &format_count, nullptr
+        ));
+        std::vector<int64_t> formats(format_count);
+        check(xrEnumerateSwapchainFormats(
+            xr_session.get(), format_count, &format_count, 
+            formats.data()
+        ));
+        // TODO: client should decide format, but swapchain creation is platform
+        // specific
+        surface_format = VkFormat(formats[0]);
+        for (auto i = 0u; i < format_count; i++) {
+            auto format = VkFormat(formats[i]);
+            // TODO: maybe prefer VK_FORMAT_B10G11R11_UFLOAT_PACK32,
+            // though it is not supported on SteamVR
+            if (format == VK_FORMAT_A2B10G10R10_UNORM_PACK32) {
+                surface_format = format;
+            }
+        }
+
+        XrSwapchainCreateInfo swapchain_create_info {
+            .type = XR_TYPE_SWAPCHAIN_CREATE_INFO,
+            .usageFlags = 
+                XR_SWAPCHAIN_USAGE_COLOR_ATTACHMENT_BIT |
+                XR_SWAPCHAIN_USAGE_SAMPLED_BIT,
+            .format = int64_t(surface_format),
+            .sampleCount = 1,
+            .width = view_configuration_views[0].recommendedImageRectWidth,
+            .height = view_configuration_views[0].recommendedImageRectHeight,
+            .faceCount = 1,
+            .arraySize = 2,
+            .mipCount = 1,
+        };
+        check(xrCreateSwapchain(
+            xr_session.get(), &swapchain_create_info, out_ptr(color_swapchain)
+        ));
+
+        uint32_t swapchain_image_count = 0;
+        check(xrEnumerateSwapchainImages(
+            color_swapchain.get(), 0, &swapchain_image_count, nullptr
+        ));
+        std::vector<XrSwapchainImageVulkan2KHR> swapchain_images(
+            swapchain_image_count, 
+            XrSwapchainImageVulkan2KHR { 
+                .type = XR_TYPE_SWAPCHAIN_IMAGE_VULKAN_KHR 
+            }
+        );
+        check(xrEnumerateSwapchainImages(
+            color_swapchain.get(), swapchain_image_count, 
+            &swapchain_image_count, 
+            reinterpret_cast<XrSwapchainImageBaseHeader*>(
+                swapchain_images.data()
+            )
+        ));
+        color_images.resize(swapchain_image_count);
+        for (auto i = 0u; i < swapchain_image_count; i++) {
+            auto& swapchain_image = swapchain_images[i];
+            color_images[i] = swapchain_image.image;
+        }
+    }
+
+    
+    visuals = std::make_unique<::visuals>(
+        client, platform{
+            vk_instance.get(), surface.get(), 
+            physical_device, vk_device.get(), 
+            properties, graphics_queue_family, present_queue_family,
+            
+            xr_instance.get(), 
+            system_id, xr_session.get(), color_swapchain.get(),
+            std::move(color_images),
+            xr_extent, surface_format
+        }
+    );
+}
+
+int main(int argc, char *argv[]) {
+    start_trace("trace.json", 0);
+    unique_glfw glfw;
+
+    glfwSetErrorCallback(error_callback);
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     unique_window window(check(glfwCreateWindow(
         1920, 1080, "Hello", nullptr, nullptr
     )));
 
-    unique_surface surface;
-    check(glfwCreateWindowSurface(
-        instance.get(), window.get(), nullptr, out_ptr(surface))
-    );
-
-    hello h(argv, instance.get(), surface.get());
+    hello h(argv);
+    
+    auto visuals = std::make_unique<vk_glfw_visuals>(window.get(), *h.client);
 
     ::input input{};
 
@@ -148,8 +472,17 @@ int main(int argc, char *argv[]) {
 
         update(input, window.get(), delta);
 
-        h.update(input);
-        h.draw(instance.get(), surface.get());
+        try {
+            h.update(
+                input, visuals->xr_instance.get(), visuals->xr_session.get()
+            );
+        } catch (xr_error& e) {
+            std::printf("XR error: %s\n", e.what());
+            visuals.reset();
+            visuals = 
+                std::make_unique<vk_glfw_visuals>(window.get(), *h.client);
+        }
+        visuals->visuals->draw(*h.client);
 
         glfwPollEvents();
     }

@@ -8,6 +8,7 @@ add_library(
     utility/out_ptr.h
     utility/resource.h
     utility/vulkan_resource.h utility/vulkan_resource.cpp
+    utility/xr_resource.h utility/xr_resource.cpp
     visuals/visuals.h visuals/visuals.cpp
     visuals/view.h visuals/view.cpp
     state/input.h state/input.cpp
@@ -120,6 +121,7 @@ else()
     target_link_libraries(
         hello PUBLIC
         OpenAL::OpenAL
+        OpenXR::openxr_loader
     )
 
     target_link_libraries(hello PRIVATE ${Boost_LIBRARIES})
@@ -140,6 +142,12 @@ else()
             Vulkan::Vulkan
             glfw
         )
+
+        target_compile_definitions(
+            hello PUBLIC 
+            XR_USE_GRAPHICS_API_VULKAN  
+            XR_USE_GRAPHICS_API_OPENGL
+        )
     endif()
 
     if (OpenGL_FOUND)
@@ -154,6 +162,10 @@ else()
             OpenGL::GL
             glfw
         )
+
+        if (WIN32)
+            target_sources(hello-gl PRIVATE main-win32-glfw.cpp)
+        endif()
     endif()
 
 

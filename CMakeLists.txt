@@ -26,8 +26,6 @@ endif()
 
 add_subdirectory(submodules/glm EXCLUDE_FROM_ALL)
 
-add_subdirectory(submodules/SPIRV-Cross EXCLUDE_FROM_ALL)
-
 add_subdirectory(submodules/VulkanGL EXCLUDE_FROM_ALL)
 
 set(BOOST_IOSTREAMS_ENABLE_ZLIB OFF)
@@ -37,6 +35,7 @@ if (NOT EMSCRIPTEN)
     # Can't figure out how to keep libpng from using the system library for
     # generated sources
     set(ZLIB_COMPAT ON)
+    set(WITH_GTEST OFF)
     add_subdirectory(submodules/zlib-ng EXCLUDE_FROM_ALL)
     add_library(ZLIB::ZLIB ALIAS zlib)
 
@@ -78,6 +77,7 @@ else()
 endif()
 
 add_subdirectory(submodules/VulkanMemoryAllocator EXCLUDE_FROM_ALL)
+add_subdirectory(submodules/OpenXR-SDK EXCLUDE_FROM_ALL)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -101,7 +101,12 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/google/shaderc.git
     GIT_TAG v2025.5
 )
-FetchContent_MakeAvailable(SPIRV-Headers SPIRV-Tools glslang glslc)
+FetchContent_Declare(
+    SPIRV-Cross
+    GIT_REPOSITORY https://github.com/KhronosGroup/SPIRV-Cross.git
+    GIT_TAG vulkan-sdk-1.4.341.0
+)
+FetchContent_MakeAvailable(SPIRV-Headers SPIRV-Tools glslang glslc SPIRV-Cross)
 
 add_subdirectory(source)
 

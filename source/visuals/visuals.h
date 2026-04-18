@@ -9,9 +9,9 @@
 #include <glm/glm.hpp>
 
 #include "../utility/vulkan_resource.h"
+#include "../utility/xr_resource.h"
 #include "../utility/vulkan_memory_allocator_resource.h"
 #include "../state/client.h"
-
 #include "view.h"
 
 struct a2b10g10r10 {
@@ -35,26 +35,50 @@ struct meshes {
     std::uint16_t faces_vertices[1024];
 };
 
-struct visuals {
-    visuals(::client& client, VkInstance instance, VkSurfaceKHR surface);
+struct platform {
+    VkInstance instance;
+    VkSurfaceKHR surface;
+    VkPhysicalDevice physical_device;
+    VkDevice device;
+    VkPhysicalDeviceMemoryProperties properties;
+    uint32_t graphics_queue_family, present_queue_family;
 
-    void draw(::client& client, VkInstance instance, VkSurfaceKHR surface);
+    XrInstance xr_instance;
+    XrSystemId system_id;
+    XrSession session;
+    XrSwapchain color_swapchain;
+    std::vector<VkImage> color_images;
+    XrExtent2Di xr_extent;
+    VkFormat xr_color_format;
+};
+
+struct visuals {
+    visuals(
+        ::client& client, platform create_info
+    );
+
+    void draw(::client& client);
 
     // TODO: let vma handle memory limits
     std::uint32_t vertex_memory_size = 128 * 1024 * 1024;
     std::uint32_t index_memory_size = 128 * 1024 * 1024;
     std::uint32_t pixel_memory_size = 1024 * 1024 * 1024;
 
-    unique_debug_utils_messenger debug_utils_messenger;
-
+    VkInstance instance;
+    VkSurfaceKHR surface;
     VkPhysicalDevice physical_device;
-
+    VkDevice device;
+    XrInstance xr_instance;
+    XrSystemId system_id;
+    XrSession session;
     VkPhysicalDeviceMemoryProperties properties;
+    uint32_t graphics_queue_family = ~0u;
+    uint32_t present_queue_family = ~0u;
+    platform create_info;
 
-    uint32_t graphics_queue_family = 0;
-    uint32_t present_queue_family = 0;
+    XrViewConfigurationView view_configuration_view;
 
-    unique_device device;
+    unique_xr_space space;
 
     unique_allocator allocator;
 
