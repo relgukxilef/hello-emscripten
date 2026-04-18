@@ -162,6 +162,10 @@ else()
             OpenGL::GL
             glfw
         )
+
+        if (WIN32)
+            target_sources(hello-gl PRIVATE main-win32-glfw.cpp)
+        endif()
     endif()
 
 

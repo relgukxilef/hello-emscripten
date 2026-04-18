@@ -1,8 +1,6 @@
-#include "utility/trace.h"
 #include <cstdint>
 #include <cstdio>
 #include <stdexcept>
-#include <cstring>
 #include <memory>
 
 #define GLFW_INCLUDE_VULKAN
@@ -10,6 +8,7 @@
 #include <openxr/openxr.h>
 #include <openxr/openxr_platform.h>
 
+#include "utility/trace.h"
 #include "main-glfw.h"
 #include "hello.h"
 #include "visuals/visuals.h"
@@ -62,7 +61,7 @@ struct vk_glfw_visuals {
     unique_surface surface;
     unique_device vk_device;
     unique_xr_session xr_session;
-    unique_xr_swapchain color_swapchain, depth_swapchain;
+    unique_xr_swapchain color_swapchain;
     std::unique_ptr<::visuals> visuals;
 };
 
@@ -103,31 +102,32 @@ vk_glfw_visuals::vk_glfw_visuals(GLFWwindow* window, ::client& client) {
     };
     VkPhysicalDevice physical_device;
 
-    const char* xr_extensions[]{
-        XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME,
-    };
-    // TODO: check xrEnumerateInstanceExtensionProperties
-    XrInstanceCreateInfo xr_create_info{
-        .type = XR_TYPE_INSTANCE_CREATE_INFO,
-        .next = nullptr,
-        .applicationInfo = {
-            .applicationName = "HelloVR",
-            .applicationVersion = 1,
-            .engineName = "HelloVR",
-            .engineVersion = 1,
-            .apiVersion = XR_API_VERSION_1_0,
-        },
-        .enabledExtensionCount = std::size(xr_extensions),
-        .enabledExtensionNames = xr_extensions,
-    };
-    XrSystemGetInfo system_get_info {
-        .type = XR_TYPE_SYSTEM_GET_INFO,
-        .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
-    };
     XrSystemId system_id = {};
-    std::vector<VkImage> color_images, depth_images;
+    std::vector<VkImage> color_images;
 
     try {
+        const char* xr_extensions[]{
+            XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME,
+        };
+        // TODO: check xrEnumerateInstanceExtensionProperties
+        XrInstanceCreateInfo xr_create_info{
+            .type = XR_TYPE_INSTANCE_CREATE_INFO,
+            .next = nullptr,
+            .applicationInfo = {
+                .applicationName = "HelloVR",
+                .applicationVersion = 1,
+                .engineName = "HelloVR",
+                .engineVersion = 1,
+                .apiVersion = XR_API_VERSION_1_0,
+            },
+            .enabledExtensionCount = std::size(xr_extensions),
+            .enabledExtensionNames = xr_extensions,
+        };
+        XrSystemGetInfo system_get_info {
+            .type = XR_TYPE_SYSTEM_GET_INFO,
+            .formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY,
+        };
+
         check(xrCreateInstance(
             &xr_create_info, out_ptr(xr_instance)
         ));

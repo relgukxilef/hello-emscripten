@@ -1,7 +1,7 @@
 #include "trace.h"
 #include <cstdio>
 #include <thread>
-#include <inttypes.h>
+#include <chrono>
 
 unsigned process_id;
 FILE *trace_file;
