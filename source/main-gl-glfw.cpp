@@ -14,6 +14,7 @@
 #include "utility/trace.h"
 #include "utility/xr_resource.h"
 #include "utility/out_ptr.h"
+#include "vulkan/vulkan_core.h"
 
 struct glfw_error : public std::exception {
     glfw_error() noexcept {};
@@ -63,6 +64,9 @@ int main(int argc, char *argv[]) {
     glfwMakeContextCurrent(window.get());
 
     gladLoadGLES2(glfwGetProcAddress);
+
+    VkInstance instance;
+    vkCreateInstance(nullptr, nullptr, &instance);
 
     vglSetDeviceMemory(256 * 1024 * 1024);
     vglSetHostMemory(256 * 1024 * 1024);
